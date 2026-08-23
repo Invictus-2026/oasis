@@ -92,7 +92,7 @@ ml/                  U-Net training notebook and weights
 |---|---|---|
 | 0 | Scaffold, frozen API contract, fixtures, dashboard shell | **Done** |
 | 1 | Freeze the case study bundle | **Done** |
-| 2 | Detection, geometry, look-alike rejection, age proxy | Not started |
+| 2 | Detection, geometry, look-alike rejection, age proxy | **Done** — IoU 0.878 |
 | 3 | Drift engine, hindcast cone, forecast | Not started |
 | 4 | AIS ingest, gap detection, explainable scoring | Not started |
 | 5 | Dashboard against real data | Shell done, fixture-backed |
@@ -105,6 +105,22 @@ router at a time; `backend/tests/test_contract.py` must keep passing unchanged
 throughout, which is the point of freezing the contract early.
 
 ---
+
+## Measured results
+
+Against the frozen `gom-2023-06-15` case, scored on the official Zenodo mask:
+
+| Metric | Value |
+|---|---|
+| Detection IoU | **0.878** |
+| Recall / precision | 0.931 / 0.939 |
+| Area | 15.9 km² (truth 16.0) |
+| Orientation | 65° (truth 65°) |
+| Look-alikes rejected | 2 of 2, each with a stated physical reason |
+| Age bracket | 4.5–19.1 h (truth 8.0 h) |
+
+The detector has no learned weights and is fully deterministic. Re-measure with
+`cd backend && .venv/bin/python -m pytest tests/test_detection.py -q`.
 
 ## Design rules
 
