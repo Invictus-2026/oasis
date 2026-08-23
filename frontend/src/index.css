@@ -1,0 +1,73 @@
+@import "tailwindcss";
+@import "maplibre-gl/dist/maplibre-gl.css";
+
+/* SpillTrace operations-console palette.
+   Dark by default: maps read better dark, and it looks like a watch-floor
+   tool rather than a web app. */
+@theme {
+  --color-ink-950: #070b12;
+  --color-ink-900: #0b111b;
+  --color-ink-850: #111927;
+  --color-ink-800: #172132;
+  --color-ink-700: #223047;
+  --color-ink-600: #33455f;
+
+  --color-mute-400: #7c8ca6;
+  --color-mute-300: #9fb0c8;
+  --color-mute-100: #dfe7f2;
+
+  /* Oil / slick */
+  --color-slick-500: #f0a03c;
+  --color-slick-400: #ffb85c;
+  /* Look-alikes we ruled out */
+  --color-reject-500: #6b7a92;
+  /* Drift cone */
+  --color-cone-500: #35c8d8;
+  /* Vessels */
+  --color-vessel-500: #7ee0a8;
+  /* Suspicion / dark vessel */
+  --color-alert-500: #f2545b;
+
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, monospace;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  background: var(--color-ink-950);
+  color: var(--color-mute-100);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Numeric readouts should be tabular so values do not jitter as they update. */
+.tnum {
+  font-variant-numeric: tabular-nums;
+  font-family: var(--font-mono);
+}
+
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--color-ink-700);
+  border-radius: 4px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.maplibregl-ctrl-attrib {
+  font-size: 10px;
+  background: rgba(7, 11, 18, 0.7) !important;
+}
+.maplibregl-ctrl-attrib a {
+  color: var(--color-mute-400) !important;
+}

@@ -1,0 +1,32 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+*.egg-info/
+.pytest_cache/
+.ipynb_checkpoints/
+
+# Node
+node_modules/
+dist/
+.vite/
+*.local
+
+# Data — large binaries stay out of git; scripts/build_case.py regenerates them
+data/raw/*
+!data/raw/.gitkeep
+data/case/*.tif
+data/case/*.tiff
+data/case/*.nc
+data/case/*.parquet
+ml/weights/*.pth
+ml/weights/*.pt
+
+# Env / secrets
+.env
+.env.*
+!.env.example
+
+# OS
+.DS_Store
