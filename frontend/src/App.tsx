@@ -47,10 +47,19 @@ export default function App() {
     slick: true, lookalikes: true, cone: true, particles: true, forecast: true, tracks: true,
   });
 
-  // ---- warm start: load the case immediately so nothing spins on stage ----
+  // ---- warm start ------------------------------------------------------
+  // Load the case AND run detection immediately. Two reasons: nothing spins
+  // during a live demo, and with no network basemap an empty map is
+  // indistinguishable from a broken one — there must be something on it the
+  // moment the page opens.
   useEffect(() => {
+    const off = onDataModeChange(setDataMode);
     api.getCase().then(setCaseMeta);
-    return onDataModeChange(setDataMode);
+    setDetecting(true);
+    api.detect("classical")
+      .then(setDetection)
+      .finally(() => setDetecting(false));
+    return off;
   }, []);
 
   const frames = hindcast?.particles_timeline.length ?? 0;

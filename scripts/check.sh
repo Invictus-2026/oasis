@@ -85,6 +85,13 @@ else
   y "frontend not running"
 fi
 
+h "Render"
+if curl -sf -m 3 -o /dev/null localhost:5173/ 2>/dev/null; then
+  if ./scripts/shot.sh .run/ui.png; then PASS=$((PASS+1)); else FAIL=$((FAIL+1)); fi
+else
+  y "frontend not running, skipping render check"
+fi
+
 h "Background download"
 F=data/raw/02_Test_images_and_ground_truth.7z
 if [ -f "$F" ]; then
@@ -103,11 +110,16 @@ printf "  %d passed, %d failed, %d warnings\n" "$PASS" "$FAIL" "$WARN"
 if [ "${1:-}" = "--serve" ]; then
   h "Starting servers"
   mkdir -p .run
-  (cd backend && exec ../$PY -m uvicorn app.main:app --port 8000) > .run/backend.log 2>&1 &
+  # setsid + nohup so the servers outlive this shell. A plain "&" leaves them
+  # as children that die when the invoking shell exits.
+  pkill -f "uvicorn app.main" 2>/dev/null; pkill -f "vite" 2>/dev/null; sleep 1
+  setsid nohup env -C "$ROOT/backend" "$ROOT/$PY" -m uvicorn app.main:app --port 8000 \
+    > .run/backend.log 2>&1 < /dev/null &
   echo "  backend  pid $! → .run/backend.log"
-  (cd frontend && exec npm run dev) > .run/frontend.log 2>&1 &
+  setsid nohup env -C "$ROOT/frontend" npm run dev \
+    > .run/frontend.log 2>&1 < /dev/null &
   echo "  frontend pid $! → .run/frontend.log"
-  sleep 4
+  sleep 6
   curl -sf -m 3 localhost:8000/health >/dev/null && g "backend ready" || r "backend failed, see .run/backend.log"
   curl -sf -m 3 -o /dev/null localhost:5173/ && g "frontend ready" || r "frontend failed, see .run/frontend.log"
   printf "\n  Open \033[36mhttp://localhost:5173\033[0m\n"

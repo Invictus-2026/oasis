@@ -1,5 +1,5 @@
 import maplibregl from "maplibre-gl";
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import type {
   AttributeResponse,
@@ -38,7 +38,6 @@ const EMPTY: GeoJSON.FeatureCollection = { type: "FeatureCollection", features: 
  *  venue's wifi, so the basemap is a flat colour plus our own data. */
 const STYLE: maplibregl.StyleSpecification = {
   version: 8,
-  glyphs: undefined,
   sources: {},
   layers: [{ id: "bg", type: "background", paint: { "background-color": "#0a1526" } }],
 };
@@ -49,7 +48,10 @@ export default function MapView({
 }: Props) {
   const container = useRef<HTMLDivElement>(null);
   const map = useRef<maplibregl.Map | null>(null);
-  const ready = useRef(false);
+  const resizeObs = useRef<ResizeObserver | null>(null);
+  // State, not a ref: when the style finishes loading the data effects below
+  // must re-run. A ref flips silently and they would never fire again.
+  const [ready, setReady] = useState(false);
   const onSelect = useRef(onSelectVessel);
   onSelect.current = onSelectVessel;
 
@@ -66,11 +68,32 @@ export default function MapView({
     m.addControl(new maplibregl.NavigationControl({ showCompass: true }), "bottom-right");
     m.addControl(new maplibregl.ScaleControl({ unit: "metric" }), "bottom-left");
 
+    // MapLibre measures the container once at construction. Inside a flex
+    // layout that measurement can land before the browser has resolved the
+    // final height, and the canvas silently falls back to 400x300 — a map that
+    // renders correctly into a corner too small to see. Observing the container
+    // and resizing keeps the canvas correct on first paint and on every window
+    // resize during a demo.
+    const ro = new ResizeObserver(() => m.resize());
+    ro.observe(container.current!);
+    resizeObs.current = ro;
+
+    // Surface style/render failures instead of leaving a silently blank canvas.
+    m.on("error", (e) => console.error("[SpillTrace] map error:", e?.error ?? e));
+
     m.on("load", () => {
-      for (const id of ["cone90", "cone50", "lookalikes", "slick", "particles",
-                        "forecastCone", "forecastPath", "tracks", "origin"]) {
+      for (const id of ["graticule", "frame", "cone90", "cone50", "lookalikes", "slick",
+                        "particles", "forecastCone", "forecastPath", "tracks", "origin"]) {
         m.addSource(id, { type: "geojson", data: EMPTY });
       }
+
+      // With no network basemap the ocean is a flat colour, and a flat colour
+      // is indistinguishable from a broken map. A graticule and an AOI frame
+      // give the view scale and orientation before any data exists.
+      m.addLayer({ id: "graticule-line", source: "graticule", type: "line",
+        paint: { "line-color": "#1d3350", "line-width": 1 } });
+      m.addLayer({ id: "frame-line", source: "frame", type: "line",
+        paint: { "line-color": "#31527d", "line-width": 1.5, "line-dasharray": [4, 3] } });
 
       // Draw order matters: cones sit under everything, the slick sits above
       // the look-alikes so the retained detection reads as primary.
@@ -128,12 +151,18 @@ export default function MapView({
       m.on("mouseenter", "tracks-line", () => { m.getCanvas().style.cursor = "pointer"; });
       m.on("mouseleave", "tracks-line", () => { m.getCanvas().style.cursor = ""; });
 
-      ready.current = true;
+      setReady(true);
       m.triggerRepaint();
     });
 
     map.current = m;
-    return () => { m.remove(); map.current = null; ready.current = false; };
+    return () => {
+      resizeObs.current?.disconnect();
+      resizeObs.current = null;
+      m.remove();
+      map.current = null;
+      setReady(false);
+    };
   }, []);
 
   const setData = (id: string, data: GeoJSON.FeatureCollection) => {
@@ -141,16 +170,36 @@ export default function MapView({
     src?.setData(data);
   };
 
-  // ---- fit to the case bbox --------------------------------------------
+  // ---- fit to the case bbox, draw the graticule and AOI frame ----------
   useEffect(() => {
     if (!map.current || !caseMeta) return;
     const b = caseMeta.bbox;
     map.current.fitBounds([[b.west, b.south], [b.east, b.north]], { padding: 60, duration: 700 });
-  }, [caseMeta]);
+
+    if (!ready) return;
+    const step = 0.25;
+    const lines: GeoJSON.Feature[] = [];
+    const from = (v: number) => Math.ceil(v / step) * step;
+    for (let lon = from(b.west); lon < b.east; lon += step) {
+      lines.push({ type: "Feature", properties: {},
+        geometry: { type: "LineString", coordinates: [[lon, b.south], [lon, b.north]] } });
+    }
+    for (let lat = from(b.south); lat < b.north; lat += step) {
+      lines.push({ type: "Feature", properties: {},
+        geometry: { type: "LineString", coordinates: [[b.west, lat], [b.east, lat]] } });
+    }
+    setData("graticule", { type: "FeatureCollection", features: lines });
+    setData("frame", {
+      type: "FeatureCollection",
+      features: [{ type: "Feature", properties: {}, geometry: { type: "LineString",
+        coordinates: [[b.west, b.south], [b.east, b.south], [b.east, b.north],
+                      [b.west, b.north], [b.west, b.south]] } }],
+    });
+  }, [caseMeta, ready]);
 
   // ---- detection --------------------------------------------------------
   useEffect(() => {
-    if (!ready.current) return;
+    if (!ready) return;
     setData("slick", {
       type: "FeatureCollection",
       features: layers.slick && detection
@@ -169,11 +218,11 @@ export default function MapView({
           }))
         : [],
     });
-  }, [detection, layers.slick, layers.lookalikes]);
+  }, [ready, detection, layers.slick, layers.lookalikes]);
 
   // ---- hindcast cone, particles, origin ---------------------------------
   useEffect(() => {
-    if (!ready.current) return;
+    if (!ready) return;
     const frames = hindcast?.particles_timeline ?? [];
     const frame = frames[Math.min(frameIndex, frames.length - 1)];
     const t = frame?.t_offset_hours;
@@ -212,11 +261,11 @@ export default function MapView({
           }]
         : [],
     });
-  }, [hindcast, frameIndex, layers.cone, layers.particles]);
+  }, [ready, hindcast, frameIndex, layers.cone, layers.particles]);
 
   // ---- forecast ---------------------------------------------------------
   useEffect(() => {
-    if (!ready.current) return;
+    if (!ready) return;
     const outer = forecast?.cone.filter((c) => c.percentile === 90) ?? [];
     setData("forecastCone", {
       type: "FeatureCollection",
@@ -233,11 +282,11 @@ export default function MapView({
         ? [{ type: "Feature", geometry: forecast.centroid_path, properties: {} }]
         : [],
     });
-  }, [forecast, layers.forecast]);
+  }, [ready, forecast, layers.forecast]);
 
   // ---- vessel tracks ----------------------------------------------------
   useEffect(() => {
-    if (!ready.current) return;
+    if (!ready) return;
     setData("tracks", {
       type: "FeatureCollection",
       features: layers.tracks && attribution
@@ -254,7 +303,7 @@ export default function MapView({
           }))
         : [],
     });
-  }, [attribution, selectedMmsi, layers.tracks]);
+  }, [ready, attribution, selectedMmsi, layers.tracks]);
 
-  return <div ref={container} className="absolute inset-0" />;
+  return <div ref={container} className="absolute inset-0 h-full w-full" />;
 }
