@@ -1,0 +1,137 @@
+{
+  "id": "gom-2023-06-15",
+  "name": "Gulf of Mexico \u2014 offshore Louisiana",
+  "bbox": {
+    "west": -90.6,
+    "south": 28.1,
+    "east": -89.4,
+    "north": 29.0
+  },
+  "center": [
+    -90.0,
+    28.55
+  ],
+  "grid": 1024,
+  "scene_id": "S1A_IW_GRDH_1SDV_20230615T120000",
+  "acquired_at": "2023-06-15T12:00:00+00:00",
+  "seed": 20230615,
+  "disclaimer": "Constructed validation scenario. Real Sentinel-1 SAR imagery (Zenodo oil-spill dataset) and real AIS traffic (NOAA AccessAIS) are synthetically co-located onto a common region and time so the end-to-end pipeline can be validated against a known ground truth. The imagery and the vessel traffic are not from the same real-world incident.",
+  "sources": [
+    {
+      "name": "Zenodo Sentinel-1 oil-spill mask 00250.tif (Part I)",
+      "kind": "sar",
+      "source_url": "https://zenodo.org/records/8346860",
+      "licence": "CC BY 4.0",
+      "is_synthetic": false,
+      "note": "Official problem-statement dataset. Real slick morphology, scaled to a 34 km trail and positioned in the case bbox (the mask carries shape, not georeferencing). Used both to render the scene and to score detection IoU."
+    },
+    {
+      "name": "Synthesised look-alike patches (2)",
+      "kind": "sar",
+      "source_url": null,
+      "licence": null,
+      "is_synthetic": true,
+      "note": "The official look-alike masks are empty by construction, so these compact, soft-edged patches are generated to force the detector to discriminate rather than threshold. Replaced by real look-alikes once the 23 GB image archive is available."
+    },
+    {
+      "name": "Synthesised Sentinel-1-like VV backscatter",
+      "kind": "sar",
+      "source_url": null,
+      "licence": null,
+      "is_synthetic": true,
+      "note": "Rendered from the REAL Zenodo oil mask with gamma multi-look speckle, Bragg damping and wind streaks. Stands in until the 9.9 GB official test imagery finishes downloading. Slick geometry is real; pixel radiometry is not."
+    },
+    {
+      "name": "Synthesised wind + surface current field",
+      "kind": "current",
+      "source_url": null,
+      "licence": null,
+      "is_synthetic": true,
+      "note": "ERA5 and CMEMS both require free accounts that are not configured. Steady mean flow plus a 22 km anticyclonic eddy, giving the drift ensemble real spatial shear. Replace by placing era5_wind.nc and cmems_currents.nc in data/raw/ and re-running."
+    },
+    {
+      "name": "NOAA AccessAIS 2023-06-15 (201 vessels, 24,328 positions)",
+      "kind": "ais",
+      "source_url": "https://coast.noaa.gov/htdata/CMSP/AISDataHandler/2023/",
+      "licence": "Public domain (US Government)",
+      "is_synthetic": false,
+      "note": "Official problem-statement source. Clipped to the case bbox."
+    },
+    {
+      "name": "Injected ground-truth polluter (MV KESTREL TRADER)",
+      "kind": "synthetic",
+      "source_url": null,
+      "licence": null,
+      "is_synthetic": true,
+      "note": "One synthetic vessel transiting the slick axis on course 248deg, AIS-dark for 94 min across the release window. This is the known answer used to validate Stage 3."
+    }
+  ],
+  "forcing": {
+    "mode": "synthetic",
+    "file": "forcing.npz",
+    "mean_current_ms": [
+      0.11,
+      0.08
+    ],
+    "mean_wind_ms": [
+      3.6,
+      2.4
+    ],
+    "eddy": {
+      "center": [
+        -90.05,
+        28.42
+      ],
+      "radius_km": 22.0,
+      "amplitude_ms": 0.09
+    }
+  },
+  "slick": {
+    "centroid": [
+      -89.88768328445748,
+      28.6130015884653
+    ],
+    "end_a": [
+      -89.70029325513197,
+      28.67800586510264
+    ],
+    "end_b": [
+      -90.01348973607038,
+      28.566275659824047
+    ],
+    "area_km2": 16.03633302547324,
+    "orientation_deg": 64.9723563459666,
+    "bounds": [
+      -90.01348973607038,
+      28.566275659824047,
+      -89.70029325513197,
+      28.67800586510264
+    ]
+  },
+  "ground_truth": {
+    "origin": [
+      -90.077707,
+      28.526686
+    ],
+    "origin_time_utc": "2023-06-15T04:00:00+00:00",
+    "drift_hours": 8.0,
+    "drift_km": [
+      6.278,
+      4.378
+    ],
+    "polluter_mmsi": "367301820",
+    "polluter_name": "MV KESTREL TRADER",
+    "polluter_type": "Chemical/Oil Products Tanker",
+    "polluter_course_deg": 248.0,
+    "polluter_gap_minutes": 94.0,
+    "note": "Stage 2 must place this origin inside its 90% cone; Stage 3 must rank this MMSI first. Both are Phase acceptance criteria."
+  },
+  "files": {
+    "sar_db": "sar_db.npy",
+    "mask_oil": "mask_oil.npy",
+    "mask_lookalike": "mask_lookalike.npy",
+    "ais": "ais.parquet",
+    "forcing": "forcing.npz"
+  },
+  "built_at": "2026-08-23T17:02:16.250545+00:00"
+}

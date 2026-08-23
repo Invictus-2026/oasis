@@ -81,7 +81,7 @@ ml/                  U-Net training notebook and weights
 | Phase | What | Status |
 |---|---|---|
 | 0 | Scaffold, frozen API contract, fixtures, dashboard shell | **Done** |
-| 1 | Freeze the case study bundle | Not started |
+| 1 | Freeze the case study bundle | **Done** |
 | 2 | Detection, geometry, look-alike rejection, age proxy | Not started |
 | 3 | Drift engine, hindcast cone, forecast | Not started |
 | 4 | AIS ingest, gap detection, explainable scoring | Not started |
@@ -116,12 +116,31 @@ These are load-bearing. Breaking one breaks the pitch, not just the code.
 
 ## Data
 
-| Source | Use | Provided by the PS |
+Build the frozen case bundle with:
+
+```bash
+backend/.venv/bin/python scripts/build_case.py
+```
+
+It prints `[REAL]` or `[SYNTH]` per input and records the same in `case.json`,
+which the UI surfaces. Current state of the `gom-2023-06-15` case:
+
+| Input | Status | Detail |
 |---|---|---|
-| Zenodo Sentinel-1 SAR oil-spill dataset (Parts I-III) | Detection and segmentation training | Yes |
-| NOAA AccessAIS historical AIS | Vessel traffic for attribution | Yes |
-| ERA5 10 m wind reanalysis | Drift forcing | No, required by the description |
-| CMEMS surface currents | Drift forcing | No, required by the description |
+| Zenodo oil mask `00250.tif` | **Real** | Official dataset. Real slick morphology, scaled to a 34 km trail. |
+| NOAA AccessAIS 2023-06-15 | **Real** | 201 vessels, 24,328 positions clipped to the bbox. 31 within 25 km of the origin. |
+| SAR backscatter | Synthesised | Gamma multi-look speckle, Bragg damping, wind streaks. 6.7 dB oil/sea contrast. |
+| Look-alike patches | Synthesised | The official look-alike masks are empty by construction (they mark oil; look-alike scenes have none). |
+| Wind + current field | Synthesised | ERA5/CMEMS need free accounts. Mean flow plus a 22 km eddy so the ensemble has real shear. |
+| Ground-truth polluter | Synthesised | One vessel, AIS-dark 94 min across the release window. The known answer Stage 3 must recover. |
+
+**To upgrade the synthesised inputs**, drop the real files into `data/raw/` and
+re-run the builder — it picks them up automatically and reclassifies them as real:
+
+- `sar_scene.tif` — the official Part II test imagery (9.9 GB) is downloading in
+  the background via `data/raw/fetch_zenodo_test.sh`; the script is resumable.
+- `era5_wind.nc` — register at <https://cds.climate.copernicus.eu/> and use `cdsapi`.
+- `cmems_currents.nc` — register at <https://marine.copernicus.eu/> and use `copernicusmarine`.
 
 The prototype runs a **constructed validation scenario**: real SAR imagery and real AIS
 traffic co-located onto a common region and time, plus one injected synthetic polluter,
