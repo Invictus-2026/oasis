@@ -3,7 +3,7 @@
 export const C = {
   slick: "#f0a03c",
   slickFill: "rgba(240, 160, 60, 0.28)",
-  reject: "#6b7a92",
+  reject: "#93a6c2",
   rejectFill: "rgba(107, 122, 146, 0.12)",
   cone90: "rgba(53, 200, 216, 0.10)",
   cone50: "rgba(53, 200, 216, 0.22)",

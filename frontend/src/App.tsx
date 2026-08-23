@@ -44,7 +44,7 @@ export default function App() {
   const [dataMode, setDataMode] = useState(getDataMode());
 
   const [layers, setLayers] = useState<LayerVisibility>({
-    slick: true, lookalikes: true, cone: true, particles: true, forecast: true, tracks: true,
+    sar: true, slick: true, lookalikes: true, cone: true, particles: true, forecast: true, tracks: true,
   });
 
   // ---- warm start ------------------------------------------------------

@@ -11,6 +11,7 @@ import type {
 import { C } from "../lib/theme";
 
 export interface LayerVisibility {
+  sar: boolean;
   slick: boolean;
   lookalikes: boolean;
   cone: boolean;
@@ -196,6 +197,38 @@ export default function MapView({
                       [b.west, b.north], [b.west, b.south]] } }],
     });
   }, [caseMeta, ready]);
+
+  // ---- SAR overlay ------------------------------------------------------
+  // Added in its own effect rather than in the style-load handler: the case is
+  // fetched asynchronously and usually arrives AFTER the style has loaded, so
+  // adding it during load would silently skip the imagery.
+  useEffect(() => {
+    const m = map.current;
+    if (!ready || !m || !caseMeta?.sar_overlay_url || m.getSource("sar")) return;
+
+    const b = caseMeta.bbox;
+    m.addSource("sar", {
+      type: "image",
+      url: caseMeta.sar_overlay_url,
+      // Image sources take corners clockwise from the top-left.
+      coordinates: [
+        [b.west, b.north], [b.east, b.north],
+        [b.east, b.south], [b.west, b.south],
+      ],
+    });
+    // Beneath every vector layer, so the imagery is context and never
+    // obscures the detection it is supporting.
+    m.addLayer(
+      { id: "sar-raster", source: "sar", type: "raster",
+        paint: { "raster-opacity": 0.95, "raster-fade-duration": 300 } },
+      "graticule-line",
+    );
+  }, [ready, caseMeta]);
+
+  useEffect(() => {
+    if (!ready || !map.current?.getLayer("sar-raster")) return;
+    map.current.setLayoutProperty("sar-raster", "visibility", layers.sar ? "visible" : "none");
+  }, [ready, layers.sar, caseMeta]);
 
   // ---- detection --------------------------------------------------------
   useEffect(() => {

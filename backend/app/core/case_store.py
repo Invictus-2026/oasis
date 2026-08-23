@@ -102,7 +102,7 @@ class CaseBundle:
             center=tuple(m["center"]),
             scene_id=m["scene_id"],
             acquired_at=self.acquired_at,
-            sar_overlay_url=None,
+            sar_overlay_url="/api/scene/sar.png",
             sources=[DataSource(**s) for s in m["sources"]],
             ground_truth=GroundTruth(
                 origin=tuple(gt["origin"]),

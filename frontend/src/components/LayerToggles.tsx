@@ -2,6 +2,7 @@ import type { LayerVisibility } from "./MapView";
 import { C } from "../lib/theme";
 
 const LAYERS: { key: keyof LayerVisibility; label: string; swatch: string; dashed?: boolean }[] = [
+  { key: "sar", label: "SAR scene", swatch: "#9fb0c8" },
   { key: "slick", label: "Oil slick", swatch: C.slick },
   { key: "lookalikes", label: "Ruled out", swatch: C.reject, dashed: true },
   { key: "cone", label: "Origin cone", swatch: C.coneLine, dashed: true },
