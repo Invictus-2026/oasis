@@ -83,7 +83,8 @@ export default function MapView({
     m.on("error", (e) => console.error("[SpillTrace] map error:", e?.error ?? e));
 
     m.on("load", () => {
-      for (const id of ["graticule", "frame", "cone90", "cone50", "lookalikes", "slick",
+      for (const id of ["graticule", "frame", "cone90", "cone50", "originRegion90",
+                        "originRegion50", "lookalikes", "slick",
                         "particles", "forecastCone", "forecastPath", "tracks", "origin"]) {
         m.addSource(id, { type: "geojson", data: EMPTY });
       }
@@ -104,6 +105,17 @@ export default function MapView({
         paint: { "fill-color": C.cone50 } });
       m.addLayer({ id: "cone90-line", source: "cone90", type: "line",
         paint: { "line-color": C.coneLine, "line-width": 1, "line-opacity": 0.5, "line-dasharray": [3, 2] } });
+
+      // The answer: where the release plausibly happened, pooled over the whole
+      // age window. Drawn solid and persistently, unlike the animating frames.
+      m.addLayer({ id: "originRegion90-fill", source: "originRegion90", type: "fill",
+        paint: { "fill-color": "rgba(53, 200, 216, 0.13)" } });
+      m.addLayer({ id: "originRegion50-fill", source: "originRegion50", type: "fill",
+        paint: { "fill-color": "rgba(53, 200, 216, 0.26)" } });
+      m.addLayer({ id: "originRegion90-line", source: "originRegion90", type: "line",
+        paint: { "line-color": C.coneLine, "line-width": 1.8 } });
+      m.addLayer({ id: "originRegion50-line", source: "originRegion50", type: "line",
+        paint: { "line-color": C.coneLine, "line-width": 1, "line-opacity": 0.7 } });
 
       m.addLayer({ id: "forecastCone-fill", source: "forecastCone", type: "fill",
         paint: { "fill-color": "rgba(201, 139, 240, 0.13)" } });
@@ -134,13 +146,6 @@ export default function MapView({
           "line-opacity": ["case", ["get", "dimmed"], 0.15, 0.85],
         } });
 
-      m.addLayer({ id: "origin-ring", source: "origin", type: "circle",
-        paint: {
-          "circle-radius": ["get", "px"],
-          "circle-color": "rgba(53, 200, 216, 0.10)",
-          "circle-stroke-color": C.origin,
-          "circle-stroke-width": 1.5,
-        } });
       m.addLayer({ id: "origin-dot", source: "origin", type: "circle",
         paint: { "circle-radius": 5, "circle-color": C.origin,
                  "circle-stroke-color": "#062028", "circle-stroke-width": 2 } });
@@ -260,8 +265,11 @@ export default function MapView({
     const frame = frames[Math.min(frameIndex, frames.length - 1)];
     const t = frame?.t_offset_hours;
 
+    // Animating frames: the ensemble at this instant.
     for (const p of [50, 90] as const) {
-      const ring = hindcast?.cone.find((c) => c.percentile === p && c.t_offset_hours === t);
+      const ring = hindcast?.cone.find(
+        (c) => c.kind === "frame" && c.percentile === p && c.t_offset_hours === t,
+      );
       setData(`cone${p}`, {
         type: "FeatureCollection",
         features: layers.cone && ring
@@ -279,19 +287,25 @@ export default function MapView({
         : [],
     });
 
-    // Origin marker only once the backtrack has fully run — showing it early
-    // would imply more certainty than the ensemble has yet produced.
+    // The origin region and marker appear only once the run has settled.
+    // Showing them mid-animation would imply more certainty than the ensemble
+    // has yet produced.
     const atEnd = frames.length > 0 && frameIndex >= frames.length - 1;
+    for (const p of [50, 90] as const) {
+      const ring = hindcast?.cone.find((c) => c.kind === "origin" && c.percentile === p);
+      setData(`originRegion${p}`, {
+        type: "FeatureCollection",
+        features: layers.cone && atEnd && ring
+          ? [{ type: "Feature", geometry: ring.polygon, properties: { percentile: p } }]
+          : [],
+      });
+    }
+
     const o = hindcast?.origin_estimate;
     setData("origin", {
       type: "FeatureCollection",
       features: atEnd && o
-        ? [{
-            type: "Feature",
-            geometry: { type: "Point", coordinates: o.point },
-            // Rough px radius for the uncertainty ring at the demo zoom.
-            properties: { px: Math.max(18, o.uncertainty_radius_km * 2.6) },
-          }]
+        ? [{ type: "Feature", geometry: { type: "Point", coordinates: o.point }, properties: {} }]
         : [],
     });
   }, [ready, hindcast, frameIndex, layers.cone, layers.particles]);

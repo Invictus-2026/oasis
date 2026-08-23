@@ -108,6 +108,8 @@ export interface ConePolygon {
   t_offset_hours: number;
   polygon: Geom;
   percentile: 50 | 90;
+  /** "frame" is one animation step; "origin" is the pooled answer region. */
+  kind: "frame" | "origin";
 }
 
 export interface OriginEstimate {

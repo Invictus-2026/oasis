@@ -29,7 +29,7 @@ export default function DriftControls({
       right={
         <div className="flex gap-1.5">
           <Button tone="primary" onClick={onHindcast} busy={busy === "hindcast"}>
-            Backtrack 24h
+            Backtrack
           </Button>
           <Button onClick={onForecast} busy={busy === "forecast"} disabled={!hindcast}>
             Forecast 12h
@@ -69,12 +69,14 @@ export default function DriftControls({
                 <Stat label="Most likely point" value={lonLat(o.point)} />
                 <Stat label="Uncertainty radius" value={km(o.uncertainty_radius_km)} />
                 <Stat label="Release time" value={utc(o.time_utc)} />
-                <Stat label="Time window"
-                      value={`${hours(o.time_window_hours[0])} – ${hours(o.time_window_hours[1])} before`} />
+                <Stat label="Release window"
+                      value={`${hours(o.time_window_hours[0])} – ${hours(o.time_window_hours[1])} before imaging`}
+                      hint="Inherited from the Stage 1 age estimate; it bounds how far back the ensemble is run." />
               </div>
               <p className="mt-2 text-[10px] leading-relaxed text-mute-400">
-                Reported as a probability cone rather than a point. The shaded region is where the
-                release plausibly occurred; the marker is only its mode.
+                The shaded region is where the release plausibly occurred, pooled over the whole
+                age window from Stage 1 — the marker is only its densest point. The backtrack runs
+                as far as that age window allows, so a less certain age gives a larger region.
               </p>
             </div>
           )}

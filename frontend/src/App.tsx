@@ -47,6 +47,10 @@ export default function App() {
     sar: true, slick: true, lookalikes: true, cone: true, particles: true, forecast: true, tracks: true,
   });
 
+  // ?autorun=1 runs the whole pipeline on load. Used for headless screenshots
+  // and rehearsal, and as a live fallback if clicking through goes wrong.
+  const autorun = new URLSearchParams(window.location.search).get("autorun") === "1";
+
   // ---- warm start ------------------------------------------------------
   // Load the case AND run detection immediately. Two reasons: nothing spins
   // during a live demo, and with no network basemap an empty map is
@@ -57,9 +61,21 @@ export default function App() {
     api.getCase().then(setCaseMeta);
     setDetecting(true);
     api.detect("classical")
-      .then(setDetection)
+      .then(async (det) => {
+        setDetection(det);
+        if (!autorun || !det.slicks[0]) return;
+        const id = det.slicks[0].id;
+        const h = await api.hindcast(id);
+        setHindcast(h);
+        setFrameIndex(h.particles_timeline.length - 1);
+        setForecast(await api.forecast(id, 12));
+        const a = await api.attribute(h.origin_estimate.point, h.origin_estimate.time_utc);
+        setAttribution(a);
+        setSelectedMmsi(a.candidates[0]?.mmsi ?? null);
+      })
       .finally(() => setDetecting(false));
     return off;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const frames = hindcast?.particles_timeline.length ?? 0;

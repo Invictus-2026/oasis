@@ -93,7 +93,7 @@ ml/                  U-Net training notebook and weights
 | 0 | Scaffold, frozen API contract, fixtures, dashboard shell | **Done** |
 | 1 | Freeze the case study bundle | **Done** |
 | 2 | Detection, geometry, look-alike rejection, age proxy | **Done** — IoU 0.878 |
-| 3 | Drift engine, hindcast cone, forecast | Not started |
+| 3 | Drift engine, hindcast cone, forecast | **Done** — origin error 7.7 km |
 | 4 | AIS ingest, gap detection, explainable scoring | Not started |
 | 5 | Dashboard against real data | Shell done, fixture-backed |
 | 6 | Evidence PDF | Content endpoint done, PDF pending |
@@ -118,6 +118,9 @@ Against the frozen `gom-2023-06-15` case, scored on the official Zenodo mask:
 | Orientation | 65° (truth 65°) |
 | Look-alikes rejected | 2 of 2, each with a stated physical reason |
 | Age bracket | 4.5–19.1 h (truth 8.0 h) |
+| Hindcast origin error | **7.7 km** (mode vs true origin) |
+| 90% origin region | contains the true origin |
+| Drift runtime | 38 ms |
 
 The detector has no learned weights and is fully deterministic. Re-measure with
 `cd backend && .venv/bin/python -m pytest tests/test_detection.py -q`.

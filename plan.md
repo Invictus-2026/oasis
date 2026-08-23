@@ -23,6 +23,27 @@
 
 ---
 
+## SCOPE DECISION (2026-08-23)
+
+Target is a prototype that conveys the idea end to end, not a production
+system. **Phases 3 and 4 are built for real, then we stop.**
+
+Reason: Stage 1 is real, and fixture Stages 2-4 disagree with it badly — the
+fixture hindcast origin sits 58 km from the actually-detected slick and four of
+five candidate vessels do not exist in the real AIS. A judge clicking through
+would see the demo fall apart on the second click. Faking it convincingly costs
+nearly as much as computing it, and attribution on 202 real vessels is the
+differentiator the research identifies.
+
+**Cut from scope:** Phase 6 (evidence PDF — the on-screen panel stays), Phase 7
+(U-Net — the classical detector is the deliverable), the timeline scrubber, and
+forecast animation polish.
+
+**Still in scope:** Phase 3 (drift), Phase 4 (attribution), Phase 8 (hardening
+and deck).
+
+---
+
 ## Cut list (execute in this order if behind schedule)
 
 1. Timeline scrubber

@@ -168,6 +168,14 @@ class ConePolygon(BaseModel):
     t_offset_hours: float
     polygon: GeoJSON
     percentile: Literal[50, 90]
+    kind: Literal["frame", "origin"] = Field(
+        default="frame",
+        description=(
+            "'frame' is the ensemble at one instant, for animation. 'origin' is the "
+            "region pooled over the whole plausible age window — the actual answer, "
+            "and necessarily larger than any single frame."
+        ),
+    )
 
 
 class OriginEstimate(BaseModel):
