@@ -34,3 +34,4 @@ ml/weights/*.pt
 # Case bundle arrays — scripts/build_case.py regenerates them deterministically
 data/case/*.npy
 data/case/*.npz
+.run/

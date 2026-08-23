@@ -40,7 +40,17 @@ Vite proxies `/api` to the backend, so there is nothing to configure.
 `src/mock/` automatically and shows an `OFFLINE FIXTURES` badge in the header.
 Force it with `VITE_FORCE_MOCK=1 npm run dev`.
 
-**Tests:**
+**Check everything at once:**
+
+```bash
+./scripts/check.sh            # verify toolchain, bundle, tests, typecheck, API
+./scripts/check.sh --serve    # verify, then start both servers
+```
+
+It exits non-zero if anything required is broken. Logs land in `.run/`.
+Stop the servers with `pkill -f 'uvicorn app.main' ; pkill -f vite`.
+
+**Or individually:**
 
 ```bash
 cd backend && .venv/bin/python -m pytest -q
