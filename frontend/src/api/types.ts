@@ -74,6 +74,22 @@ export interface AgeEstimate {
   max_hours: number;
   confidence: "low" | "medium" | "high";
   method_note: string;
+  diffusivity_m2s?: number | null;
+  damping_db?: number | null;
+  weathering?: string | null;
+}
+
+/** The four real, weighted 0-1 sub-scores classify() computes on the backend
+ *  and averages into confidence — not a separate frontend computation. */
+export interface DetectionEvidence {
+  contrast: number;
+  variance: number;
+  shape: number;
+  edge: number;
+  weight_contrast: number;
+  weight_variance: number;
+  weight_shape: number;
+  weight_edge: number;
 }
 
 export interface Slick {
@@ -83,6 +99,7 @@ export interface Slick {
   method: DetectionMethod;
   geometry: SlickGeometry;
   age: AgeEstimate | null;
+  evidence?: DetectionEvidence | null;
 }
 
 export interface RejectedLookalike {
@@ -90,6 +107,7 @@ export interface RejectedLookalike {
   polygon: Geom;
   reason: string;
   confidence: number;
+  evidence?: DetectionEvidence | null;
 }
 
 export interface DetectResponse {
