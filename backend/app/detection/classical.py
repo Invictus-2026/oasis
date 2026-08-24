@@ -205,7 +205,7 @@ def extract_regions(db: np.ndarray, mask: np.ndarray, excluded: np.ndarray) -> l
 # Discrimination
 # ---------------------------------------------------------------------------
 
-def classify(r: Region) -> tuple[bool, float, str]:
+def classify(r: Region) -> tuple[bool, float, str, dict[str, float]]:
     """Decide oil vs look-alike, with a confidence and a stated reason.
 
     No learned weights: these are the physical discriminators the SAR
@@ -232,6 +232,7 @@ def classify(r: Region) -> tuple[bool, float, str]:
 
     score = 0.34 * s_contrast + 0.31 * s_variance + 0.23 * s_shape + 0.12 * s_edge
     is_oil = score >= 0.45
+    evidence = {"contrast": s_contrast, "variance": s_variance, "shape": s_shape, "edge": s_edge}
 
     if is_oil:
         reason = (
@@ -256,14 +257,18 @@ def classify(r: Region) -> tuple[bool, float, str]:
             "; " + "; ".join(bits[1:]) if len(bits) > 1 else "")) if bits else \
             "Failed the combined oil-likelihood threshold."
 
-    return is_oil, round(float(np.clip(score, 0, 1)), 3), reason
+    return is_oil, round(float(np.clip(score, 0, 1)), 3), reason, evidence
 
 
 # ---------------------------------------------------------------------------
 # Entry point
 # ---------------------------------------------------------------------------
 
-def detect(db: np.ndarray) -> tuple[list[tuple[Region, float, str]], list[tuple[Region, float, str]], list[dict]]:
+def detect(db: np.ndarray) -> tuple[
+    list[tuple[Region, float, str, dict[str, float]]],
+    list[tuple[Region, float, str, dict[str, float]]],
+    list[dict],
+]:
     """Run the full chain.
 
     Returns (oil, lookalikes, timings), each candidate paired with its
@@ -296,8 +301,8 @@ def detect(db: np.ndarray) -> tuple[list[tuple[Region, float, str]], list[tuple[
     t = time.perf_counter()
     oil, looks = [], []
     for r in regions:
-        is_oil, conf, reason = classify(r)
-        (oil if is_oil else looks).append((r, conf, reason))
+        is_oil, conf, reason, evidence = classify(r)
+        (oil if is_oil else looks).append((r, conf, reason, evidence))
     oil.sort(key=lambda x: -x[0].area_px)
     looks.sort(key=lambda x: -x[0].area_px)
     steps.append({
