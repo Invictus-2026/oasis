@@ -1,6 +1,7 @@
 import type { ForecastResponse, HindcastResponse } from "../api/types";
 import { hours, km, lonLat, utc } from "../lib/format";
-import { Button, Empty, Panel, Stat, Tag } from "./ui";
+import { AnalystOnly } from "../lib/viewMode";
+import { Button, Disclosure, Empty, Panel, Skeleton, Stat, Tag } from "./ui";
 
 interface Props {
   hindcast: HindcastResponse | null;
@@ -26,6 +27,7 @@ export default function DriftControls({
     <Panel
       title="Stage 2 — Drift"
       subtitle="Bidirectional Lagrangian ensemble"
+      provenance={hindcast?.provenance}
       right={
         <div className="flex gap-1.5">
           <Button tone="primary" onClick={onHindcast} busy={busy === "hindcast"}>
@@ -38,7 +40,9 @@ export default function DriftControls({
       }
     >
       {!hindcast ? (
-        <Empty>Backtrack the slick to estimate where and when it was released.</Empty>
+        busy === "hindcast"
+          ? <Skeleton rows={4} />
+          : <Empty>Backtrack the slick to estimate where and when it was released.</Empty>
       ) : (
         <>
           <div className="mb-2 flex items-center gap-2">
@@ -57,7 +61,7 @@ export default function DriftControls({
           </div>
 
           {o && (
-            <div className="rounded border border-cone-500/25 bg-cone-500/5 p-2">
+            <div className="border-t border-ink-700 pt-2">
               <div className="mb-2 flex items-center justify-between">
                 <span className="text-[10px] uppercase tracking-wider text-mute-400">
                   Estimated origin
@@ -73,11 +77,15 @@ export default function DriftControls({
                       value={`${hours(o.time_window_hours[0])} – ${hours(o.time_window_hours[1])} before imaging`}
                       hint="Inherited from the Stage 1 age estimate; it bounds how far back the ensemble is run." />
               </div>
-              <p className="mt-2 text-[10px] leading-relaxed text-mute-400">
-                The shaded region is where the release plausibly occurred, pooled over the whole
-                age window from Stage 1 — the marker is only its densest point. The backtrack runs
-                as far as that age window allows, so a less certain age gives a larger region.
-              </p>
+              <AnalystOnly>
+                <div className="mt-1.5">
+                  <Disclosure label="View reasoning">
+                    The shaded region is where the release plausibly occurred, pooled over the whole
+                    age window from Stage 1 — the marker is only its densest point. The backtrack runs
+                    as far as that age window allows, so a less certain age gives a larger region.
+                  </Disclosure>
+                </div>
+              </AnalystOnly>
             </div>
           )}
 

@@ -1,6 +1,6 @@
 import type { AttributeResponse, CandidateFlag } from "../api/types";
 import { km } from "../lib/format";
-import { Button, Empty, Panel, Tag } from "./ui";
+import { Button, Empty, Panel, Skeleton, Tag } from "./ui";
 
 const FLAG_TONE: Record<CandidateFlag, "alert" | "warn" | "neutral"> = {
   DARK_VESSEL: "alert",
@@ -29,6 +29,7 @@ export default function VesselTable({
           ? `${attribution.total_vessels_in_region} vessels in region → ${attribution.after_filter} candidates`
           : "AIS correlation against the estimated origin"
       }
+      provenance={attribution?.provenance}
       right={
         <Button tone="primary" onClick={onRun} busy={busy} disabled={disabled}>
           Correlate AIS
@@ -36,11 +37,15 @@ export default function VesselTable({
       }
     >
       {!attribution ? (
-        <Empty>
-          {disabled
-            ? "Run the backtrack first — candidates are screened against the estimated origin, not the observed slick."
-            : "Screen AIS traffic against the estimated origin."}
-        </Empty>
+        busy ? (
+          <Skeleton rows={3} />
+        ) : (
+          <Empty>
+            {disabled
+              ? "Run the backtrack first — candidates are screened against the estimated origin, not the observed slick."
+              : "Screen AIS traffic against the estimated origin."}
+          </Empty>
+        )
       ) : (
         <>
           <ol className="space-y-1">
@@ -50,10 +55,10 @@ export default function VesselTable({
                 <li key={c.mmsi}>
                   <button
                     onClick={() => onSelect(selected ? null : c.mmsi)}
-                    className={`w-full rounded border px-2 py-1.5 text-left transition ${
+                    className={`w-full rounded border px-2 py-1.5 text-left transition-colors duration-150 ${
                       selected
-                        ? "border-cone-500/60 bg-cone-500/10"
-                        : "border-ink-700 bg-ink-800/50 hover:border-ink-600"
+                        ? "border-cone-500/60 bg-cone-500/10 shadow-[0_0_12px_-4px_rgba(53,200,216,0.4)]"
+                        : "border-ink-700 bg-ink-800/50 hover:border-ink-600 hover:bg-ink-800"
                     }`}
                   >
                     <div className="flex items-center gap-2">

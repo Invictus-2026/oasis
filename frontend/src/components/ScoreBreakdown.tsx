@@ -1,50 +1,55 @@
-import type { AttributeResponse, VesselCandidate } from "../api/types";
+import type { AttributeResponse, Provenance, VesselCandidate } from "../api/types";
 import { SCORE_FACTORS } from "../api/types";
 import { km, utc } from "../lib/format";
+import { AnalystOnly } from "../lib/viewMode";
 import { Empty, Meter, Panel, Stat, Tag } from "./ui";
 
 interface Props {
   candidate: VesselCandidate | null;
   weights: AttributeResponse["weights"] | null;
+  provenance?: Provenance | null;
 }
 
-export default function ScoreBreakdown({ candidate, weights }: Props) {
+export default function ScoreBreakdown({ candidate, weights, provenance }: Props) {
   return (
-    <Panel title="Why this score" subtitle={candidate ? candidate.name : undefined}>
+    <Panel title="Why this score" subtitle={candidate ? candidate.name : undefined} provenance={provenance}>
       {!candidate || !weights ? (
         <Empty>Select a candidate to see its score decomposition.</Empty>
       ) : (
         <>
-          <div className="mb-3 grid grid-cols-2 gap-x-3 gap-y-2">
-            <Stat label="MMSI" value={candidate.mmsi} />
-            <Stat label="Type" value={candidate.vessel_type} />
-            <Stat label="Closest approach" value={km(candidate.closest_approach_km)} />
-            <Stat label="At"
-                  value={candidate.closest_approach_utc ? utc(candidate.closest_approach_utc) : "—"} />
-          </div>
-
-          <div className="space-y-2">
-            {SCORE_FACTORS.map((f) => (
-              <Meter
-                key={f.key}
-                label={f.label}
-                hint={f.hint}
-                value={candidate.breakdown[f.key]}
-                weight={weights[f.key]}
-                tone={f.key === "ais_gap" && candidate.breakdown.ais_gap > 0.5 ? "alert" : "cone"}
-              />
-            ))}
-          </div>
-
-          <div className="mt-3 flex items-baseline justify-between border-t border-ink-700 pt-2">
-            <span className="text-[10px] uppercase tracking-wider text-mute-400">Composite</span>
+          <div className="flex items-baseline justify-between">
+            <span className="text-[10px] uppercase tracking-wider text-mute-400">Composite score</span>
             <span className="tnum text-base font-semibold text-mute-100">
               {candidate.score.toFixed(3)}
             </span>
           </div>
+          <p className="mt-1 text-[11px] leading-relaxed text-mute-300">{candidate.narrative}</p>
+
+          <AnalystOnly>
+            <div className="mb-3 mt-3 grid grid-cols-2 gap-x-3 gap-y-2 border-t border-ink-700 pt-2.5">
+              <Stat label="MMSI" value={candidate.mmsi} />
+              <Stat label="Type" value={candidate.vessel_type} />
+              <Stat label="Closest approach" value={km(candidate.closest_approach_km)} />
+              <Stat label="At"
+                    value={candidate.closest_approach_utc ? utc(candidate.closest_approach_utc) : "—"} />
+            </div>
+
+            <div className="space-y-2">
+              {SCORE_FACTORS.map((f) => (
+                <Meter
+                  key={f.key}
+                  label={f.label}
+                  hint={f.hint}
+                  value={candidate.breakdown[f.key]}
+                  weight={weights[f.key]}
+                  tone={f.key === "ais_gap" && candidate.breakdown.ais_gap > 0.5 ? "alert" : "cone"}
+                />
+              ))}
+            </div>
+          </AnalystOnly>
 
           {candidate.gaps.length > 0 && (
-            <div className="mt-2.5 rounded border border-alert-500/25 bg-alert-500/5 p-2">
+            <div className="mt-2.5 border-t border-alert-500/20 pt-2">
               <div className="mb-1 flex items-center gap-1.5">
                 <Tag tone="alert">AIS GAP</Tag>
                 <span className="tnum text-[11px] text-mute-300">
@@ -61,8 +66,6 @@ export default function ScoreBreakdown({ candidate, weights }: Props) {
               </p>
             </div>
           )}
-
-          <p className="mt-2.5 text-[11px] leading-relaxed text-mute-300">{candidate.narrative}</p>
         </>
       )}
     </Panel>
