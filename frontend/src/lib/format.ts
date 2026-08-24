@@ -13,6 +13,10 @@ export const lonLat = ([lon, lat]: [number, number]) =>
 
 export const hours = (v: number) => `${v % 1 === 0 ? v.toFixed(0) : v.toFixed(1)} h`;
 
+/** Ratios read as measurements, not identifiers — round them. 37.96:1 is
+ *  false precision the geometry doesn't actually support at a glance. */
+export const ratio = (v: number) => `${Math.round(v)}:1`;
+
 /** Compass bearing to a cardinal label, for readouts that a judge reads aloud. */
 export function bearingLabel(d: number): string {
   const names = ["N", "NNE", "NE", "ENE", "E", "ESE", "SE", "SSE",
