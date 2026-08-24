@@ -31,9 +31,25 @@ interface Props {
   frameIndex: number;
   selectedMmsi: string | null;
   onSelectVessel: (mmsi: string | null) => void;
+  /** A new object (even with the same id) re-triggers the fly-to, so clicking
+   *  "View on SAR" twice in a row still refocuses. */
+  focusRequest: { id: string; nonce: number } | null;
 }
 
 const EMPTY: GeoJSON.FeatureCollection = { type: "FeatureCollection", features: [] };
+
+/** Nearest vertex on a track to a target point. Planar distance is fine at
+ *  this scale/zoom — this is a visual "here's roughly where they meet"
+ *  connector, not a geodesic claim. */
+function nearestVertex(coords: [number, number][], target: [number, number]): [number, number] {
+  let best = coords[0];
+  let bestD = Infinity;
+  for (const c of coords) {
+    const d = (c[0] - target[0]) ** 2 + (c[1] - target[1]) ** 2;
+    if (d < bestD) { bestD = d; best = c; }
+  }
+  return best;
+}
 
 /** A no-network raster style. Demo rule: nothing on screen may depend on the
  *  venue's wifi, so the basemap is a flat colour plus our own data. */
@@ -45,7 +61,7 @@ const STYLE: maplibregl.StyleSpecification = {
 
 export default function MapView({
   caseMeta, detection, hindcast, forecast, attribution,
-  layers, frameIndex, selectedMmsi, onSelectVessel,
+  layers, frameIndex, selectedMmsi, onSelectVessel, focusRequest,
 }: Props) {
   const container = useRef<HTMLDivElement>(null);
   const map = useRef<maplibregl.Map | null>(null);
@@ -85,7 +101,8 @@ export default function MapView({
     m.on("load", () => {
       for (const id of ["graticule", "frame", "cone90", "cone50", "originRegion90",
                         "originRegion50", "lookalikes", "slick",
-                        "particles", "forecastCone", "forecastPath", "tracks", "origin"]) {
+                        "particles", "forecastCone", "forecastPath", "tracks", "origin",
+                        "gap", "connector"]) {
         m.addSource(id, { type: "geojson", data: EMPTY });
       }
 
@@ -145,6 +162,19 @@ export default function MapView({
           "line-width": ["case", ["get", "selected"], 3.5, 1.6],
           "line-opacity": ["case", ["get", "dimmed"], 0.15, 0.85],
         } });
+
+      // The evidence connective tissue: what links a selected vessel to the
+      // spill. The gap is where its AIS went dark; the connector is a plain
+      // "this is how close it came" line to the origin — not a claim, a ruler.
+      // Plain white rather than a semantic colour: a DARK_VESSEL's track is
+      // already drawn in the suspect red, and a same-colour overlay would be
+      // invisible exactly where the gap matters most.
+      m.addLayer({ id: "gap-line", source: "gap", type: "line",
+        paint: { "line-color": "#ffffff", "line-width": 4, "line-dasharray": [1.4, 1.2],
+                 "line-opacity": 0.9 } });
+      m.addLayer({ id: "connector-line", source: "connector", type: "line",
+        paint: { "line-color": C.coneLine, "line-width": 1.2, "line-dasharray": [1.5, 1.5],
+                 "line-opacity": 0.6 } });
 
       m.addLayer({ id: "origin-dot", source: "origin", type: "circle",
         paint: { "circle-radius": 5, "circle-color": C.origin,
@@ -351,6 +381,55 @@ export default function MapView({
         : [],
     });
   }, [ready, attribution, selectedMmsi, layers.tracks]);
+
+  // ---- selected vessel: its AIS gap and its link to the origin ----------
+  // The two marks that answer "why does this vessel relate to the spill":
+  // where it went dark, and how close its track actually came.
+  useEffect(() => {
+    if (!ready) return;
+    const candidate = layers.tracks
+      ? attribution?.candidates.find((c) => c.mmsi === selectedMmsi) ?? null
+      : null;
+
+    const gap = candidate?.gaps.find((g) => g.overlaps_origin_window) ?? candidate?.gaps[0];
+    setData("gap", {
+      type: "FeatureCollection",
+      features: gap?.interpolated_path
+        ? [{ type: "Feature", geometry: gap.interpolated_path, properties: {} }]
+        : [],
+    });
+
+    const origin = hindcast?.origin_estimate.point;
+    const track = candidate?.track;
+    setData("connector", {
+      type: "FeatureCollection",
+      features: candidate && origin && track?.type === "LineString"
+        ? [{
+            type: "Feature",
+            properties: {},
+            geometry: {
+              type: "LineString",
+              coordinates: [nearestVertex(track.coordinates as [number, number][], origin), origin],
+            },
+          }]
+        : [],
+    });
+  }, [ready, attribution, selectedMmsi, hindcast, layers.tracks]);
+
+  // ---- "View on SAR": fly to a ruled-out candidate ------------------------
+  useEffect(() => {
+    const m = map.current;
+    if (!ready || !m || !focusRequest || !detection) return;
+    const target = detection.rejected_lookalikes.find((r) => r.id === focusRequest.id);
+    if (!target || target.polygon.type !== "Polygon") return;
+    const ring = target.polygon.coordinates[0] as [number, number][];
+    const lons = ring.map((p) => p[0]);
+    const lats = ring.map((p) => p[1]);
+    m.fitBounds(
+      [[Math.min(...lons), Math.min(...lats)], [Math.max(...lons), Math.max(...lats)]],
+      { padding: 140, maxZoom: 12, duration: 700 },
+    );
+  }, [ready, focusRequest, detection]);
 
   return <div ref={container} className="absolute inset-0 h-full w-full" />;
 }
