@@ -30,6 +30,11 @@
 
   --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
   --font-mono: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, monospace;
+
+  /* A slightly softer, more deliberate ease than the Tailwind defaults —
+     used on anything that should feel like an instrument responding, not a
+     webpage animating. */
+  --ease-out-soft: cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 html,
@@ -52,6 +57,38 @@ body {
   font-family: var(--font-mono);
 }
 
+/* Visible, on-brand keyboard focus. Replaces the browser default everywhere
+   at once instead of per-component. */
+:focus-visible {
+  outline: 2px solid var(--color-cone-500);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* Loading placeholder for panels waiting on their first response. A moving
+   gradient reads as "working" without borrowing attention the way a spinner
+   does. */
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+.skeleton {
+  background: linear-gradient(90deg, var(--color-ink-800) 25%, var(--color-ink-700) 50%, var(--color-ink-800) 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.6s ease-in-out infinite;
+}
+
 ::-webkit-scrollbar {
   width: 8px;
   height: 8px;
@@ -70,4 +107,33 @@ body {
 }
 .maplibregl-ctrl-attrib a {
   color: var(--color-mute-400) !important;
+}
+
+/* MapLibre's default control chrome is light-themed and reads as a bug on a
+   dark console. Re-skin nav/scale controls to match rather than leave a
+   second design system floating on the map. */
+.maplibregl-ctrl-group {
+  background: var(--color-ink-900) !important;
+  border: 1px solid var(--color-ink-700);
+  box-shadow: 0 8px 20px -12px rgba(0, 0, 0, 0.7) !important;
+  overflow: hidden;
+}
+.maplibregl-ctrl-group button {
+  background: transparent !important;
+}
+.maplibregl-ctrl-group button:hover {
+  background: var(--color-ink-800) !important;
+}
+.maplibregl-ctrl-group button:not(:last-child) {
+  border-bottom: 1px solid var(--color-ink-700);
+}
+.maplibregl-ctrl-icon {
+  filter: invert(85%) grayscale(1) brightness(1.1);
+}
+.maplibregl-ctrl-scale {
+  background: rgba(11, 17, 27, 0.75) !important;
+  border-color: var(--color-mute-400) !important;
+  color: var(--color-mute-300) !important;
+  font-family: var(--font-mono);
+  backdrop-filter: blur(4px);
 }
