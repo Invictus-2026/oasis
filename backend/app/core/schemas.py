@@ -114,11 +114,33 @@ class AgeEstimate(BaseModel):
     max_hours: float
     confidence: Literal["low", "medium", "high"] = "low"
     method_note: str
+    # Structured pull-outs of the same numbers method_note narrates in prose,
+    # so the UI can show them as compact fields instead of forcing a read.
+    diffusivity_m2s: float | None = Field(default=None, description="Okubo scale-dependent horizontal eddy diffusivity")
+    damping_db: float | None = Field(default=None, description="backscatter contrast used to shade freshness")
+    weathering: str | None = None
 
 
 class DetectionMethod(str, Enum):
     classical = "classical"
     unet = "unet"
+
+
+class DetectionEvidence(BaseModel):
+    """The four real, physically-motivated 0-1 sub-scores classify() computes
+    and weight-averages into a region's confidence — contrast, variance, shape
+    and edge terms exactly as scored, not a separate presentation-layer
+    computation. This is what makes 'why oil, why not' auditable rather than a
+    single opaque number."""
+
+    contrast: float = Field(ge=0.0, le=1.0, description="backscatter damping vs local background")
+    variance: float = Field(ge=0.0, le=1.0, description="speckle suppression vs ambient sea")
+    shape: float = Field(ge=0.0, le=1.0, description="elongated trail vs compact blob")
+    edge: float = Field(ge=0.0, le=1.0, description="boundary sharpness")
+    weight_contrast: float = 0.34
+    weight_variance: float = 0.31
+    weight_shape: float = 0.23
+    weight_edge: float = 0.12
 
 
 class Slick(BaseModel):
@@ -128,6 +150,7 @@ class Slick(BaseModel):
     method: DetectionMethod
     geometry: SlickGeometry
     age: AgeEstimate | None = None
+    evidence: DetectionEvidence | None = None
 
 
 class RejectedLookalike(BaseModel):
@@ -138,6 +161,7 @@ class RejectedLookalike(BaseModel):
     polygon: GeoJSON
     reason: str
     confidence: float = Field(ge=0.0, le=1.0)
+    evidence: DetectionEvidence | None = None
 
 
 class DetectRequest(BaseModel):
