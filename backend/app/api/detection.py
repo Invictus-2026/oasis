@@ -5,7 +5,7 @@ from fastapi import APIRouter, HTTPException
 from app.core import fixtures
 from app.core.case_store import load_case
 from app.core.schemas import DetectRequest, DetectResponse, DetectionMethod
-from app.detection import pipeline
+from app.detection import pipeline, unet
 
 router = APIRouter(prefix="/api", tags=["detection"])
 
@@ -28,9 +28,9 @@ def detect(req: DetectRequest) -> DetectResponse:
     if load_case() is None:
         return fixtures.detect_response(req.method)
 
-    if req.method is DetectionMethod.unet:
-        # Phase 7. Refusing loudly beats silently serving classical output
-        # under a U-Net label.
+    if req.method is DetectionMethod.unet and not unet.available():
+        # Refusing loudly beats silently serving classical output under a
+        # U-Net label.
         raise HTTPException(status_code=503, detail="U-Net weights not available; use method=classical")
 
     return _run(req.method)
