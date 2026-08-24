@@ -25,6 +25,7 @@ from app.core.schemas import (
     ConePolygon,
     DataSource,
     DetectResponse,
+    DetectionEvidence,
     DetectionMethod,
     ForecastResponse,
     GroundTruth,
@@ -181,12 +182,16 @@ def detect_response(method: DetectionMethod = DetectionMethod.classical) -> Dete
             min_hours=6.0,
             max_hours=14.0,
             confidence="low",
+            diffusivity_m2s=0.30,
+            damping_db=6.2,
+            weathering="weathering",
             method_note=(
                 "Heuristic proxy: Fay gravity-viscous spreading rate inferred from slick "
                 "area, cross-checked against backscatter contrast decay. Not a calibrated "
                 "measurement; treat as an order-of-magnitude bracket."
             ),
         ),
+        evidence=DetectionEvidence(contrast=0.81, variance=0.77, shape=0.68, edge=0.54),
     )
 
     lookalikes = [
@@ -201,6 +206,7 @@ def detect_response(method: DetectionMethod = DetectionMethod.classical) -> Dete
             },
             reason="Low-wind zone: high compactness (0.81) and soft edge gradient; ERA5 wind 1.9 m/s, below the 3 m/s detectability floor.",
             confidence=0.74,
+            evidence=DetectionEvidence(contrast=0.31, variance=0.22, shape=0.18, edge=0.29),
         ),
         RejectedLookalike(
             id="lookalike-002",
@@ -213,6 +219,7 @@ def detect_response(method: DetectionMethod = DetectionMethod.classical) -> Dete
             },
             reason="Biogenic slick signature: weak backscatter damping (-3.1 dB vs -8.4 dB for the retained slick) and no coherent drift-consistent elongation.",
             confidence=0.66,
+            evidence=DetectionEvidence(contrast=0.18, variance=0.35, shape=0.41, edge=0.20),
         ),
     ]
 
@@ -409,8 +416,14 @@ def attribute_response(weights: ScoreWeights | None = None) -> AttributeResponse
             gap_start = origin_time - timedelta(minutes=gap_min / 2)
             gap_end = gap_start + timedelta(minutes=gap_min)
             overlaps = gap_min >= 60
-            gaps.append(AISGap(start_utc=gap_start, end_utc=gap_end, duration_minutes=gap_min,
-                               overlaps_origin_window=overlaps))
+            # The gap sits around closest approach (track index 9, s=0) — a
+            # short reconstructed segment bridging it, same as a real
+            # gap-filler would draw across a genuine reporting hole.
+            gaps.append(AISGap(
+                start_utc=gap_start, end_utc=gap_end, duration_minutes=gap_min,
+                overlaps_origin_window=overlaps,
+                interpolated_path={"type": "LineString", "coordinates": [pts[7], pts[11]]},
+            ))
             if overlaps:
                 flags.append(CandidateFlag.dark_vessel)
         if closest < 3.0:
