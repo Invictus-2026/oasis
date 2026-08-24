@@ -98,7 +98,7 @@ def test_oil_is_smoother_and_darker_than_the_rejected_regions(bundle):
     oil, looks, _ = classical.detect(bundle.sar_db())
     assert oil and looks
     o = oil[0][0]
-    for la, _, _ in looks:
+    for la, _, _, _ in looks:
         assert o.variance_ratio < la.variance_ratio + 0.05 or o.contrast_db > la.contrast_db
 
 
