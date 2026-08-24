@@ -50,12 +50,12 @@
       "note": "ERA5 and CMEMS both require free accounts that are not configured. Steady mean flow plus a 22 km anticyclonic eddy, giving the drift ensemble real spatial shear. Replace by placing era5_wind.nc and cmems_currents.nc in data/raw/ and re-running."
     },
     {
-      "name": "NOAA AccessAIS 2023-06-15 (201 vessels, 24,328 positions)",
+      "name": "NOAA AccessAIS",
       "kind": "ais",
-      "source_url": "https://coast.noaa.gov/htdata/CMSP/AISDataHandler/2023/",
-      "licence": "Public domain (US Government)",
-      "is_synthetic": false,
-      "note": "Official problem-statement source. Clipped to the case bbox."
+      "source_url": null,
+      "licence": null,
+      "is_synthetic": true,
+      "note": "Day file not downloaded; only the synthetic polluter is present."
     },
     {
       "name": "Injected ground-truth polluter (MV KESTREL TRADER)",
@@ -133,5 +133,5 @@
     "ais": "ais.parquet",
     "forcing": "forcing.npz"
   },
-  "built_at": "2026-08-23T17:02:16.250545+00:00"
+  "built_at": "2026-08-24T14:05:25.240361+00:00"
 }
