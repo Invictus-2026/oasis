@@ -23,6 +23,10 @@ data/case/*.parquet
 ml/weights/*.pth
 ml/weights/*.pt
 
+# Training data — downloaded locally, never committed
+ml/data/*
+!ml/data/.gitkeep
+
 # Env / secrets
 .env
 .env.*
