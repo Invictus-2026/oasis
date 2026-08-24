@@ -98,6 +98,9 @@ def estimate(area_km2: float, contrast_db: float, length_km: float | None = None
         "min_hours": round(lo, 1),
         "max_hours": round(hi, 1),
         "confidence": "low",
+        "diffusivity_m2s": round(k, 3),
+        "damping_db": round(contrast_db, 1),
+        "weathering": weathering,
         "method_note": (
             f"Heuristic proxy, not a calibrated measurement. Treated as a line source: the "
             f"{geometry} was laid down by a moving vessel, so its length reflects the vessel's "
