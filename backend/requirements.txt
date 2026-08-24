@@ -21,6 +21,16 @@ pyarrow>=17.0
 # Phase 6 — report
 reportlab>=4.2
 
+# Phase 7 — optional U-Net detector (CPU inference; skip if you never trained one).
+# torch/torchvision are pinned to a matched pair (letting them resolve
+# independently can pull mismatched builds -- "torchvision::nms does not
+# exist" is the symptom). Install from the CPU wheel index to avoid pulling
+# CUDA packages the backend doesn't need:
+#   uv pip install torch==2.6.0 torchvision==0.21.0 --index-url https://download.pytorch.org/whl/cpu
+torch==2.6.0
+torchvision==0.21.0
+segmentation-models-pytorch>=0.5
+
 # Dev
 pytest>=8.3
 httpx>=0.27
