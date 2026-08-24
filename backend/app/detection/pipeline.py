@@ -11,6 +11,7 @@ from app.core import config
 from app.core.case_store import CaseBundle
 from app.core.schemas import (
     AgeEstimate,
+    DetectionEvidence,
     DetectionMethod,
     DetectResponse,
     ProcessingStep,
@@ -20,7 +21,7 @@ from app.core.schemas import (
     SlickGeometry,
 )
 from app.detection import age as age_mod
-from app.detection import classical, geometry
+from app.detection import classical, geometry, unet
 
 
 def _major_axis_km(region, bundle) -> float:
@@ -42,10 +43,11 @@ def iou(pred: np.ndarray, truth: np.ndarray) -> float:
 
 def run(bundle: CaseBundle, method: DetectionMethod = DetectionMethod.classical) -> DetectResponse:
     db = bundle.sar_db()
-    oil, looks, steps = classical.detect(db)
+    detector = unet if method is DetectionMethod.unet else classical
+    oil, looks, steps = detector.detect(db)
 
     slicks: list[Slick] = []
-    for i, (r, conf, _reason) in enumerate(oil, 1):
+    for i, (r, conf, _reason, evidence) in enumerate(oil, 1):
         g = geometry.describe(r, bundle)
         # Trail length from the major-axis extent, needed because age depends
         # on the slick's WIDTH, not its total area.
@@ -58,6 +60,7 @@ def run(bundle: CaseBundle, method: DetectionMethod = DetectionMethod.classical)
             method=method,
             geometry=SlickGeometry(**g),
             age=AgeEstimate(**a) if a else None,
+            evidence=DetectionEvidence(**evidence),
         ))
 
     rejected = [
@@ -66,19 +69,20 @@ def run(bundle: CaseBundle, method: DetectionMethod = DetectionMethod.classical)
             polygon={"type": "Polygon", "coordinates": [geometry.contour_to_lonlat(r.contour, bundle)]},
             reason=reason,
             confidence=round(1.0 - conf, 3),
+            evidence=DetectionEvidence(**evidence),
         )
-        for i, (r, conf, reason) in enumerate(looks, 1)
+        for i, (r, conf, reason, evidence) in enumerate(looks, 1)
     ]
 
     processing = [ProcessingStep(**s) for s in steps]
 
     # Score against the bundle's ground-truth mask. This is what turns "it drew
     # a polygon" into a number we can defend on stage.
-    params = dict(classical.PARAMS)
+    params = dict(detector.PARAMS)
     truth = bundle.mask_oil()
     if truth is not None and oil:
         pred = np.zeros_like(truth, dtype=bool)
-        for r, _, _ in oil:
+        for r, _, _, _ in oil:
             pred |= r.mask
         score = iou(pred, truth)
         tp = np.logical_and(pred, truth).sum()
@@ -103,6 +107,11 @@ def run(bundle: CaseBundle, method: DetectionMethod = DetectionMethod.classical)
             notes=(
                 "Classical detector: no learned weights, fully deterministic. IoU is "
                 "measured against the case bundle's ground-truth mask."
+                if method is DetectionMethod.classical else
+                "U-Net (ResNet34/ImageNet encoder) fine-tuned on a public Kaggle SAR "
+                "oil-spill segmentation set, a different collection than this case's raw "
+                "SAR raster -- see backend/app/detection/unet.py for the domain-shift "
+                "caveat. IoU is measured against the case bundle's ground-truth mask."
             ),
         ),
     )
