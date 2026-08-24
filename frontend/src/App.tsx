@@ -18,9 +18,13 @@ import ErrorBoundary from "./components/ErrorBoundary";
 import EvidencePanel from "./components/EvidencePanel";
 import LayerToggles from "./components/LayerToggles";
 import MapView, { type LayerVisibility } from "./components/MapView";
+import Pipeline from "./components/Pipeline";
 import ScoreBreakdown from "./components/ScoreBreakdown";
+import Timeline, { type TimelineStage } from "./components/Timeline";
 import VesselTable from "./components/VesselTable";
 import { Tag } from "./components/ui";
+import { km, utc } from "./lib/format";
+import { ViewModeProvider, type ViewMode } from "./lib/viewMode";
 
 const FRAME_MS = 90;
 
@@ -42,6 +46,20 @@ export default function App() {
   const [playing, setPlaying] = useState(false);
   const [selectedMmsi, setSelectedMmsi] = useState<string | null>(null);
   const [dataMode, setDataMode] = useState(getDataMode());
+  const [focusRequest, setFocusRequest] = useState<{ id: string; nonce: number } | null>(null);
+  const [viewMode, setViewMode] = useState<ViewMode>("analyst");
+
+  const detectionRef = useRef<HTMLDivElement>(null);
+  const driftRef = useRef<HTMLDivElement>(null);
+  const attributionRef = useRef<HTMLDivElement>(null);
+  const evidenceRef = useRef<HTMLDivElement>(null);
+  const stageRefs: Record<TimelineStage, React.RefObject<HTMLDivElement | null>> = {
+    detection: detectionRef, drift: driftRef, attribution: attributionRef, evidence: evidenceRef,
+  };
+  const onSelectStage = useCallback((stage: TimelineStage) => {
+    stageRefs[stage].current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const [layers, setLayers] = useState<LayerVisibility>({
     sar: true, slick: true, lookalikes: true, cone: true, particles: true, forecast: true, tracks: true,
@@ -168,6 +186,10 @@ export default function App() {
     setLayers((l) => ({ ...l, [k]: !l[k] }));
   }, []);
 
+  const onFocusLookalike = useCallback((id: string) => {
+    setFocusRequest({ id, nonce: Date.now() });
+  }, []);
+
   const steps: ProcessingStep[] = useMemo(
     () => [
       ...(detection?.processing ?? []),
@@ -185,14 +207,30 @@ export default function App() {
       {/* ---- header ---- */}
       <header className="flex shrink-0 items-center justify-between gap-4 border-b border-ink-700 bg-ink-900 px-4 py-2">
         <div className="flex items-baseline gap-3">
-          <h1 className="text-sm font-semibold tracking-tight text-mute-100">
+          <h1 className="text-[13px] font-semibold tracking-tight text-mute-100">
             Spill<span className="text-slick-500">Trace</span>
           </h1>
           <span className="hidden text-[11px] text-mute-400 sm:inline">
             Oil spill detection, drift hindcast and vessel attribution
           </span>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-3">
+          {/* Analyst sees evidence, thresholds and reasoning; Executive sees the
+              conclusion. Same data underneath either way — this only changes
+              what's shown, never what's computed. */}
+          <div className="flex items-center rounded-sm border border-ink-700 p-0.5 text-[10px] font-medium uppercase tracking-wider">
+            {(["analyst", "executive"] as const).map((m) => (
+              <button
+                key={m}
+                onClick={() => setViewMode(m)}
+                className={`rounded-sm px-2 py-0.5 transition-colors duration-150 ${
+                  viewMode === m ? "bg-cone-500/20 text-cone-500" : "text-mute-400 hover:text-mute-200"
+                }`}
+              >
+                {m}
+              </button>
+            ))}
+          </div>
           {caseMeta && <Tag tone="mute">{caseMeta.name}</Tag>}
           <Tag tone={dataMode === "live" ? "good" : "warn"}>
             {dataMode === "live" ? "LIVE API" : "OFFLINE FIXTURES"}
@@ -224,67 +262,111 @@ export default function App() {
               frameIndex={frameIndex}
               selectedMmsi={selectedMmsi}
               onSelectVessel={setSelectedMmsi}
+              focusRequest={focusRequest}
             />
           </ErrorBoundary>
+          {/* Vignette: a flat map reads as inert. A faint inset shadow gives the
+              scene depth and pulls the eye toward the centre without costing
+              any contrast on the data layers themselves. */}
+          <div className="pointer-events-none absolute inset-0 z-[5] shadow-[inset_0_0_140px_40px_rgba(3,6,12,0.55)]" />
           <div className="pointer-events-none absolute left-3 top-3 z-10">
             <LayerToggles layers={layers} onToggle={toggleLayer} />
           </div>
+          {/* HUD: the two real timestamps that anchor the whole case, always
+              visible on the analytical surface itself rather than buried in a
+              panel. No MapLibre text layer here — the offline style ships no
+              glyphs, so this is a plain HTML overlay. */}
+          {caseMeta && (
+            <div className="pointer-events-none absolute right-3 top-3 z-10 rounded-sm bg-ink-950/70 px-2 py-1.5 text-right font-mono text-[10px] leading-relaxed text-mute-300 backdrop-blur-sm">
+              <div>SCENE {utc(caseMeta.acquired_at)}</div>
+              {hindcast && (
+                <div className="text-cone-500">
+                  ORIGIN {utc(hindcast.origin_estimate.time_utc)} · ±{km(hindcast.origin_estimate.uncertainty_radius_km, 1)}
+                </div>
+              )}
+            </div>
+          )}
+          <div className="pointer-events-none absolute inset-x-3 bottom-3 z-10">
+            <Timeline caseMeta={caseMeta} hindcast={hindcast} attribution={attribution} onSelectStage={onSelectStage} />
+          </div>
         </main>
 
-        <aside className="w-[380px] shrink-0 space-y-2 overflow-y-auto border-l border-ink-700 bg-ink-900 p-2">
-          <ErrorBoundary label="Detection">
-            <DetectionPanel
+        <aside className="w-[380px] shrink-0 space-y-3 overflow-y-auto border-l border-ink-700 bg-ink-900 p-3">
+          <ViewModeProvider value={viewMode}>
+            <Pipeline
+              caseMeta={caseMeta}
               detection={detection}
-              busy={detecting}
-              method={method}
-              unetAvailable={false}
-              onRun={runDetect}
-            />
-          </ErrorBoundary>
-
-          <ErrorBoundary label="Drift">
-            <DriftControls
+              detecting={detecting}
               hindcast={hindcast}
               forecast={forecast}
-              busy={drifting}
-              playing={playing}
-              frameIndex={frameIndex}
-              frameCount={frames}
-              onHindcast={runHindcast}
-              onForecast={runForecast}
-              onScrub={(i) => { setPlaying(false); setFrameIndex(i); }}
-              onTogglePlay={() => {
-                if (!playing && frameIndex >= frames - 1) setFrameIndex(0);
-                setPlaying((p) => !p);
-              }}
-            />
-          </ErrorBoundary>
-
-          <ErrorBoundary label="Attribution">
-            <VesselTable
+              drifting={drifting}
               attribution={attribution}
-              busy={attributing}
-              disabled={!hindcast}
-              selectedMmsi={selectedMmsi}
-              onRun={runAttribute}
-              onSelect={setSelectedMmsi}
+              attributing={attributing}
             />
-          </ErrorBoundary>
 
-          <ErrorBoundary label="Score breakdown">
-            <ScoreBreakdown candidate={selected} weights={attribution?.weights ?? null} />
-          </ErrorBoundary>
+            <div ref={detectionRef}>
+              <ErrorBoundary label="Detection">
+                <DetectionPanel
+                  detection={detection}
+                  busy={detecting}
+                  method={method}
+                  unetAvailable={true}
+                  onRun={runDetect}
+                  onFocusLookalike={onFocusLookalike}
+                />
+              </ErrorBoundary>
+            </div>
 
-          <ErrorBoundary label="Evidence">
-            <EvidencePanel
-              caseMeta={caseMeta}
-              steps={steps}
-              report={report}
-              busy={reporting}
-              disabled={!detection}
-              onGenerate={runReport}
-            />
-          </ErrorBoundary>
+            <div ref={driftRef}>
+              <ErrorBoundary label="Drift">
+                <DriftControls
+                  hindcast={hindcast}
+                  forecast={forecast}
+                  busy={drifting}
+                  playing={playing}
+                  frameIndex={frameIndex}
+                  frameCount={frames}
+                  onHindcast={runHindcast}
+                  onForecast={runForecast}
+                  onScrub={(i) => { setPlaying(false); setFrameIndex(i); }}
+                  onTogglePlay={() => {
+                    if (!playing && frameIndex >= frames - 1) setFrameIndex(0);
+                    setPlaying((p) => !p);
+                  }}
+                />
+              </ErrorBoundary>
+            </div>
+
+            <div ref={attributionRef} className="space-y-3">
+              <ErrorBoundary label="Attribution">
+                <VesselTable
+                  attribution={attribution}
+                  busy={attributing}
+                  disabled={!hindcast}
+                  selectedMmsi={selectedMmsi}
+                  onRun={runAttribute}
+                  onSelect={setSelectedMmsi}
+                />
+              </ErrorBoundary>
+
+              <ErrorBoundary label="Score breakdown">
+                <ScoreBreakdown candidate={selected} weights={attribution?.weights ?? null} provenance={attribution?.provenance} />
+              </ErrorBoundary>
+            </div>
+
+            <div ref={evidenceRef}>
+              <ErrorBoundary label="Evidence">
+                <EvidencePanel
+                  caseMeta={caseMeta}
+                  steps={steps}
+                  report={report}
+                  busy={reporting}
+                  disabled={!detection}
+                  onGenerate={runReport}
+                />
+              </ErrorBoundary>
+            </div>
+          </ViewModeProvider>
         </aside>
       </div>
     </div>
