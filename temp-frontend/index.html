@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>SpillTrace — Quick Upload Tester</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <header>
+    <h1>SpillTrace <span class="sub">— quick upload tester</span></h1>
+    <p class="tagline">
+      Upload any image, run the oil-spill detector against it, and see the
+      detected regions circled with an area/volume estimate. This is a
+      throwaway testing tool, not the main dashboard (<code>frontend/</code>)
+      — it works on arbitrary images with no known geo-calibration, so every
+      number here rests on stated assumptions. Read the caveats panel.
+    </p>
+  </header>
+
+  <main>
+    <section class="controls">
+      <div class="field">
+        <label for="file">Image</label>
+        <input type="file" id="file" accept="image/*" />
+      </div>
+      <div class="field">
+        <label for="method">Detector</label>
+        <select id="method">
+          <option value="classical" selected>Classical (always available)</option>
+          <option value="unet">U-Net (needs trained weights)</option>
+        </select>
+      </div>
+      <div class="field">
+        <label for="gsd">Ground sampling distance (m/px)</label>
+        <input type="number" id="gsd" value="10" min="0.01" step="0.1" />
+      </div>
+      <div class="field">
+        <label for="backend">Backend URL</label>
+        <input type="text" id="backend" value="http://127.0.0.1:8000" />
+      </div>
+      <button id="run" disabled>Detect oil</button>
+      <span id="status"></span>
+    </section>
+
+    <section class="workspace">
+      <div class="canvas-wrap">
+        <canvas id="canvas"></canvas>
+        <p class="empty-hint" id="emptyHint">Choose an image to begin.</p>
+      </div>
+
+      <div class="results" id="results" hidden>
+        <h2>Totals</h2>
+        <div class="totals" id="totals"></div>
+
+        <h2>Detected regions</h2>
+        <div id="regionList" class="region-list"></div>
+
+        <h2>Rejected look-alikes</h2>
+        <div id="lookalikeList" class="region-list"></div>
+
+        <h2>Processing</h2>
+        <ol id="processingList" class="processing-list"></ol>
+
+        <h2>Caveats</h2>
+        <p id="notes" class="notes"></p>
+      </div>
+    </section>
+  </main>
+
+  <script src="app.js"></script>
+</body>
+</html>

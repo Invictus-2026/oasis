@@ -124,6 +124,17 @@ def _predict_prob_map(db: np.ndarray) -> np.ndarray:
     import torch
 
     model, _ = _load_model()
+
+    # The case-study scene is always >= PATCH_PX on both sides, but ad-hoc
+    # user uploads (see api/upload.py) may not be. Reflect-pad up to at
+    # least one full patch, run inference, then crop back to the original
+    # size so callers never see the padding.
+    orig_h, orig_w = db.shape
+    pad_h = max(PATCH_PX - orig_h, 0)
+    pad_w = max(PATCH_PX - orig_w, 0)
+    if pad_h or pad_w:
+        db = np.pad(db, ((0, pad_h), (0, pad_w)), mode="reflect")
+
     rgb = _to_rgb_uint8(db)
     h, w = db.shape
 
@@ -149,7 +160,8 @@ def _predict_prob_map(db: np.ndarray) -> np.ndarray:
         prob_sum[y:y + PATCH_PX, x:x + PATCH_PX] += p
         weight[y:y + PATCH_PX, x:x + PATCH_PX] += 1.0
 
-    return prob_sum / np.maximum(weight, 1e-9)
+    prob = prob_sum / np.maximum(weight, 1e-9)
+    return prob[:orig_h, :orig_w] if (pad_h or pad_w) else prob
 
 
 def detect(db: np.ndarray) -> tuple[

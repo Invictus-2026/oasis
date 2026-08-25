@@ -11,7 +11,7 @@ a time, without the API contract changing.
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.api import attribution, case, detection, drift, pipeline, report, scene
+from app.api import attribution, case, detection, drift, pipeline, report, scene, upload
 from app.core import config
 
 app = FastAPI(
@@ -22,14 +22,18 @@ app = FastAPI(
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173", "http://127.0.0.1:5173"],
+    allow_origins=[
+        "http://localhost:5173", "http://127.0.0.1:5173",  # main frontend/ (Vite)
+        "http://localhost:5500", "http://127.0.0.1:5500",  # temp-frontend/ (static server)
+        "http://localhost:8080", "http://127.0.0.1:8080",
+    ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
 for r in (case.router, detection.router, drift.router, attribution.router,
-          report.router, pipeline.router, scene.router):
+          report.router, pipeline.router, scene.router, upload.router):
     app.include_router(r)
 
 
