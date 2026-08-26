@@ -117,6 +117,29 @@ export function SpillProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     const off = onDataModeChange(setDataMode as any);
     api.getCase().then(setCaseMeta);
+    
+    // Try restoring from localStorage first
+    const savedState = localStorage.getItem("spilltrace_state");
+    if (savedState) {
+      try {
+        const { detection: d, hindcast: h, forecast: f, attribution: a, mockWindDir: mw } = JSON.parse(savedState);
+        if (d) setDetection(d);
+        if (h) {
+          setHindcast(h);
+          setHindcastIndex(h.particles_timeline.length - 1);
+        }
+        if (f) setForecast(f);
+        if (a) {
+          setAttribution(a);
+          setSelectedMmsi(a.candidates[0]?.mmsi ?? null);
+        }
+        if (mw !== undefined) setMockWindDir(mw);
+        return off; // Skip default API fetch if we have saved state
+      } catch (e) {
+        console.error("Failed to parse saved state", e);
+      }
+    }
+
     setDetecting(true);
     api.detect("classical")
       .then(async (det) => {
@@ -134,6 +157,14 @@ export function SpillProvider({ children }: { children: ReactNode }) {
       .finally(() => setDetecting(false));
     return off;
   }, []);
+
+  // Save state to localStorage whenever it changes
+  useEffect(() => {
+    if (detection) {
+      const state = { detection, hindcast, forecast, attribution, mockWindDir };
+      localStorage.setItem("spilltrace_state", JSON.stringify(state));
+    }
+  }, [detection, hindcast, forecast, attribution, mockWindDir]);
 
   const hindcastFrames = hindcast?.particles_timeline.length ?? 0;
   const forecastFrames = forecast?.particles_timeline.length ?? 0;
