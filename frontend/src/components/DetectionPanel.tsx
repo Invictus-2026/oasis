@@ -50,8 +50,8 @@ export default function DetectionPanel({
 
           {slick.evidence && (
             <AnalystOnly>
-              <div className="mb-2.5 space-y-1.5 border-t border-ink-700 pt-2">
-                <div className="text-[10px] uppercase tracking-wider text-mute-400">Evidence</div>
+              <div className="mb-2.5 space-y-1.5 border-t border-ink-200 pt-2">
+                <div className="text-[10px] uppercase tracking-wider text-ink-500">Evidence</div>
                 <Meter label="Backscatter damping" value={slick.evidence.contrast} weight={slick.evidence.weight_contrast}
                        hint="Contrast vs local background. Mineral oil damps Bragg backscatter hard." />
                 <Meter label="Speckle suppression" value={slick.evidence.variance} weight={slick.evidence.weight_variance}
@@ -78,12 +78,12 @@ export default function DetectionPanel({
           </div>
 
           {slick.age && (
-            <div className="mt-2.5 border-t border-ink-700 pt-2">
+            <div className="mt-2.5 border-t border-ink-200 pt-2">
               <div className="flex items-baseline justify-between">
-                <span className="text-[10px] uppercase tracking-wider text-mute-400">Estimated age</span>
+                <span className="text-[10px] uppercase tracking-wider text-ink-500">Estimated age</span>
                 <Tag tone="mute">{slick.age.confidence} confidence</Tag>
               </div>
-              <div className="tnum mt-0.5 text-sm text-slick-400">
+              <div className="tnum mt-0.5 text-sm text-orange-600">
                 {hours(slick.age.min_hours)} – {hours(slick.age.max_hours)}
               </div>
               <AnalystOnly>
@@ -106,8 +106,8 @@ export default function DetectionPanel({
           )}
 
           {detection && detection.rejected_lookalikes.length > 0 && (
-            <div className="mt-2.5 border-t border-ink-700 pt-2">
-              <div className="mb-1.5 text-[10px] uppercase tracking-wider text-mute-400">
+            <div className="mt-2.5 border-t border-ink-200 pt-2">
+              <div className="mb-1.5 text-[10px] uppercase tracking-wider text-ink-500">
                 Ruled out ({detection.rejected_lookalikes.length})
               </div>
               <ul className="space-y-1.5">
@@ -116,12 +116,12 @@ export default function DetectionPanel({
                     <div className="flex gap-2">
                       <Tag tone="mute">NOT OIL · {pct(r.confidence)}</Tag>
                       <AnalystOnly>
-                        <p className="flex-1 text-[10px] leading-relaxed text-mute-400">{r.reason}</p>
+                        <p className="flex-1 text-[10px] leading-relaxed text-ink-500">{r.reason}</p>
                       </AnalystOnly>
                     </div>
                     <button
                       onClick={() => onFocusLookalike(r.id)}
-                      className="shrink-0 text-[10px] text-mute-400 underline decoration-dotted underline-offset-2 hover:text-mute-200"
+                      className="shrink-0 text-[10px] text-ink-500 underline decoration-dotted underline-offset-2 hover:text-ink-700"
                     >
                       View on SAR
                     </button>

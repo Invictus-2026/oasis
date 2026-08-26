@@ -13,7 +13,7 @@ from functools import lru_cache
 import numpy as np
 from fastapi import APIRouter, HTTPException, Response
 
-from app.core.case_store import load_case
+from app.core.case_store import load_case, data_files_ready
 
 router = APIRouter(prefix="/api/scene", tags=["scene"])
 
@@ -67,9 +67,10 @@ def sar_png(grey: bool = False) -> Response:
 
     Georeferencing is the case bbox: the frontend places it as an image source
     with the bbox corners, so it lines up with the detection polygons exactly.
+    Returns 404 when the full case data hasn't been built yet.
     """
-    if load_case() is None:
-        raise HTTPException(status_code=404, detail="case bundle not built")
+    if not data_files_ready():
+        raise HTTPException(status_code=404, detail="SAR data not available — run scripts/build_case.py to generate sar_db.npy")
     return Response(
         content=_render(colorise=not grey),
         media_type="image/png",
