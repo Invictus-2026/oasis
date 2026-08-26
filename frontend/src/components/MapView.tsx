@@ -375,33 +375,64 @@ export default function MapView({
     const forecastFrame = forecastFrames[Math.min(forecastIndex, forecastFrames.length - 1)];
     const forecastT = forecastFrame?.t_offset_hours ?? 0;
 
+    // Shrink forecast by 0.55. It should still be larger than origin (0.45)
+    // but not overwhelmingly massive when simulated out to 72 hours.
+    const SHRINK = 0.55;
+    function shrinkPoly(geom: GeoJSON.Geometry): GeoJSON.Geometry {
+      if (geom.type !== "Polygon") return geom;
+      const coords = geom.coordinates.map(ring => {
+        const cx = ring.reduce((s, p) => s + p[0], 0) / ring.length;
+        const cy = ring.reduce((s, p) => s + p[1], 0) / ring.length;
+        return ring.map(p => [cx + (p[0] - cx) * SHRINK, cy + (p[1] - cy) * SHRINK]);
+      });
+      return { ...geom, coordinates: coords };
+    }
+
     // Progressively expand the cone by filtering up to the current timestamp
     const outer = forecast?.cone.filter((c) => c.percentile === 90 && c.t_offset_hours <= forecastT) ?? [];
     setData("forecastCone", {
       type: "FeatureCollection",
       features: layers.forecast
         ? outer.map((c) => ({
-            type: "Feature", geometry: c.polygon,
+            type: "Feature", geometry: shrinkPoly(c.polygon),
             properties: { t: c.t_offset_hours },
           }))
         : [],
     });
+    
+    // Also shrink the path relative to its own centroid so it matches the scaled cone
+    let shrunkPath = forecast?.centroid_path;
+    if (shrunkPath && shrunkPath.type === "LineString") {
+      const cx = shrunkPath.coordinates.reduce((s, p) => s + p[0], 0) / shrunkPath.coordinates.length;
+      const cy = shrunkPath.coordinates.reduce((s, p) => s + p[1], 0) / shrunkPath.coordinates.length;
+      shrunkPath = {
+        ...shrunkPath,
+        coordinates: shrunkPath.coordinates.map(p => [cx + (p[0] - cx) * SHRINK, cy + (p[1] - cy) * SHRINK])
+      };
+    }
+    
     setData("forecastPath", {
       type: "FeatureCollection",
-      features: layers.forecast && forecast
-        ? [{ type: "Feature", geometry: forecast.centroid_path, properties: {} }]
+      features: layers.forecast && shrunkPath
+        ? [{ type: "Feature", geometry: shrunkPath, properties: {} }]
         : [],
     });
     
     // Also render forecast particles if they exist
-    setData("forecastParticles", {
-      type: "FeatureCollection",
-      features: layers.particles && forecastFrame
-        ? forecastFrame.points.map((pt) => ({
-            type: "Feature", geometry: { type: "Point", coordinates: pt }, properties: {},
-          }))
-        : [],
-    });
+    let particleFeatures: GeoJSON.Feature[] = [];
+    if (layers.particles && forecastFrame) {
+      const cx = forecastFrame.points.reduce((s, p) => s + p[0], 0) / forecastFrame.points.length;
+      const cy = forecastFrame.points.reduce((s, p) => s + p[1], 0) / forecastFrame.points.length;
+      particleFeatures = forecastFrame.points.map((pt) => ({
+        type: "Feature" as const,
+        geometry: { type: "Point" as const, coordinates: [
+          cx + (pt[0] - cx) * SHRINK,
+          cy + (pt[1] - cy) * SHRINK,
+        ] },
+        properties: {},
+      }));
+    }
+    setData("forecastParticles", { type: "FeatureCollection", features: particleFeatures });
   }, [ready, forecast, layers.forecast, layers.particles, forecastIndex]);
 
   // ---- vessel tracks ----------------------------------------------------

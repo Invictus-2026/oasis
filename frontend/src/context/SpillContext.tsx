@@ -232,7 +232,7 @@ export function SpillProvider({ children }: { children: ReactNode }) {
       const isAdhoc = detection.slicks[0].id.startsWith("adhoc-");
       const raw = isAdhoc
         ? (await import("../mock/forecast.json")).default
-        : await api.forecast(detection.slicks[0].id, 12);
+        : await api.forecast(detection.slicks[0].id, 72);
       let f = raw as ForecastResponse;
       if (isAdhoc) {
         const poly = detection.slicks[0].polygon as GeoJSON.Polygon;
@@ -241,6 +241,19 @@ export function SpillProvider({ children }: { children: ReactNode }) {
         const cLat = pts.reduce((s, p) => s + p[1], 0) / pts.length;
         f = shiftForecast(f, cLon - (-90.016633), cLat - 28.472599, windDir ?? mockWindDir);
       }
+      
+      // Limit to max 15 segments as requested
+      if (f.particles_timeline.length > 15) {
+        f.particles_timeline = f.particles_timeline.slice(0, 15);
+        const maxT = f.particles_timeline[f.particles_timeline.length - 1].t_offset_hours;
+        f.cone = f.cone.filter(c => c.t_offset_hours <= maxT);
+        
+        // Also truncate the centroid path coordinates if possible (approximate by segment count)
+        if (f.centroid_path.type === "LineString") {
+           f.centroid_path.coordinates = f.centroid_path.coordinates.slice(0, 15);
+        }
+      }
+      
       setForecast(f);
       setForecastIndex(0);
       setForecastPlaying(true);
