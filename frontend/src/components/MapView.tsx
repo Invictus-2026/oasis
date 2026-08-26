@@ -238,6 +238,21 @@ export default function MapView({
     });
   }, [caseMeta, ready]);
 
+  // ---- pan to new custom uploads ----------------------------------------
+  const prevSlickCount = useRef(0);
+  useEffect(() => {
+    if (!ready || !map.current) return;
+    const count = detection?.slicks?.length || 0;
+    if (count > prevSlickCount.current && count > 1) {
+      const lastSlick = detection!.slicks[count - 1];
+      if (lastSlick.polygon.type === "Polygon") {
+        const coord = lastSlick.polygon.coordinates[0][0];
+        map.current.flyTo({ center: coord as [number, number], zoom: 9, duration: 1500 });
+      }
+    }
+    prevSlickCount.current = count;
+  }, [ready, detection]);
+
   // ---- SAR overlay ------------------------------------------------------
   // Added in its own effect rather than in the style-load handler: the case is
   // fetched asynchronously and usually arrives AFTER the style has loaded, so
@@ -315,30 +330,37 @@ export default function MapView({
 
     // Animating frames: the ensemble cone at this instant.
     for (const p of [50, 90] as const) {
-      const ring = hindcast?.cone.find(
+      const rings = hindcast?.cone.filter(
         (c) => c.percentile === p && c.t_offset_hours === t,
-      );
+      ) ?? [];
       setData(`cone${p}`, {
         type: "FeatureCollection",
-        features: layers.cone && ring
-          ? [{ type: "Feature", geometry: shrinkPoly(ring.polygon), properties: { percentile: p } }]
+        features: layers.cone 
+          ? rings.map(ring => ({ type: "Feature", geometry: shrinkPoly(ring.polygon), properties: { percentile: p } }))
           : [],
       });
     }
 
-    // Shrink particles toward their frame centroid
+    // Shrink particles toward their frame centroid PER slick
     let particleFeatures: GeoJSON.Feature[] = [];
     if (layers.particles && frame) {
-      const cx = frame.points.reduce((s, p) => s + p[0], 0) / frame.points.length;
-      const cy = frame.points.reduce((s, p) => s + p[1], 0) / frame.points.length;
-      particleFeatures = frame.points.map((pt) => ({
-        type: "Feature" as const,
-        geometry: { type: "Point" as const, coordinates: [
-          cx + (pt[0] - cx) * SHRINK,
-          cy + (pt[1] - cy) * SHRINK,
-        ] },
-        properties: {},
-      }));
+      const numSlicks = detection?.slicks?.length || 1;
+      const pointsPerSlick = Math.floor(frame.points.length / numSlicks);
+      
+      for (let i = 0; i < numSlicks; i++) {
+        const chunk = frame.points.slice(i * pointsPerSlick, (i + 1) * pointsPerSlick);
+        if (chunk.length === 0) continue;
+        const cx = chunk.reduce((s, p) => s + p[0], 0) / chunk.length;
+        const cy = chunk.reduce((s, p) => s + p[1], 0) / chunk.length;
+        particleFeatures.push(...chunk.map((pt) => ({
+          type: "Feature" as const,
+          geometry: { type: "Point" as const, coordinates: [
+            cx + (pt[0] - cx) * SHRINK,
+            cy + (pt[1] - cy) * SHRINK,
+          ] },
+          properties: {},
+        })));
+      }
     }
     setData("particles", { type: "FeatureCollection", features: particleFeatures });
 
@@ -346,24 +368,27 @@ export default function MapView({
     const atEnd = frames.length > 0 && hindcastIndex >= frames.length - 1;
     const minT = hindcast ? Math.min(...hindcast.cone.map(c => c.t_offset_hours)) : 0;
     for (const p of [50, 90] as const) {
-      const ring = hindcast?.cone.find(
+      const rings = hindcast?.cone.filter(
         (c) => c.percentile === p && c.t_offset_hours === minT,
-      );
+      ) ?? [];
       setData(`originRegion${p}`, {
         type: "FeatureCollection",
-        features: layers.cone && atEnd && ring
-          ? [{ type: "Feature", geometry: shrinkPoly(ring.polygon), properties: { percentile: p } }]
+        features: layers.cone && atEnd 
+          ? rings.map(ring => ({ type: "Feature", geometry: shrinkPoly(ring.polygon), properties: { percentile: p } }))
           : [],
       });
     }
 
-    const o = hindcast?.origin_estimate;
-    setData("origin", {
-      type: "FeatureCollection",
-      features: atEnd && o
-        ? [{ type: "Feature", geometry: { type: "Point", coordinates: o.point }, properties: {} }]
-        : [],
-    });
+    const originFeatures: GeoJSON.Feature[] = [];
+    if (atEnd && hindcast?.origin_estimate) {
+       originFeatures.push({ type: "Feature", geometry: { type: "Point", coordinates: hindcast.origin_estimate.point }, properties: {} });
+    }
+    if (atEnd && (hindcast as any)?.extra_origins) {
+       for (const ext of (hindcast as any).extra_origins) {
+          originFeatures.push({ type: "Feature", geometry: { type: "Point", coordinates: ext.point }, properties: {} });
+       }
+    }
+    setData("origin", { type: "FeatureCollection", features: originFeatures });
   }, [ready, hindcast, hindcastIndex, layers.cone, layers.particles]);
 
   // ---- forecast ---------------------------------------------------------
@@ -407,6 +432,13 @@ export default function MapView({
         ...shrunkPath,
         coordinates: shrunkPath.coordinates.map(p => [cx + (p[0] - cx) * SHRINK, cy + (p[1] - cy) * SHRINK])
       };
+    } else if (shrunkPath && shrunkPath.type === "MultiLineString") {
+      const newCoords = shrunkPath.coordinates.map(line => {
+        const cx = line.reduce((s, p) => s + p[0], 0) / line.length;
+        const cy = line.reduce((s, p) => s + p[1], 0) / line.length;
+        return line.map(p => [cx + (p[0] - cx) * SHRINK, cy + (p[1] - cy) * SHRINK]);
+      });
+      shrunkPath = { ...shrunkPath, coordinates: newCoords };
     }
     
     setData("forecastPath", {
@@ -416,19 +448,26 @@ export default function MapView({
         : [],
     });
     
-    // Also render forecast particles if they exist
+    // Also render forecast particles if they exist, chunked per slick
     let particleFeatures: GeoJSON.Feature[] = [];
     if (layers.particles && forecastFrame) {
-      const cx = forecastFrame.points.reduce((s, p) => s + p[0], 0) / forecastFrame.points.length;
-      const cy = forecastFrame.points.reduce((s, p) => s + p[1], 0) / forecastFrame.points.length;
-      particleFeatures = forecastFrame.points.map((pt) => ({
-        type: "Feature" as const,
-        geometry: { type: "Point" as const, coordinates: [
-          cx + (pt[0] - cx) * SHRINK,
-          cy + (pt[1] - cy) * SHRINK,
-        ] },
-        properties: {},
-      }));
+      const numSlicks = detection?.slicks?.length || 1;
+      const pointsPerSlick = Math.floor(forecastFrame.points.length / numSlicks);
+      
+      for (let i = 0; i < numSlicks; i++) {
+        const chunk = forecastFrame.points.slice(i * pointsPerSlick, (i + 1) * pointsPerSlick);
+        if (chunk.length === 0) continue;
+        const cx = chunk.reduce((s, p) => s + p[0], 0) / chunk.length;
+        const cy = chunk.reduce((s, p) => s + p[1], 0) / chunk.length;
+        particleFeatures.push(...chunk.map((pt) => ({
+          type: "Feature" as const,
+          geometry: { type: "Point" as const, coordinates: [
+            cx + (pt[0] - cx) * SHRINK,
+            cy + (pt[1] - cy) * SHRINK,
+          ] },
+          properties: {},
+        })));
+      }
     }
     setData("forecastParticles", { type: "FeatureCollection", features: particleFeatures });
   }, [ready, forecast, layers.forecast, layers.particles, forecastIndex]);
