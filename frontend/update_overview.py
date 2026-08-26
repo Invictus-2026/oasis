@@ -1,4 +1,4 @@
-import { useSpillState } from "../context/SpillContext";
+content = """import { useSpillState } from "../context/SpillContext";
 import { ViewModeProvider } from "../lib/viewMode";
 import { km2, pct, hours, km } from "../lib/format";
 import {
@@ -20,7 +20,7 @@ export default function Overview() {
             {/* HERO SECTION: MarineTraffic Map */}
             <div className="relative w-full h-[400px] shrink-0 bg-ink-900 overflow-hidden">
                <iframe 
-                  src="https://www.marinetraffic.com/en/ais/embed/zoom:10/centery:22.3/centerx:60.9"
+                  src="https://www.marinetraffic.com/en/ais/home/centerx:60.9/centery:22.3/zoom:10"
                   className="absolute inset-0 w-full h-full border-0 z-0 mix-blend-luminosity opacity-80"
                   title="Marine Traffic Live Map"
                />
@@ -260,3 +260,6 @@ export default function Overview() {
       </ViewModeProvider>
    );
 }
+"""
+with open('src/pages/Overview.tsx', 'w') as f:
+    f.write(content)

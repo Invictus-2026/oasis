@@ -111,8 +111,6 @@ export default function MapView({
       // Light theme graticules
       m.addLayer({ id: "graticule-line", source: "graticule", type: "line",
         paint: { "line-color": "#94a3b8", "line-width": 1, "line-opacity": 0.4 } });
-      m.addLayer({ id: "frame-line", source: "frame", type: "line",
-        paint: { "line-color": "#64748b", "line-width": 1.5, "line-dasharray": [4, 3] } });
         
       m.addLayer({ id: "windField-line", source: "windField", type: "line",
         paint: { "line-color": "#9ca3af", "line-width": 1.5, "line-opacity": 0.3 } });
