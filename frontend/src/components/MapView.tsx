@@ -60,6 +60,9 @@ const STYLE: maplibregl.StyleSpecification = {
   layers: [{ id: "bg", type: "background", paint: { "background-color": "#e2e8f0" } }], // Light theme ocean color
 };
 
+const OCEAN_LIGHT = "#e2e8f0";
+const OCEAN_DARK = "#0b111b";
+
 export default function MapView({
   caseMeta, detection, hindcast, forecast, attribution,
   layers, hindcastIndex, forecastIndex, selectedMmsi, onSelectVessel, focusRequest, mockWindDir,
@@ -198,8 +201,21 @@ export default function MapView({
       m.triggerRepaint();
     });
 
+    // The ocean background is a WebGL paint property, not CSS — it doesn't
+    // pick up the app's dark: classes on its own. Sync it on load and keep
+    // it in sync if the user toggles theme while the map is mounted.
+    const applyOceanTheme = () => {
+      if (!m.getLayer("bg")) return;
+      const dark = document.documentElement.classList.contains("dark");
+      m.setPaintProperty("bg", "background-color", dark ? OCEAN_DARK : OCEAN_LIGHT);
+    };
+    m.on("load", applyOceanTheme);
+    const themeObserver = new MutationObserver(applyOceanTheme);
+    themeObserver.observe(document.documentElement, { attributes: true, attributeFilter: ["class"] });
+
     map.current = m;
     return () => {
+      themeObserver.disconnect();
       resizeObs.current?.disconnect();
       resizeObs.current = null;
       m.remove();
