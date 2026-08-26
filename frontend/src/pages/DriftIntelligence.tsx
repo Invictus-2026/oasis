@@ -4,7 +4,7 @@ import { ViewModeProvider, AnalystOnly } from "../lib/viewMode";
 import { hours, km, lonLat, utc } from "../lib/format";
 import {
   Map, History, ArrowRight, Crosshair, HelpCircle, 
-  Clock, Navigation, Search, AlertTriangle, ShieldCheck, Play, Pause, ChevronDown, ChevronRight
+  Clock, Navigation, Search, AlertTriangle, ShieldCheck, Play, Pause, ChevronDown, ChevronRight, Wind
 } from "lucide-react";
 
 // ── helpers ────────────────────────────────────────────────────
@@ -56,12 +56,15 @@ function StatBox({ label, value, hint }: { label: string; value: string | React.
 // ── main component ─────────────────────────────────────────────
 export default function DriftIntelligence() {
   const {
+    detection,
     hindcast, forecast, drifting,
     hindcastPlaying, hindcastIndex, frames,
-    runHindcast, runForecast,
+    runHindcast, runForecast, randomizeWind,
     setHindcastIndex, setHindcastPlaying,
     viewMode
   } = useSpillState();
+
+  const isAdhoc = detection?.slicks[0]?.id.startsWith("adhoc-");
 
   const o = hindcast?.origin_estimate;
   const t = hindcast?.particles_timeline[Math.min(hindcastIndex, frames - 1)]?.t_offset_hours ?? 0;
@@ -110,6 +113,26 @@ export default function DriftIntelligence() {
             </button>
           </div>
         </header>
+
+        {isAdhoc && (
+          <div className="bg-purple-50 border border-purple-200 rounded-lg p-3 mt-4 mb-2 flex items-center justify-between">
+            <div className="flex flex-col">
+              <span className="text-sm font-bold text-purple-900">Custom Origin Sandbox</span>
+              <span className="text-xs text-purple-700">Explore mock environmental drift vectors from your uploaded slick.</span>
+            </div>
+            <button
+              onClick={() => {
+                randomizeWind();
+                if (hindcast) runHindcast();
+                if (forecast) runForecast();
+              }}
+              className="flex items-center gap-2 px-3 py-1.5 bg-white border border-purple-200 text-purple-700 hover:bg-purple-100 rounded text-xs font-bold transition-colors"
+            >
+              <Wind className="w-3.5 h-3.5" />
+              Randomize Wind & Current
+            </button>
+          </div>
+        )}
 
         {(!hindcast && !drifting) && (
           <div className="mt-8 flex flex-col items-center justify-center py-16 px-6 text-center border-2 border-dashed border-ink-200 rounded-2xl bg-ink-50/50">

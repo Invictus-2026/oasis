@@ -5,7 +5,7 @@ import { bearingLabel, deg, hours, km, km2, pct, ratio } from "../lib/format";
 import {
   Satellite, Search, Layers, Zap, BrainCircuit, Maximize, 
   Clock, EyeOff, AlertTriangle, Eye, ChevronDown, ChevronRight,
-  UploadCloud, FileImage, Image as ImageIcon
+  UploadCloud, FileImage, Image as ImageIcon, MapPin
 } from "lucide-react";
 import type { DetectionMethod, UploadResponse, UploadRegion } from "../api/types";
 
@@ -57,6 +57,7 @@ function StatBox({ label, value, hint }: { label: string; value: string | number
 
 // ── AdHocUpload Component ──────────────────────────────────────
 function AdHocUpload() {
+  const { caseMeta, injectAdHocDetection } = useSpillState();
   const [file, setFile] = useState<File | null>(null);
   const [imgUrl, setImgUrl] = useState<string | null>(null);
   const [gsd, setGsd] = useState<number>(10.0);
@@ -168,6 +169,58 @@ function AdHocUpload() {
     }
   };
 
+  const handleProjectToMap = () => {
+    if (!result || !caseMeta || result.oil_regions.length === 0) return;
+
+    const primaryRegion = result.oil_regions[0];
+    const cx = result.width / 2;
+    const cy = result.height / 2;
+    const gsd = result.gsd_m;
+
+    const centerLon = caseMeta.center[0];
+    const centerLat = caseMeta.center[1];
+    const cosLat = Math.cos((centerLat * Math.PI) / 180);
+
+    const pixelToLonLat = (x: number, y: number): [number, number] => {
+      const scale = 5;
+      const dx_m = (x - cx) * gsd * scale;
+      const dy_m = (cy - y) * gsd * scale;
+      const lon = centerLon + dx_m / (111320.0 * cosLat);
+      const lat = centerLat + dy_m / 111320.0;
+      return [lon, lat];
+    };
+
+    const coordinates = primaryRegion.contour.map(([x, y]) => pixelToLonLat(x, y));
+    if (coordinates.length > 0) coordinates.push(coordinates[0]);
+
+    injectAdHocDetection({
+      slicks: [{
+        id: "adhoc-" + Date.now(),
+        polygon: { type: "Polygon", coordinates: [coordinates] },
+        confidence: primaryRegion.confidence,
+        method: result.method,
+        geometry: {
+          area_km2: primaryRegion.area_km2,
+          perimeter_km: 0,
+          elongation: 1.0,
+          orientation_deg: 0,
+          compactness: 0.5
+        },
+        age: null,
+        evidence: null
+      }],
+      rejected_lookalikes: [],
+      processing: result.processing,
+      provenance: {
+        model_version: "custom-upload",
+        params: { gsd },
+        generated_at: new Date().toISOString(),
+        inputs: [file?.name ?? "upload"],
+        notes: "Injected from custom upload"
+      }
+    });
+  };
+
   return (
     <div className="mt-6 flex flex-col gap-6">
       
@@ -274,6 +327,14 @@ function AdHocUpload() {
                      <div className="text-[10px] font-bold uppercase tracking-widest text-amber-500">Total Area (km²)</div>
                   </div>
                </div>
+               
+               <button
+                  onClick={handleProjectToMap}
+                  className="w-full mt-4 bg-purple-600 hover:bg-purple-700 text-white font-bold py-3 rounded-lg shadow-sm flex items-center justify-center gap-2 transition-all active:scale-[0.98]"
+               >
+                  <MapPin className="w-5 h-5" />
+                  Project onto Maritime Map for Drift Analysis
+               </button>
             </div>
 
             <SectionCard title="Detection Metrics" icon={<Layers className="w-4 h-4" />}>
