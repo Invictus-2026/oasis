@@ -17,7 +17,7 @@ export default function App() {
           <Route path="/" element={<AppLayout />}>
             <Route index element={<Overview />} />
             <Route path="incidents" element={<Placeholder title="Incident Investigation" />} />
-            <Route path="map" element={<MaritimeMap />} />
+            <Route path="map" element={<div />} />
             <Route path="satellite" element={<SatelliteIntelligence />} />
             <Route path="vessel" element={<Placeholder title="Vessel Intelligence" />} />
             <Route path="drift" element={<DriftIntelligence />} />

@@ -131,10 +131,10 @@ export default function Attribution() {
                 </div>
              </div>
 
-             <div className="grid grid-cols-1 lg:grid-cols-3 gap-5 items-start">
+             <div className="flex flex-col gap-5 items-start">
                
                {/* Vessel List */}
-               <div className="lg:col-span-2">
+               <div className="w-full">
                  <SectionCard title={`Candidate Shortlist (${attribution.candidates.length})`} icon={<Anchor className="w-4 h-4" />}>
                    <div className="flex flex-col gap-3">
                      {attribution.candidates.map((c) => {
@@ -218,7 +218,7 @@ export default function Attribution() {
                </div>
 
                {/* Score Breakdown (Sidebar) */}
-               <div className="lg:col-span-1">
+               <div className="w-full">
                  <SectionCard title="Score Breakdown" icon={<SlidersHorizontal className="w-4 h-4" />}>
                    {selectedCandidate ? (
                      <div>
