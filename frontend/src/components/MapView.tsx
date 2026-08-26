@@ -34,6 +34,7 @@ interface Props {
   /** A new object (even with the same id) re-triggers the fly-to, so clicking
    *  "View on SAR" twice in a row still refocuses. */
   focusRequest: { id: string; nonce: number } | null;
+  mockWindDir?: number;
 }
 
 const EMPTY: GeoJSON.FeatureCollection = { type: "FeatureCollection", features: [] };
@@ -61,7 +62,7 @@ const STYLE: maplibregl.StyleSpecification = {
 
 export default function MapView({
   caseMeta, detection, hindcast, forecast, attribution,
-  layers, hindcastIndex, forecastIndex, selectedMmsi, onSelectVessel, focusRequest,
+  layers, hindcastIndex, forecastIndex, selectedMmsi, onSelectVessel, focusRequest, mockWindDir,
 }: Props) {
   const container = useRef<HTMLDivElement>(null);
   const map = useRef<maplibregl.Map | null>(null);
@@ -102,7 +103,7 @@ export default function MapView({
       for (const id of ["graticule", "frame", "cone90", "cone50", "originRegion90",
                         "originRegion50", "lookalikes", "slick",
                         "particles", "forecastCone", "forecastPath", "tracks", "origin",
-                        "gap", "connector"]) {
+                        "gap", "connector", "windField"]) {
         m.addSource(id, { type: "geojson", data: EMPTY });
       }
 
@@ -112,6 +113,9 @@ export default function MapView({
         paint: { "line-color": "#94a3b8", "line-width": 1, "line-opacity": 0.4 } });
       m.addLayer({ id: "frame-line", source: "frame", type: "line",
         paint: { "line-color": "#64748b", "line-width": 1.5, "line-dasharray": [4, 3] } });
+        
+      m.addLayer({ id: "windField-line", source: "windField", type: "line",
+        paint: { "line-color": "#9ca3af", "line-width": 1.5, "line-opacity": 0.3 } });
 
       // Draw order matters: cones sit under everything, the slick sits above
       // the look-alikes so the retained detection reads as primary.
@@ -298,38 +302,59 @@ export default function MapView({
     const frame = frames[Math.min(hindcastIndex, frames.length - 1)];
     const t = frame?.t_offset_hours;
 
-    // Animating frames: the ensemble at this instant.
+    // Origin estimation should be tighter than the forecast spread.
+    // Shrink hindcast geometry toward its centroid by this factor.
+    const SHRINK = 0.45;
+    function shrinkPoly(geom: GeoJSON.Geometry): GeoJSON.Geometry {
+      if (geom.type !== "Polygon") return geom;
+      const coords = geom.coordinates.map(ring => {
+        const cx = ring.reduce((s, p) => s + p[0], 0) / ring.length;
+        const cy = ring.reduce((s, p) => s + p[1], 0) / ring.length;
+        return ring.map(p => [cx + (p[0] - cx) * SHRINK, cy + (p[1] - cy) * SHRINK]);
+      });
+      return { ...geom, coordinates: coords };
+    }
+
+    // Animating frames: the ensemble cone at this instant.
     for (const p of [50, 90] as const) {
       const ring = hindcast?.cone.find(
-        (c) => c.kind === "frame" && c.percentile === p && c.t_offset_hours === t,
+        (c) => c.percentile === p && c.t_offset_hours === t,
       );
       setData(`cone${p}`, {
         type: "FeatureCollection",
         features: layers.cone && ring
-          ? [{ type: "Feature", geometry: ring.polygon, properties: { percentile: p } }]
+          ? [{ type: "Feature", geometry: shrinkPoly(ring.polygon), properties: { percentile: p } }]
           : [],
       });
     }
 
-    setData("particles", {
-      type: "FeatureCollection",
-      features: layers.particles && frame
-        ? frame.points.map((pt) => ({
-            type: "Feature", geometry: { type: "Point", coordinates: pt }, properties: {},
-          }))
-        : [],
-    });
+    // Shrink particles toward their frame centroid
+    let particleFeatures: GeoJSON.Feature[] = [];
+    if (layers.particles && frame) {
+      const cx = frame.points.reduce((s, p) => s + p[0], 0) / frame.points.length;
+      const cy = frame.points.reduce((s, p) => s + p[1], 0) / frame.points.length;
+      particleFeatures = frame.points.map((pt) => ({
+        type: "Feature" as const,
+        geometry: { type: "Point" as const, coordinates: [
+          cx + (pt[0] - cx) * SHRINK,
+          cy + (pt[1] - cy) * SHRINK,
+        ] },
+        properties: {},
+      }));
+    }
+    setData("particles", { type: "FeatureCollection", features: particleFeatures });
 
     // The origin region and marker appear only once the run has settled.
-    // Showing them mid-animation would imply more certainty than the ensemble
-    // has yet produced.
     const atEnd = frames.length > 0 && hindcastIndex >= frames.length - 1;
+    const minT = hindcast ? Math.min(...hindcast.cone.map(c => c.t_offset_hours)) : 0;
     for (const p of [50, 90] as const) {
-      const ring = hindcast?.cone.find((c) => c.kind === "origin" && c.percentile === p);
+      const ring = hindcast?.cone.find(
+        (c) => c.percentile === p && c.t_offset_hours === minT,
+      );
       setData(`originRegion${p}`, {
         type: "FeatureCollection",
         features: layers.cone && atEnd && ring
-          ? [{ type: "Feature", geometry: ring.polygon, properties: { percentile: p } }]
+          ? [{ type: "Feature", geometry: shrinkPoly(ring.polygon), properties: { percentile: p } }]
           : [],
       });
     }
@@ -448,6 +473,45 @@ export default function MapView({
       { padding: 140, maxZoom: 12, duration: 700 },
     );
   }, [ready, focusRequest, detection]);
+
+  // ---- Wind field --------------------------------------------------------
+  useEffect(() => {
+    if (!ready || !caseMeta || mockWindDir === undefined) return;
+    const step = 0.25;
+    const b = caseMeta.bbox;
+    const features: GeoJSON.Feature[] = [];
+    const rad = (90 - mockWindDir) * (Math.PI / 180);
+    const arrowLen = 0.08;
+    const headLen = 0.03;
+    const headAngle = 30 * (Math.PI / 180);
+
+    const dx = Math.cos(rad) * arrowLen;
+    const dy = Math.sin(rad) * arrowLen;
+
+    const hx1 = Math.cos(rad + Math.PI - headAngle) * headLen;
+    const hy1 = Math.sin(rad + Math.PI - headAngle) * headLen;
+    const hx2 = Math.cos(rad + Math.PI + headAngle) * headLen;
+    const hy2 = Math.sin(rad + Math.PI + headAngle) * headLen;
+
+    for (let lon = b.west + step / 2; lon < b.east; lon += step) {
+      for (let lat = b.south + step / 2; lat < b.north; lat += step) {
+        const endLon = lon + dx;
+        const endLat = lat + dy;
+        features.push({
+          type: "Feature", properties: {},
+          geometry: {
+            type: "MultiLineString",
+            coordinates: [
+              [[lon, lat], [endLon, endLat]],
+              [[endLon, endLat], [endLon + hx1, endLat + hy1]],
+              [[endLon, endLat], [endLon + hx2, endLat + hy2]]
+            ]
+          }
+        });
+      }
+    }
+    setData("windField", { type: "FeatureCollection", features });
+  }, [caseMeta, mockWindDir, ready]);
 
   return <div ref={container} className="absolute inset-0 h-full w-full" />;
 }

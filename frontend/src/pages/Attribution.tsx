@@ -65,7 +65,7 @@ export default function Attribution() {
           
           <div className="flex items-center gap-2 bg-ink-50 p-1.5 rounded-lg border border-ink-200 self-start">
             <button
-              onClick={runAttribute}
+              onClick={() => runAttribute()}
               disabled={attributing || !hindcast}
               className={`flex items-center gap-2 px-4 py-2.5 rounded-md text-sm font-bold transition-all ${
                 !hindcast 

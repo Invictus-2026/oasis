@@ -5,6 +5,7 @@ import AnalysisPanel from "../components/AnalysisPanel";
 import ErrorBoundary from "../components/ErrorBoundary";
 import { ViewModeProvider } from "../lib/viewMode";
 import { useSpillState } from "../context/SpillContext";
+import { Navigation } from "lucide-react";
 
 export default function MaritimeMap() {
   const {
@@ -22,6 +23,7 @@ export default function MaritimeMap() {
     layers,
     toggleLayer,
     focusRequest,
+    mockWindDir,
   } = useSpillState();
 
   return (
@@ -63,6 +65,7 @@ export default function MaritimeMap() {
               selectedMmsi={selectedMmsi}
               onSelectVessel={setSelectedMmsi}
               focusRequest={focusRequest}
+              mockWindDir={mockWindDir}
             />
           </ErrorBoundary>
           
@@ -75,6 +78,15 @@ export default function MaritimeMap() {
           
           <div className="pointer-events-none absolute right-4 top-4 z-10">
             <AnalysisPanel />
+          </div>
+
+          {/* Compass Widget */}
+          <div className="pointer-events-none absolute left-4 bottom-6 z-10 flex flex-col items-center justify-center bg-white p-2 rounded-full shadow-md border border-ink-200 w-12 h-12">
+            <Navigation 
+              className="w-6 h-6 text-blue-500 transition-transform duration-500" 
+              style={{ transform: `rotate(${mockWindDir}deg)` }} 
+            />
+            <span className="text-[9px] font-bold text-ink-500 mt-0.5">{mockWindDir}°</span>
           </div>
 
           <div className="pointer-events-none absolute inset-x-4 bottom-6 z-10">

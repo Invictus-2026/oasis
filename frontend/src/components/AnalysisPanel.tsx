@@ -35,7 +35,7 @@ export default function AnalysisPanel() {
           
           <div className="flex flex-col gap-2">
             <button
-              onClick={runHindcast}
+              onClick={() => runHindcast()}
               disabled={!!drifting}
               className="flex items-center justify-between px-2 py-1.5 rounded bg-ink-50 hover:bg-blue-50 border border-ink-200 hover:border-blue-200 transition-colors text-sm text-ink-700 disabled:opacity-50"
             >
@@ -47,7 +47,7 @@ export default function AnalysisPanel() {
             </button>
             
             <button
-              onClick={runForecast}
+              onClick={() => runForecast()}
               disabled={!!drifting}
               className="flex items-center justify-between px-2 py-1.5 rounded bg-ink-50 hover:bg-blue-50 border border-ink-200 hover:border-blue-200 transition-colors text-sm text-ink-700 disabled:opacity-50"
             >
