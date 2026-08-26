@@ -12,11 +12,11 @@ import type { DetectionMethod } from "../api/types";
 function Badge({ children, color = "gray" }: { children: React.ReactNode; color?: string }) {
   const map: Record<string, string> = {
     gray:   "bg-ink-100 text-ink-600 border-ink-200",
-    blue:   "bg-blue-50 text-blue-700 border-blue-200",
-    purple: "bg-purple-50 text-purple-700 border-purple-200",
-    amber:  "bg-amber-50 text-amber-700 border-amber-200",
-    red:    "bg-red-50 text-red-700 border-red-200",
-    green:  "bg-emerald-50 text-emerald-700 border-emerald-200",
+    blue:   "bg-blue-50 dark:bg-blue-500/10 text-blue-700 dark:text-blue-400 border-blue-200 dark:border-blue-500/30",
+    purple: "bg-purple-50 dark:bg-purple-500/10 text-purple-700 dark:text-purple-400 border-purple-200 dark:border-purple-500/30",
+    amber:  "bg-amber-50 dark:bg-amber-500/10 text-amber-700 dark:text-amber-400 border-amber-200 dark:border-amber-500/30",
+    red:    "bg-red-50 dark:bg-red-500/10 text-red-700 dark:text-red-400 border-red-200 dark:border-red-500/30",
+    green:  "bg-emerald-50 dark:bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-200 dark:border-emerald-500/30",
   };
   return (
     <span className={`inline-flex items-center rounded border px-1.5 py-0.5 text-[10px] font-bold tracking-wider ${map[color] ?? map.gray}`}>
@@ -30,12 +30,12 @@ function SectionCard({ title, icon, children, defaultOpen = true }: {
 }) {
   const [open, setOpen] = useState(defaultOpen);
   return (
-    <div className="rounded-xl border border-ink-200 bg-white shadow-sm overflow-hidden">
+    <div className="rounded-xl border border-ink-200 bg-white dark:bg-ink-100 shadow-sm overflow-hidden">
       <button
         onClick={() => setOpen(o => !o)}
         className="w-full flex items-center gap-3 px-5 py-3.5 bg-ink-50 border-b border-ink-200 hover:bg-ink-100 transition-colors text-left"
       >
-        <span className="text-blue-600">{icon}</span>
+        <span className="text-blue-600 dark:text-blue-400">{icon}</span>
         <span className="flex-1 text-sm font-bold text-ink-800 tracking-tight">{title}</span>
         {open ? <ChevronDown className="w-4 h-4 text-ink-400" /> : <ChevronRight className="w-4 h-4 text-ink-400" />}
       </button>
@@ -73,7 +73,7 @@ export default function SatelliteIntelligence() {
         <header className="page-header flex flex-col md:flex-row md:items-start justify-between gap-4">
           <div>
             <div className="flex items-center gap-2 mb-1">
-              <Satellite className="w-5 h-5 text-blue-600" />
+              <Satellite className="w-5 h-5 text-blue-600 dark:text-blue-400" />
               <h2 className="!mb-0">Satellite Intelligence</h2>
             </div>
             <p>Analyze Synthetic Aperture Radar (SAR) imagery for anomalies and potential oil slicks.</p>
@@ -84,8 +84,8 @@ export default function SatelliteIntelligence() {
               onClick={() => handleRun("classical")}
               disabled={detecting && method !== "classical"}
               className={`flex items-center gap-2 px-3 py-2 rounded-md text-sm font-bold transition-all ${
-                method === "classical" 
-                  ? "bg-white shadow-sm border border-ink-200 text-ink-900" 
+                method === "classical"
+                  ? "bg-white dark:bg-ink-200 shadow-sm border border-ink-200 text-ink-900"
                   : "text-ink-600 hover:text-ink-900 hover:bg-ink-100/50"
               }`}
             >
@@ -97,9 +97,9 @@ export default function SatelliteIntelligence() {
               onClick={() => handleRun("unet")}
               disabled={!unetAvailable || (detecting && method !== "unet")}
               className={`flex items-center gap-2 px-3 py-2 rounded-md text-sm font-bold transition-all ${
-                method === "unet" 
-                  ? "bg-white shadow-sm border border-ink-200 text-blue-600" 
-                  : "text-ink-600 hover:text-blue-600 hover:bg-ink-100/50"
+                method === "unet"
+                  ? "bg-white dark:bg-ink-200 shadow-sm border border-ink-200 text-blue-600 dark:text-blue-400"
+                  : "text-ink-600 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-ink-100/50"
               }`}
             >
               <BrainCircuit className="w-4 h-4" />
@@ -111,7 +111,7 @@ export default function SatelliteIntelligence() {
 
         {!slick && !detecting && (
           <div className="mt-8 flex flex-col items-center justify-center py-16 px-6 text-center border-2 border-dashed border-ink-200 rounded-2xl bg-ink-50/50">
-            <div className="w-16 h-16 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center mb-4">
+            <div className="w-16 h-16 bg-blue-100 dark:bg-blue-500/15 text-blue-600 dark:text-blue-400 rounded-full flex items-center justify-center mb-4">
               <Search className="w-8 h-8" />
             </div>
             <h3 className="text-lg font-bold text-ink-900 mb-2">No Detection Results</h3>
@@ -137,22 +137,22 @@ export default function SatelliteIntelligence() {
           <div className="flex flex-col gap-4 mt-6">
             
             {/* Primary Result Banner */}
-            <div className="bg-amber-50 border border-amber-200 rounded-xl p-5 flex flex-col md:flex-row items-center justify-between gap-6">
+            <div className="bg-amber-50 dark:bg-amber-500/10 border border-amber-200 dark:border-amber-500/30 rounded-xl p-5 flex flex-col md:flex-row items-center justify-between gap-6">
                <div>
                   <div className="flex items-center gap-2 mb-2">
-                    <AlertTriangle className="w-5 h-5 text-amber-600" />
-                    <h3 className="text-lg font-black text-amber-900 tracking-tight">Confirmed Oil Slick</h3>
+                    <AlertTriangle className="w-5 h-5 text-amber-600 dark:text-amber-400" />
+                    <h3 className="text-lg font-black text-amber-900 dark:text-amber-300 tracking-tight">Confirmed Oil Slick</h3>
                   </div>
-                  <p className="text-sm text-amber-700">
+                  <p className="text-sm text-amber-700 dark:text-amber-400">
                     High confidence detection using {slick.method === "unet" ? "U-Net semantic segmentation" : "classical thresholding"}.
                   </p>
                </div>
-               <div className="flex items-center gap-6 text-center bg-white p-4 rounded-lg border border-amber-100 shadow-sm min-w-[200px] justify-center">
+               <div className="flex items-center gap-6 text-center bg-white dark:bg-ink-100 p-4 rounded-lg border border-amber-100 dark:border-amber-500/20 shadow-sm min-w-[200px] justify-center">
                   <div>
-                     <div className="text-3xl font-black text-amber-600 tabular-nums">{slick.geometry.area_km2.toFixed(1)}</div>
-                     <div className="text-[10px] font-bold uppercase tracking-widest text-amber-500">km² Area</div>
+                     <div className="text-3xl font-black text-amber-600 dark:text-amber-400 tabular-nums">{slick.geometry.area_km2.toFixed(1)}</div>
+                     <div className="text-[10px] font-bold uppercase tracking-widest text-amber-500 dark:text-amber-400">km² Area</div>
                   </div>
-                  <div className="w-px h-10 bg-amber-100" />
+                  <div className="w-px h-10 bg-amber-100 dark:bg-amber-500/20" />
                   <div>
                      <div className="text-3xl font-black text-ink-900 tabular-nums">{(slick.confidence * 100).toFixed(0)}<span className="text-xl">%</span></div>
                      <div className="text-[10px] font-bold uppercase tracking-widest text-ink-400">Confidence</div>
@@ -182,9 +182,9 @@ export default function SatelliteIntelligence() {
             {slick.age && (
               <SectionCard title="Age & Weathering Estimate" icon={<Clock className="w-4 h-4" />}>
                 <div className="flex flex-col md:flex-row gap-6">
-                   <div className="shrink-0 text-center md:text-left bg-blue-50 border border-blue-100 p-4 rounded-lg">
-                      <div className="text-[10px] font-bold uppercase tracking-widest text-blue-500 mb-1">Release Window</div>
-                      <div className="text-2xl font-black text-blue-700 tabular-nums">
+                   <div className="shrink-0 text-center md:text-left bg-blue-50 dark:bg-blue-500/10 border border-blue-100 dark:border-blue-500/30 p-4 rounded-lg">
+                      <div className="text-[10px] font-bold uppercase tracking-widest text-blue-500 dark:text-blue-400 mb-1">Release Window</div>
+                      <div className="text-2xl font-black text-blue-700 dark:text-blue-400 tabular-nums">
                          {hours(slick.age.min_hours)} – {hours(slick.age.max_hours)}
                       </div>
                       <div className="mt-2 flex justify-center md:justify-start">
@@ -221,7 +221,7 @@ export default function SatelliteIntelligence() {
                         <div key={e.label}>
                            <div className="flex justify-between items-baseline mb-1">
                               <span className="text-sm font-semibold text-ink-800">{e.label}</span>
-                              <span className="text-xs font-mono font-bold text-blue-600">{(e.val * 100).toFixed(0)}%</span>
+                              <span className="text-xs font-mono font-bold text-blue-600 dark:text-blue-400">{(e.val * 100).toFixed(0)}%</span>
                            </div>
                            <div className="h-2 bg-ink-100 rounded-full overflow-hidden">
                               <div className="h-full bg-blue-500 rounded-full" style={{ width: `${e.val * 100}%` }} />
@@ -250,7 +250,7 @@ export default function SatelliteIntelligence() {
                            <p className="text-sm text-ink-700 leading-relaxed mb-2">{r.reason}</p>
                            <button 
                               onClick={() => onFocusLookalike(r.id)}
-                              className="text-xs flex items-center gap-1 font-semibold text-blue-600 hover:text-blue-800"
+                              className="text-xs flex items-center gap-1 font-semibold text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300"
                            >
                               <Eye className="w-3.5 h-3.5" /> View on Map
                            </button>

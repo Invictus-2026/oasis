@@ -24,19 +24,19 @@ function Track({ label, color, frames, index, playing, disabled, onPlay, onScrub
 
   const colorMap = {
     blue: {
-      label: "text-blue-600",
+      label: "text-blue-600 dark:text-blue-400",
       thumb: "bg-blue-600 border-blue-700",
       fill: "bg-blue-500",
-      track: "bg-blue-100",
-      shadow: "shadow-blue-200",
+      track: "bg-blue-100 dark:bg-blue-500/20",
+      shadow: "shadow-blue-200 dark:shadow-blue-900/40",
       ring: "focus:ring-blue-300",
     },
     purple: {
-      label: "text-purple-600",
+      label: "text-purple-600 dark:text-purple-400",
       thumb: "bg-purple-600 border-purple-700",
       fill: "bg-purple-500",
-      track: "bg-purple-100",
-      shadow: "shadow-purple-200",
+      track: "bg-purple-100 dark:bg-purple-500/20",
+      shadow: "shadow-purple-200 dark:shadow-purple-900/40",
       ring: "focus:ring-purple-300",
     },
   }[color];
@@ -95,7 +95,7 @@ function Track({ label, color, frames, index, playing, disabled, onPlay, onScrub
           className={`flex-shrink-0 w-7 h-7 rounded-full flex items-center justify-center transition-all border
             ${disabled || frames === 0
               ? "bg-ink-100 border-ink-200 text-ink-400 cursor-not-allowed"
-              : `bg-white border-ink-200 text-ink-700 hover:bg-ink-50 hover:border-ink-300 shadow-sm`
+              : `bg-white dark:bg-ink-200 border-ink-200 text-ink-700 hover:bg-ink-50 hover:border-ink-300 shadow-sm`
             }`}
         >
           {playing
@@ -173,16 +173,16 @@ export default function Timeline() {
   const scrubForecast = (i: number) => { setForecastPlaying(false); setForecastIndex(i); };
 
   return (
-    <div className="pointer-events-auto w-full max-w-4xl mx-auto rounded-xl border border-ink-200 bg-white/95 shadow-xl backdrop-blur-md px-5 py-4 flex flex-col gap-3">
+    <div className="pointer-events-auto w-full max-w-4xl mx-auto rounded-xl border border-ink-200 bg-white/95 dark:bg-ink-100/95 shadow-xl backdrop-blur-md px-5 py-4 flex flex-col gap-3">
       {/* Header labels */}
       <div className="flex items-center justify-between">
-        <span className="text-[11px] font-black uppercase tracking-widest text-blue-600">Hindcast (-24h)</span>
+        <span className="text-[11px] font-black uppercase tracking-widest text-blue-600 dark:text-blue-400">Hindcast (-24h)</span>
         <div className="flex items-center gap-1.5">
           <div className="h-px w-12 bg-ink-200" />
           <span className="text-[11px] font-black uppercase tracking-widest text-ink-800">Det. 0h</span>
           <div className="h-px w-12 bg-ink-200" />
         </div>
-        <span className="text-[11px] font-black uppercase tracking-widest text-purple-600">Forecast (+72h)</span>
+        <span className="text-[11px] font-black uppercase tracking-widest text-purple-600 dark:text-purple-400">Forecast (+72h)</span>
       </div>
 
       {/* Two tracks */}

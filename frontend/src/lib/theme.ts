@@ -1,3 +1,51 @@
+import { useCallback, useEffect, useState } from "react";
+
+export type ThemeMode = "light" | "dark";
+
+const STORAGE_KEY = "theme";
+
+function systemPrefersDark(): boolean {
+  return window.matchMedia("(prefers-color-scheme: dark)").matches;
+}
+
+function applyTheme(mode: ThemeMode) {
+  document.documentElement.classList.toggle("dark", mode === "dark");
+}
+
+/** Tracks light/dark theme, mirrors it onto the <html class="dark"> switch
+ *  index.css keys off of, and persists explicit user choices. Until the
+ *  user toggles manually, it follows the OS scheme so the app matches the
+ *  index.html init script's first-paint decision and stays in sync if the
+ *  OS theme changes underneath it. */
+export function useTheme() {
+  const [theme, setTheme] = useState<ThemeMode>(() =>
+    document.documentElement.classList.contains("dark") ? "dark" : "light",
+  );
+
+  useEffect(() => {
+    if (localStorage.getItem(STORAGE_KEY)) return;
+    const media = window.matchMedia("(prefers-color-scheme: dark)");
+    const onChange = () => {
+      const mode = systemPrefersDark() ? "dark" : "light";
+      applyTheme(mode);
+      setTheme(mode);
+    };
+    media.addEventListener("change", onChange);
+    return () => media.removeEventListener("change", onChange);
+  }, []);
+
+  const toggleTheme = useCallback(() => {
+    setTheme((prev) => {
+      const next: ThemeMode = prev === "dark" ? "light" : "dark";
+      applyTheme(next);
+      localStorage.setItem(STORAGE_KEY, next);
+      return next;
+    });
+  }, []);
+
+  return { theme, toggleTheme };
+}
+
 /** Layer colours, shared between the map and the legend so they can never
  *  drift apart. */
 export const C = {

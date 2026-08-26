@@ -13,11 +13,11 @@ import type { ProcessingStep, VesselCandidate } from "../api/types";
 function Badge({ children, color = "gray" }: { children: React.ReactNode; color?: string }) {
   const map: Record<string, string> = {
     gray:   "bg-ink-100 text-ink-600 border-ink-200",
-    blue:   "bg-blue-50 text-blue-700 border-blue-200",
-    purple: "bg-purple-50 text-purple-700 border-purple-200",
-    amber:  "bg-amber-50 text-amber-700 border-amber-200",
-    red:    "bg-red-50 text-red-700 border-red-200",
-    green:  "bg-emerald-50 text-emerald-700 border-emerald-200",
+    blue:   "bg-blue-50 dark:bg-blue-500/10 text-blue-700 dark:text-blue-400 border-blue-200 dark:border-blue-500/30",
+    purple: "bg-purple-50 dark:bg-purple-500/10 text-purple-700 dark:text-purple-400 border-purple-200 dark:border-purple-500/30",
+    amber:  "bg-amber-50 dark:bg-amber-500/10 text-amber-700 dark:text-amber-400 border-amber-200 dark:border-amber-500/30",
+    red:    "bg-red-50 dark:bg-red-500/10 text-red-700 dark:text-red-400 border-red-200 dark:border-red-500/30",
+    green:  "bg-emerald-50 dark:bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-200 dark:border-emerald-500/30",
   };
   return (
     <span className={`inline-flex items-center rounded border px-1.5 py-0.5 text-[10px] font-bold tracking-wider ${map[color] ?? map.gray}`}>
@@ -31,12 +31,12 @@ function SectionCard({ title, icon, children, defaultOpen = true }: {
 }) {
   const [open, setOpen] = useState(defaultOpen);
   return (
-    <div className="rounded-xl border border-ink-200 bg-white shadow-sm overflow-hidden">
+    <div className="rounded-xl border border-ink-200 bg-white dark:bg-ink-100 shadow-sm overflow-hidden">
       <button
         onClick={() => setOpen(o => !o)}
         className="w-full flex items-center gap-3 px-5 py-3.5 bg-ink-50 border-b border-ink-200 hover:bg-ink-100 transition-colors text-left"
       >
-        <span className="text-blue-600">{icon}</span>
+        <span className="text-blue-600 dark:text-blue-400">{icon}</span>
         <span className="flex-1 text-sm font-bold text-ink-800 tracking-tight">{title}</span>
         {open ? <ChevronDown className="w-4 h-4 text-ink-400" /> : <ChevronRight className="w-4 h-4 text-ink-400" />}
       </button>
@@ -48,12 +48,12 @@ function SectionCard({ title, icon, children, defaultOpen = true }: {
 function StepRow({ step, index }: { step: ProcessingStep; index: number }) {
   return (
     <div className="flex items-center gap-3 py-1.5 border-b border-ink-100 last:border-0 text-xs">
-      <span className="w-5 h-5 rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center font-bold text-[10px] shrink-0">
+      <span className="w-5 h-5 rounded-full bg-emerald-100 dark:bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 flex items-center justify-center font-bold text-[10px] shrink-0">
         {index + 1}
       </span>
       <span className="flex-1 text-ink-700 font-medium">{step.name}</span>
       {step.detail && <span className="text-ink-400 truncate max-w-[200px]">{step.detail}</span>}
-      <span className="font-mono text-[11px] text-blue-600 tabular-nums shrink-0">{step.duration_ms.toFixed(0)} ms</span>
+      <span className="font-mono text-[11px] text-blue-600 dark:text-blue-400 tabular-nums shrink-0">{step.duration_ms.toFixed(0)} ms</span>
     </div>
   );
 }
@@ -61,10 +61,10 @@ function StepRow({ step, index }: { step: ProcessingStep; index: number }) {
 function CandidateRow({ c }: { c: VesselCandidate }) {
   const isDark = c.flags.includes("DARK_VESSEL");
   return (
-    <div className={`rounded-lg border px-4 py-3 ${isDark ? "border-red-200 bg-red-50/40" : "border-ink-200 bg-white"}`}>
+    <div className={`rounded-lg border px-4 py-3 ${isDark ? "border-red-200 dark:border-red-500/30 bg-red-50/40 dark:bg-red-500/10" : "border-ink-200 bg-white dark:bg-ink-100"}`}>
       <div className="flex items-start justify-between gap-3">
         <div className="flex items-center gap-2">
-          <span className={`w-6 h-6 rounded-full flex items-center justify-center text-[11px] font-black shrink-0 ${isDark ? "bg-red-100 text-red-700" : "bg-ink-100 text-ink-600"}`}>
+          <span className={`w-6 h-6 rounded-full flex items-center justify-center text-[11px] font-black shrink-0 ${isDark ? "bg-red-100 dark:bg-red-500/20 text-red-700 dark:text-red-400" : "bg-ink-100 text-ink-600"}`}>
             {c.rank}
           </span>
           <div>
@@ -149,16 +149,16 @@ export default function Reports() {
             { label: "Forecast", done: !!forecast, icon: <Clock className="w-4 h-4" /> },
             { label: "Attribution", done: !!attribution, icon: <Anchor className="w-4 h-4" /> },
           ].map(s => (
-            <div key={s.label} className={`flex items-center gap-2.5 rounded-lg border p-3 ${s.done ? "border-emerald-200 bg-emerald-50" : "border-ink-200 bg-white"}`}>
-              <span className={s.done ? "text-emerald-600" : "text-ink-400"}>{s.icon}</span>
+            <div key={s.label} className={`flex items-center gap-2.5 rounded-lg border p-3 ${s.done ? "border-emerald-200 dark:border-emerald-500/30 bg-emerald-50 dark:bg-emerald-500/10" : "border-ink-200 bg-white dark:bg-ink-100"}`}>
+              <span className={s.done ? "text-emerald-600 dark:text-emerald-400" : "text-ink-400"}>{s.icon}</span>
               <div>
                 <div className="text-[11px] font-bold text-ink-700">{s.label}</div>
-                <div className={`text-[10px] ${s.done ? "text-emerald-600" : "text-ink-400"}`}>
+                <div className={`text-[10px] ${s.done ? "text-emerald-600 dark:text-emerald-400" : "text-ink-400"}`}>
                   {s.done ? "Complete" : "Pending"}
                 </div>
               </div>
               {s.done
-                ? <CheckCircle2 className="w-4 h-4 text-emerald-500 ml-auto" />
+                ? <CheckCircle2 className="w-4 h-4 text-emerald-500 dark:text-emerald-400 ml-auto" />
                 : <Circle className="w-4 h-4 text-ink-300 ml-auto" />
               }
             </div>
@@ -166,9 +166,9 @@ export default function Reports() {
         </div>
 
         {!hasAll && (
-          <div className="mb-6 flex items-center gap-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3">
-            <AlertTriangle className="w-5 h-5 text-amber-600 shrink-0" />
-            <p className="text-sm text-amber-800">
+          <div className="mb-6 flex items-center gap-3 rounded-xl border border-amber-200 dark:border-amber-500/30 bg-amber-50 dark:bg-amber-500/10 px-4 py-3">
+            <AlertTriangle className="w-5 h-5 text-amber-600 dark:text-amber-400 shrink-0" />
+            <p className="text-sm text-amber-800 dark:text-amber-300">
               Run <strong>Detection</strong>, <strong>Hindcast</strong> and <strong>Forecast</strong> from the Maritime Map before generating a report.
             </p>
           </div>
@@ -204,8 +204,8 @@ export default function Reports() {
             {detection ? (
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                 {detection.slicks.map(s => (
-                  <div key={s.id} className="rounded-lg border border-amber-200 bg-amber-50 p-3">
-                    <div className="text-[10px] font-bold uppercase tracking-wider text-amber-600 mb-1">Oil Slick</div>
+                  <div key={s.id} className="rounded-lg border border-amber-200 dark:border-amber-500/30 bg-amber-50 dark:bg-amber-500/10 p-3">
+                    <div className="text-[10px] font-bold uppercase tracking-wider text-amber-600 dark:text-amber-400 mb-1">Oil Slick</div>
                     <div className="text-2xl font-black text-ink-900">{s.geometry.area_km2.toFixed(1)}</div>
                     <div className="text-[10px] text-ink-500">km² area</div>
                     <div className="mt-2 flex flex-wrap gap-1">
@@ -235,8 +235,8 @@ export default function Reports() {
                   ["Release time", utc(hindcast.origin_estimate.time_utc)],
                   ["Time window", `${hindcast.origin_estimate.time_window_hours[0].toFixed(0)} – ${hindcast.origin_estimate.time_window_hours[1].toFixed(0)} h`],
                 ].map(([label, val]) => (
-                  <div key={label} className="rounded-lg border border-blue-100 bg-blue-50 p-3">
-                    <div className="text-[10px] font-bold uppercase tracking-wider text-blue-500 mb-1">{label}</div>
+                  <div key={label} className="rounded-lg border border-blue-100 dark:border-blue-500/30 bg-blue-50 dark:bg-blue-500/10 p-3">
+                    <div className="text-[10px] font-bold uppercase tracking-wider text-blue-500 dark:text-blue-400 mb-1">{label}</div>
                     <div className="text-sm font-black text-ink-900 font-mono">{val}</div>
                   </div>
                 ))}
@@ -250,18 +250,18 @@ export default function Reports() {
           <SectionCard title="Stage 2b — Forecast Impact" icon={<Clock className="w-4 h-4" />} defaultOpen={!!forecast}>
             {forecast ? (
               forecast.impact_flags.length === 0 ? (
-                <div className="flex items-center gap-2 text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-lg px-4 py-3">
+                <div className="flex items-center gap-2 text-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-500/10 border border-emerald-200 dark:border-emerald-500/30 rounded-lg px-4 py-3">
                   <CheckCircle2 className="w-5 h-5 shrink-0" />
                   <span className="text-sm font-semibold">No coastline impact forecast within horizon.</span>
                 </div>
               ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                   {forecast.impact_flags.map(f => (
-                    <div key={f.name} className="flex items-start gap-3 rounded-lg border border-red-200 bg-red-50 px-4 py-3">
-                      <AlertTriangle className="w-5 h-5 text-red-600 shrink-0 mt-0.5" />
+                    <div key={f.name} className="flex items-start gap-3 rounded-lg border border-red-200 dark:border-red-500/30 bg-red-50 dark:bg-red-500/10 px-4 py-3">
+                      <AlertTriangle className="w-5 h-5 text-red-600 dark:text-red-400 shrink-0 mt-0.5" />
                       <div>
-                        <div className="text-sm font-bold text-red-800">{f.name}</div>
-                        <div className="text-[11px] text-red-600 font-mono mt-0.5">
+                        <div className="text-sm font-bold text-red-800 dark:text-red-300">{f.name}</div>
+                        <div className="text-[11px] text-red-600 dark:text-red-400 font-mono mt-0.5">
                           ETA {f.eta_hours.toFixed(1)} h · {f.distance_km.toFixed(1)} km
                         </div>
                       </div>
@@ -313,7 +313,7 @@ export default function Reports() {
             <SectionCard title="Processing Chain" icon={<Cpu className="w-4 h-4" />} defaultOpen={false}>
               <div className="flex items-center justify-between mb-3">
                 <span className="text-[11px] text-ink-500 uppercase font-bold tracking-wider">{steps.length} steps</span>
-                <span className="text-[11px] font-mono font-bold text-blue-600">{totalMs.toFixed(0)} ms total</span>
+                <span className="text-[11px] font-mono font-bold text-blue-600 dark:text-blue-400">{totalMs.toFixed(0)} ms total</span>
               </div>
               <div className="divide-y divide-ink-100">
                 {steps.map((s, i) => <StepRow key={`${s.name}-${i}`} step={s} index={i} />)}

@@ -31,7 +31,7 @@ const navItems = [
 
 export default function Sidebar() {
   return (
-    <aside className="w-64 bg-white border-r border-ink-200 flex flex-col h-full shrink-0">
+    <aside className="w-64 bg-white dark:bg-ink-100 border-r border-ink-200 flex flex-col h-full shrink-0">
       <div className="flex-1 overflow-y-auto py-4">
         <nav className="space-y-1 px-3">
           {navItems.map((item) => (
@@ -41,7 +41,7 @@ export default function Sidebar() {
               className={({ isActive }) =>
                 `flex items-center gap-3 px-3 py-2.5 rounded-md text-sm font-medium transition-colors ${
                   isActive
-                    ? "bg-blue-50 text-blue-700"
+                    ? "bg-blue-50 dark:bg-blue-500/15 text-blue-700 dark:text-blue-300"
                     : "text-ink-600 hover:bg-ink-50 hover:text-ink-900"
                 }`
               }

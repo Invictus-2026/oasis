@@ -57,8 +57,8 @@ export default function VesselTable({
                     onClick={() => onSelect(selected ? null : c.mmsi)}
                     className={`w-full rounded-lg border px-2.5 py-2 text-left transition-all duration-150 ${
                       selected
-                        ? "border-blue-400 bg-blue-50 shadow-sm"
-                        : "border-ink-200 bg-white hover:border-ink-300 hover:bg-ink-50"
+                        ? "border-blue-400 dark:border-blue-500/50 bg-blue-50 dark:bg-blue-500/10 shadow-sm"
+                        : "border-ink-200 bg-white dark:bg-ink-100 hover:border-ink-300 hover:bg-ink-50"
                     }`}
                   >
                     <div className="flex items-center gap-2">

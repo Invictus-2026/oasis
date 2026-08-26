@@ -27,7 +27,7 @@ export default function MaritimeMap() {
   return (
     <ViewModeProvider value={viewMode}>
       <div className="relative w-full h-full flex flex-col bg-ink-50">
-        <header className="px-6 py-4 border-b border-ink-200 flex justify-between items-center bg-white z-10 shrink-0 shadow-sm">
+        <header className="px-6 py-4 border-b border-ink-200 flex justify-between items-center bg-white dark:bg-ink-100 z-10 shrink-0 shadow-sm">
           <div>
             <h2 className="text-lg font-bold text-ink-900 tracking-tight">Maritime Map</h2>
             <p className="text-xs text-ink-500 mt-0.5">Central operational command map</p>
@@ -39,7 +39,7 @@ export default function MaritimeMap() {
                 onClick={() => setViewMode(m)}
                 className={`px-3 py-1.5 text-xs font-semibold rounded uppercase tracking-wider transition-all ${
                   viewMode === m 
-                    ? "bg-white shadow-sm text-blue-600 border border-ink-200" 
+                    ? "bg-white dark:bg-ink-200 shadow-sm text-blue-600 dark:text-blue-400 border border-ink-200"
                     : "text-ink-500 hover:text-ink-800"
                 }`}
               >
@@ -49,7 +49,7 @@ export default function MaritimeMap() {
           </div>
         </header>
         
-        <div className="flex-1 relative min-h-0 bg-[#e5e9f0]"> {/* Slightly blueish map bg placeholder */}
+        <div className="flex-1 relative min-h-0 bg-[#e5e9f0] dark:bg-[#0b111b]"> {/* Slightly blueish map bg placeholder */}
           <ErrorBoundary label="Map">
             <MapView
               caseMeta={caseMeta}

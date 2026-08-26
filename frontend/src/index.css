@@ -2,6 +2,10 @@
 @import "tailwindcss";
 @import "maplibre-gl/dist/maplibre-gl.css";
 
+/* Class-driven dark mode: toggling .dark on <html> flips both the dark:
+   variant and the --color-ink-* ramp below, so most surfaces re-theme
+   without needing dark: on every className. */
+@custom-variant dark (&:where(.dark, .dark *));
 
 /* Ocean Sentinel — Light-theme operations palette */
 @theme {
@@ -50,6 +54,28 @@
   --ease-out-soft: cubic-bezier(0.16, 1, 0.3, 1);
 }
 
+/* Dark-theme operations palette — same ink-* names, ramp inverted so
+   bg-ink-50/text-ink-900/border-ink-200 etc. keep meaning "lightest
+   surface / highest-contrast text / subtle border" in either theme. */
+.dark {
+  --color-ink-50:  #070b12;
+  --color-ink-100: #0b111b;
+  --color-ink-200: #172132;
+  --color-ink-300: #223047;
+  --color-ink-400: #7c8ca6;
+  --color-ink-500: #93a2ba;
+  --color-ink-600: #aab8cc;
+  --color-ink-700: #c3cedd;
+  --color-ink-800: #dbe3ee;
+  --color-ink-900: #f1f5f9;
+  --color-ink-950: #ffffff;
+
+  --color-mute-400: #7c8ca6;
+  --color-mute-300: #93a2ba;
+  --color-mute-200: #aab8cc;
+  --color-mute-100: #c3cedd;
+}
+
 /* ── Base ────────────────────────────────────────── */
 html, body, #root { height: 100%; }
 
@@ -61,6 +87,7 @@ body {
   font-size: 14px;
   line-height: 1.6;
   -webkit-font-smoothing: antialiased;
+  transition: background-color 0.15s ease-out, color 0.15s ease-out;
 }
 
 /* ── Page Layout Consistency ─────────────────────── */
@@ -98,6 +125,10 @@ body {
   border-radius: 0.75rem;
   box-shadow: 0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04);
   padding: 1.25rem;
+}
+.dark .content-card {
+  background: var(--color-ink-100);
+  box-shadow: 0 1px 3px rgba(0,0,0,0.3), 0 1px 2px rgba(0,0,0,0.2);
 }
 
 /* ── Tabular numerals ────────────────────────────── */
@@ -144,12 +175,13 @@ body {
 ::-webkit-scrollbar-thumb { background: var(--color-ink-300); border-radius: 4px; }
 ::-webkit-scrollbar-track { background: transparent; }
 
-/* ── MapLibre controls (light) ───────────────────── */
+/* ── MapLibre controls ───────────────────────────── */
 .maplibregl-ctrl-attrib {
   font-size: 10px;
   background: rgba(255,255,255,0.8) !important;
   color: var(--color-ink-600) !important;
 }
+.dark .maplibregl-ctrl-attrib { background: rgba(11,17,27,0.8) !important; }
 .maplibregl-ctrl-attrib a { color: var(--color-ink-600) !important; }
 .maplibregl-ctrl-group {
   background: white !important;
@@ -158,10 +190,12 @@ body {
   overflow: hidden;
   border-radius: 0.5rem !important;
 }
+.dark .maplibregl-ctrl-group { background: var(--color-ink-100) !important; }
 .maplibregl-ctrl-group button { background: transparent !important; }
 .maplibregl-ctrl-group button:hover { background: var(--color-ink-50) !important; }
 .maplibregl-ctrl-group button:not(:last-child) { border-bottom: 1px solid var(--color-ink-200) !important; }
 .maplibregl-ctrl-icon { filter: none; }
+.dark .maplibregl-ctrl-icon { filter: invert(1) brightness(0.9); }
 .maplibregl-ctrl-scale {
   background: rgba(255,255,255,0.85) !important;
   border-color: var(--color-ink-300) !important;
@@ -171,3 +205,4 @@ body {
   backdrop-filter: blur(4px);
   border-radius: 4px;
 }
+.dark .maplibregl-ctrl-scale { background: rgba(11,17,27,0.85) !important; }

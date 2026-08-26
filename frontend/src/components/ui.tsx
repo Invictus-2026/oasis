@@ -16,7 +16,7 @@ export function Panel({ title, subtitle, children, right, provenance }: {
   title: string; subtitle?: string; children: ReactNode; right?: ReactNode; provenance?: Provenance | null;
 }) {
   return (
-    <section className="rounded border border-ink-200 bg-white shadow-sm">
+    <section className="rounded border border-ink-200 bg-white dark:bg-ink-100 shadow-sm">
       <header className="flex items-baseline justify-between gap-3 border-b border-ink-100 px-3 py-1.5 bg-ink-50 rounded-t">
         <div className="flex items-baseline gap-2">
           <h2 className="text-[11px] font-bold uppercase tracking-[0.14em] text-ink-700">{title}</h2>
@@ -67,9 +67,9 @@ export function Tag({ children, tone = "neutral" }: {
 }) {
   const tones = {
     neutral: "border-ink-200 bg-ink-50 text-ink-700",
-    alert: "border-red-200 bg-red-50 text-red-700",
-    warn: "border-orange-200 bg-orange-50 text-orange-700",
-    good: "border-green-200 bg-green-50 text-green-700",
+    alert: "border-red-200 dark:border-red-500/30 bg-red-50 dark:bg-red-500/10 text-red-700 dark:text-red-400",
+    warn: "border-orange-200 dark:border-orange-500/30 bg-orange-50 dark:bg-orange-500/10 text-orange-700 dark:text-orange-400",
+    good: "border-green-200 dark:border-green-500/30 bg-green-50 dark:bg-green-500/10 text-green-700 dark:text-green-400",
     mute: "border-ink-200 bg-transparent text-ink-500",
   }[tone];
   return (
@@ -87,8 +87,8 @@ export function Button({ children, onClick, disabled, busy, tone = "default" }: 
     "transition-[background-color,border-color,box-shadow,transform] duration-150 ease-out-soft " +
     "active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-40 disabled:active:scale-100";
   const tones = {
-    default: "border-ink-200 bg-white text-ink-700 hover:border-ink-300 hover:bg-ink-50",
-    primary: "border-blue-500 bg-blue-50 text-blue-700 hover:bg-blue-100 shadow-sm",
+    default: "border-ink-200 bg-white dark:bg-ink-100 text-ink-700 hover:border-ink-300 hover:bg-ink-50",
+    primary: "border-blue-500 bg-blue-50 dark:bg-blue-500/15 text-blue-700 dark:text-blue-300 hover:bg-blue-100 dark:hover:bg-blue-500/25 shadow-sm",
   }[tone];
   return (
     <button className={`${base} ${tones}`} onClick={onClick} disabled={disabled || busy}>

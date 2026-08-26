@@ -26,7 +26,7 @@ interface Props {
 
 const GLYPH: Record<Status, string> = { done: "✓", running: "●", pending: "○" };
 const COLOR: Record<Status, string> = {
-  done: "text-emerald-600", running: "text-blue-500", pending: "text-ink-400",
+  done: "text-emerald-600 dark:text-emerald-400", running: "text-blue-500 dark:text-blue-400", pending: "text-ink-400",
 };
 
 /** The pipeline as an operational status board, not a decorative stepper.
@@ -77,7 +77,7 @@ export default function Pipeline({
   ];
 
   return (
-    <div className="rounded border border-ink-200 bg-white px-3 py-2">
+    <div className="rounded border border-ink-200 bg-white dark:bg-ink-100 px-3 py-2">
       <div className="mb-1.5 text-[11px] font-semibold uppercase tracking-[0.14em] text-ink-600">Pipeline</div>
       <ul>
         {stages.map((s) => (

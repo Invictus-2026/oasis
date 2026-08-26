@@ -83,7 +83,7 @@ export default function DetectionPanel({
                 <span className="text-[10px] uppercase tracking-wider text-ink-500">Estimated age</span>
                 <Tag tone="mute">{slick.age.confidence} confidence</Tag>
               </div>
-              <div className="tnum mt-0.5 text-sm text-orange-600">
+              <div className="tnum mt-0.5 text-sm text-orange-600 dark:text-orange-400">
                 {hours(slick.age.min_hours)} – {hours(slick.age.max_hours)}
               </div>
               <AnalystOnly>

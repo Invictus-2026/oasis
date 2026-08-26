@@ -18,7 +18,7 @@ export default function AnalysisPanel() {
   if (!caseMeta) return null;
 
   return (
-    <div className="pointer-events-auto rounded-md border border-ink-200 bg-white shadow-sm w-64 overflow-hidden">
+    <div className="pointer-events-auto rounded-md border border-ink-200 bg-white dark:bg-ink-100 shadow-sm w-64 overflow-hidden">
       <div className="bg-ink-50 px-3 py-2 border-b border-ink-200 flex justify-between items-center">
         <h3 className="text-xs font-bold text-ink-700 tracking-wider">ANALYSIS</h3>
       </div>
@@ -37,7 +37,7 @@ export default function AnalysisPanel() {
             <button
               onClick={runHindcast}
               disabled={!!drifting}
-              className="flex items-center justify-between px-2 py-1.5 rounded bg-ink-50 hover:bg-blue-50 border border-ink-200 hover:border-blue-200 transition-colors text-sm text-ink-700 disabled:opacity-50"
+              className="flex items-center justify-between px-2 py-1.5 rounded bg-ink-50 hover:bg-blue-50 dark:hover:bg-blue-500/10 border border-ink-200 hover:border-blue-200 dark:hover:border-blue-500/30 transition-colors text-sm text-ink-700 disabled:opacity-50"
             >
               <div className="flex items-center gap-2">
                 <div className={`w-2 h-2 rounded-full ${hindcast ? "bg-blue-500" : "bg-ink-300"}`} />
@@ -49,7 +49,7 @@ export default function AnalysisPanel() {
             <button
               onClick={runForecast}
               disabled={!!drifting}
-              className="flex items-center justify-between px-2 py-1.5 rounded bg-ink-50 hover:bg-blue-50 border border-ink-200 hover:border-blue-200 transition-colors text-sm text-ink-700 disabled:opacity-50"
+              className="flex items-center justify-between px-2 py-1.5 rounded bg-ink-50 hover:bg-blue-50 dark:hover:bg-blue-500/10 border border-ink-200 hover:border-blue-200 dark:hover:border-blue-500/30 transition-colors text-sm text-ink-700 disabled:opacity-50"
             >
               <div className="flex items-center gap-2">
                 <div className={`w-2 h-2 rounded-full ${forecast ? "bg-purple-500" : "bg-ink-300"}`} />

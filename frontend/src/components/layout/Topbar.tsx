@@ -1,11 +1,14 @@
-import { Search, Bell, Settings, User } from "lucide-react";
+import { Search, Bell, Settings, Sun, Moon } from "lucide-react";
+import { useTheme } from "../../lib/theme";
 
 export default function Topbar() {
+  const { theme, toggleTheme } = useTheme();
+
   return (
-    <header className="h-16 bg-white border-b border-ink-200 flex items-center justify-between px-6 shrink-0">
+    <header className="h-16 bg-white dark:bg-ink-100 border-b border-ink-200 flex items-center justify-between px-6 shrink-0">
       <div className="flex items-center gap-4">
         <h1 className="text-xl font-bold tracking-tight text-ink-900 flex items-center gap-2">
-          <span className="text-blue-600">
+          <span className="text-blue-600 dark:text-blue-400">
             <svg
               className="w-6 h-6"
               fill="none"
@@ -45,7 +48,15 @@ export default function Topbar() {
           <button className="p-2 text-ink-500 hover:text-ink-900 rounded-full hover:bg-ink-100 transition-colors">
             <Settings className="w-5 h-5" />
           </button>
-          <button className="w-8 h-8 rounded-full bg-blue-100 text-blue-700 flex items-center justify-center font-medium ml-2">
+          <button
+            onClick={toggleTheme}
+            aria-label={theme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
+            title={theme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
+            className="p-2 text-ink-500 hover:text-ink-900 rounded-full hover:bg-ink-100 transition-colors"
+          >
+            {theme === "dark" ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
+          </button>
+          <button className="w-8 h-8 rounded-full bg-blue-100 dark:bg-blue-500/20 text-blue-700 dark:text-blue-300 flex items-center justify-center font-medium ml-2">
             A
           </button>
         </div>

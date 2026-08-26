@@ -56,7 +56,7 @@ export default function LayerToggles({
   };
 
   return (
-    <div className="pointer-events-auto rounded-md border border-ink-200 bg-white shadow-sm w-56 overflow-hidden">
+    <div className="pointer-events-auto rounded-md border border-ink-200 bg-white dark:bg-ink-100 shadow-sm w-56 overflow-hidden">
       <div className="bg-ink-50 px-3 py-2 border-b border-ink-200">
         <h3 className="text-xs font-bold text-ink-700 tracking-wider">LAYERS</h3>
       </div>
