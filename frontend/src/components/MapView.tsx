@@ -64,9 +64,9 @@ export default function MapView({
   caseMeta, detection, hindcast, forecast, attribution,
   layers, hindcastIndex, forecastIndex, selectedMmsi, onSelectVessel, focusRequest, mockWindDir,
 }: Props) {
-  const container = useRef<HTMLDivElement>(null);
-  const map = useRef<maplibregl.Map | null>(null);
-  const resizeObs = useRef<ResizeObserver | null>(null);
+  const container = useRef < HTMLDivElement > (null);
+  const map = useRef < maplibregl.Map | null > (null);
+  const resizeObs = useRef < ResizeObserver | null > (null);
   // State, not a ref: when the style finishes loading the data effects below
   // must re-run. A ref flips silently and they would never fire again.
   const [ready, setReady] = useState(false);
@@ -101,72 +101,108 @@ export default function MapView({
 
     m.on("load", () => {
       for (const id of ["graticule", "frame", "cone90", "cone50", "originRegion90",
-                        "originRegion50", "lookalikes", "slick",
-                        "particles", "forecastCone", "forecastPath", "tracks", "origin",
-                        "gap", "connector", "windField"]) {
+        "originRegion50", "lookalikes", "slick",
+        "particles", "forecastCone", "forecastPath", "tracks", "origin",
+        "gap", "connector", "windField"]) {
         m.addSource(id, { type: "geojson", data: EMPTY });
       }
 
       // With no network basemap the ocean is a flat colour.
       // Light theme graticules
-      m.addLayer({ id: "graticule-line", source: "graticule", type: "line",
-        paint: { "line-color": "#94a3b8", "line-width": 1, "line-opacity": 0.4 } });
-        
-      m.addLayer({ id: "windField-line", source: "windField", type: "line",
-        paint: { "line-color": "#9ca3af", "line-width": 1.5, "line-opacity": 0.3 } });
+      m.addLayer({
+        id: "graticule-line", source: "graticule", type: "line",
+        paint: { "line-color": "#94a3b8", "line-width": 1, "line-opacity": 0.4 }
+      });
+
+      m.addLayer({
+        id: "windField-line", source: "windField", type: "line",
+        paint: { "line-color": "#9ca3af", "line-width": 1.5, "line-opacity": 0.3 }
+      });
 
       // Draw order matters: cones sit under everything, the slick sits above
       // the look-alikes so the retained detection reads as primary.
-      m.addLayer({ id: "cone90-fill", source: "cone90", type: "fill",
-        paint: { "fill-color": C.cone90 } });
-      m.addLayer({ id: "cone50-fill", source: "cone50", type: "fill",
-        paint: { "fill-color": C.cone50 } });
-      m.addLayer({ id: "cone90-line", source: "cone90", type: "line",
-        paint: { "line-color": C.coneLine, "line-width": 1, "line-opacity": 0.5, "line-dasharray": [3, 2] } });
+      m.addLayer({
+        id: "cone90-fill", source: "cone90", type: "fill",
+        paint: { "fill-color": C.cone90 }
+      });
+      m.addLayer({
+        id: "cone50-fill", source: "cone50", type: "fill",
+        paint: { "fill-color": C.cone50 }
+      });
+      m.addLayer({
+        id: "cone90-line", source: "cone90", type: "line",
+        paint: { "line-color": C.coneLine, "line-width": 1, "line-opacity": 0.5, "line-dasharray": [3, 2] }
+      });
 
       // The answer: where the release plausibly happened, pooled over the whole
       // age window. Drawn solid and persistently, unlike the animating frames.
-      m.addLayer({ id: "originRegion90-fill", source: "originRegion90", type: "fill",
-        paint: { "fill-color": "rgba(53, 200, 216, 0.13)" } });
-      m.addLayer({ id: "originRegion50-fill", source: "originRegion50", type: "fill",
-        paint: { "fill-color": "rgba(53, 200, 216, 0.26)" } });
-      m.addLayer({ id: "originRegion90-line", source: "originRegion90", type: "line",
-        paint: { "line-color": C.coneLine, "line-width": 1.8 } });
-      m.addLayer({ id: "originRegion50-line", source: "originRegion50", type: "line",
-        paint: { "line-color": C.coneLine, "line-width": 1, "line-opacity": 0.7 } });
+      m.addLayer({
+        id: "originRegion90-fill", source: "originRegion90", type: "fill",
+        paint: { "fill-color": "rgba(53, 200, 216, 0.13)" }
+      });
+      m.addLayer({
+        id: "originRegion50-fill", source: "originRegion50", type: "fill",
+        paint: { "fill-color": "rgba(53, 200, 216, 0.26)" }
+      });
+      m.addLayer({
+        id: "originRegion90-line", source: "originRegion90", type: "line",
+        paint: { "line-color": C.coneLine, "line-width": 1.8 }
+      });
+      m.addLayer({
+        id: "originRegion50-line", source: "originRegion50", type: "line",
+        paint: { "line-color": C.coneLine, "line-width": 1, "line-opacity": 0.7 }
+      });
 
-      m.addLayer({ id: "forecastCone-fill", source: "forecastCone", type: "fill",
-        paint: { "fill-color": "rgba(147, 51, 234, 0.13)" } });
-      m.addLayer({ id: "forecastPath-line", source: "forecastPath", type: "line",
-        paint: { "line-color": C.forecast, "line-width": 2.5, "line-dasharray": [2, 1.5] } });
+      m.addLayer({
+        id: "forecastCone-fill", source: "forecastCone", type: "fill",
+        paint: { "fill-color": "rgba(147, 51, 234, 0.13)" }
+      });
+      m.addLayer({
+        id: "forecastPath-line", source: "forecastPath", type: "line",
+        paint: { "line-color": C.forecast, "line-width": 2.5, "line-dasharray": [2, 1.5] }
+      });
 
-      m.addLayer({ id: "lookalikes-fill", source: "lookalikes", type: "fill",
-        paint: { "fill-color": C.rejectFill } });
-      m.addLayer({ id: "lookalikes-line", source: "lookalikes", type: "line",
-        paint: { "line-color": C.reject, "line-width": 1.5, "line-dasharray": [2, 2] } });
+      m.addLayer({
+        id: "lookalikes-fill", source: "lookalikes", type: "fill",
+        paint: { "fill-color": C.rejectFill }
+      });
+      m.addLayer({
+        id: "lookalikes-line", source: "lookalikes", type: "line",
+        paint: { "line-color": C.reject, "line-width": 1.5, "line-dasharray": [2, 2] }
+      });
 
-      m.addLayer({ id: "slick-fill", source: "slick", type: "fill",
-        paint: { "fill-color": C.slickFill } });
-      m.addLayer({ id: "slick-line", source: "slick", type: "line",
-        paint: { "line-color": C.slick, "line-width": 2 } });
+      m.addLayer({
+        id: "slick-fill", source: "slick", type: "fill",
+        paint: { "fill-color": C.slickFill }
+      });
+      m.addLayer({
+        id: "slick-line", source: "slick", type: "line",
+        paint: { "line-color": C.slick, "line-width": 2 }
+      });
 
-      m.addLayer({ id: "particles-circle", source: "particles", type: "circle",
-        paint: { "circle-radius": 2, "circle-color": C.particle, "circle-opacity": 0.55 } });
-        
+      m.addLayer({
+        id: "particles-circle", source: "particles", type: "circle",
+        paint: { "circle-radius": 2, "circle-color": C.particle, "circle-opacity": 0.55 }
+      });
+
       m.addSource("forecastParticles", { type: "geojson", data: EMPTY });
-      m.addLayer({ id: "forecastParticles-circle", source: "forecastParticles", type: "circle",
-        paint: { "circle-radius": 2, "circle-color": C.forecast, "circle-opacity": 0.55 } });
+      m.addLayer({
+        id: "forecastParticles-circle", source: "forecastParticles", type: "circle",
+        paint: { "circle-radius": 2, "circle-color": C.forecast, "circle-opacity": 0.55 }
+      });
 
       // Selected vessel is drawn bright; everything else dims. Colour is
       // driven by feature properties so selection is a paint update, not a
       // source rebuild.
-      m.addLayer({ id: "tracks-line", source: "tracks", type: "line",
+      m.addLayer({
+        id: "tracks-line", source: "tracks", type: "line",
         paint: {
           "line-color": ["case", ["get", "selected"], C.suspect,
-                         ["get", "suspect"], C.suspect, C.vessel],
+            ["get", "suspect"], C.suspect, C.vessel],
           "line-width": ["case", ["get", "selected"], 3.5, 1.6],
           "line-opacity": ["case", ["get", "dimmed"], 0.15, 0.85],
-        } });
+        }
+      });
 
       // The evidence connective tissue: what links a selected vessel to the
       // spill. The gap is where its AIS went dark; the connector is a plain
@@ -174,16 +210,28 @@ export default function MapView({
       // Plain white rather than a semantic colour: a DARK_VESSEL's track is
       // already drawn in the suspect red, and a same-colour overlay would be
       // invisible exactly where the gap matters most.
-      m.addLayer({ id: "gap-line", source: "gap", type: "line",
-        paint: { "line-color": "#ffffff", "line-width": 4, "line-dasharray": [1.4, 1.2],
-                 "line-opacity": 0.9 } });
-      m.addLayer({ id: "connector-line", source: "connector", type: "line",
-        paint: { "line-color": C.coneLine, "line-width": 1.2, "line-dasharray": [1.5, 1.5],
-                 "line-opacity": 0.6 } });
+      m.addLayer({
+        id: "gap-line", source: "gap", type: "line",
+        paint: {
+          "line-color": "#ffffff", "line-width": 4, "line-dasharray": [1.4, 1.2],
+          "line-opacity": 0.9
+        }
+      });
+      m.addLayer({
+        id: "connector-line", source: "connector", type: "line",
+        paint: {
+          "line-color": C.coneLine, "line-width": 1.2, "line-dasharray": [1.5, 1.5],
+          "line-opacity": 0.6
+        }
+      });
 
-      m.addLayer({ id: "origin-dot", source: "origin", type: "circle",
-        paint: { "circle-radius": 6, "circle-color": C.origin,
-                 "circle-stroke-color": "#ffffff", "circle-stroke-width": 2 } });
+      m.addLayer({
+        id: "origin-dot", source: "origin", type: "circle",
+        paint: {
+          "circle-radius": 6, "circle-color": C.origin,
+          "circle-stroke-color": "#ffffff", "circle-stroke-width": 2
+        }
+      });
 
       m.on("click", "tracks-line", (e) => {
         const mmsi = e.features?.[0]?.properties?.mmsi;
@@ -220,9 +268,13 @@ export default function MapView({
     if (!ready) return;
     setData("frame", {
       type: "FeatureCollection",
-      features: [{ type: "Feature", properties: {}, geometry: { type: "LineString",
-        coordinates: [[b.west, b.south], [b.east, b.south], [b.east, b.north],
-                      [b.west, b.north], [b.west, b.south]] } }],
+      features: [{
+        type: "Feature", properties: {}, geometry: {
+          type: "LineString",
+          coordinates: [[b.west, b.south], [b.east, b.south], [b.east, b.north],
+          [b.west, b.north], [b.west, b.south]]
+        }
+      }],
     });
   }, [caseMeta, ready]);
 
@@ -262,8 +314,10 @@ export default function MapView({
     // Beneath every vector layer, so the imagery is context and never
     // obscures the detection it is supporting.
     m.addLayer(
-      { id: "sar-raster", source: "sar", type: "raster",
-        paint: { "raster-opacity": 0.95, "raster-fade-duration": 300 } },
+      {
+        id: "sar-raster", source: "sar", type: "raster",
+        paint: { "raster-opacity": 0.95, "raster-fade-duration": 300 }
+      },
       "graticule-line",
     );
   }, [ready, caseMeta]);
@@ -280,18 +334,18 @@ export default function MapView({
       type: "FeatureCollection",
       features: layers.slick && detection
         ? detection.slicks.map((s) => ({
-            type: "Feature", geometry: s.polygon,
-            properties: { id: s.id, confidence: s.confidence },
-          }))
+          type: "Feature", geometry: s.polygon,
+          properties: { id: s.id, confidence: s.confidence },
+        }))
         : [],
     });
     setData("lookalikes", {
       type: "FeatureCollection",
       features: layers.lookalikes && detection
         ? detection.rejected_lookalikes.map((r) => ({
-            type: "Feature", geometry: r.polygon,
-            properties: { id: r.id, reason: r.reason },
-          }))
+          type: "Feature", geometry: r.polygon,
+          properties: { id: r.id, reason: r.reason },
+        }))
         : [],
     });
   }, [ready, detection, layers.slick, layers.lookalikes]);
@@ -323,7 +377,7 @@ export default function MapView({
       ) ?? [];
       setData(`cone${p}`, {
         type: "FeatureCollection",
-        features: layers.cone 
+        features: layers.cone
           ? rings.map(ring => ({ type: "Feature", geometry: shrinkPoly(ring.polygon), properties: { percentile: p } }))
           : [],
       });
@@ -334,7 +388,7 @@ export default function MapView({
     if (layers.particles && frame) {
       const numSlicks = detection?.slicks?.length || 1;
       const pointsPerSlick = Math.floor(frame.points.length / numSlicks);
-      
+
       for (let i = 0; i < numSlicks; i++) {
         const chunk = frame.points.slice(i * pointsPerSlick, (i + 1) * pointsPerSlick);
         if (chunk.length === 0) continue;
@@ -342,10 +396,12 @@ export default function MapView({
         const cy = chunk.reduce((s, p) => s + p[1], 0) / chunk.length;
         particleFeatures.push(...chunk.map((pt) => ({
           type: "Feature" as const,
-          geometry: { type: "Point" as const, coordinates: [
-            cx + (pt[0] - cx) * SHRINK,
-            cy + (pt[1] - cy) * SHRINK,
-          ] },
+          geometry: {
+            type: "Point" as const, coordinates: [
+              cx + (pt[0] - cx) * SHRINK,
+              cy + (pt[1] - cy) * SHRINK,
+            ]
+          },
           properties: {},
         })));
       }
@@ -361,7 +417,7 @@ export default function MapView({
       ) ?? [];
       setData(`originRegion${p}`, {
         type: "FeatureCollection",
-        features: layers.cone && atEnd 
+        features: layers.cone && atEnd
           ? rings.map(ring => ({ type: "Feature", geometry: shrinkPoly(ring.polygon), properties: { percentile: p } }))
           : [],
       });
@@ -369,12 +425,12 @@ export default function MapView({
 
     const originFeatures: GeoJSON.Feature[] = [];
     if (atEnd && hindcast?.origin_estimate) {
-       originFeatures.push({ type: "Feature", geometry: { type: "Point", coordinates: hindcast.origin_estimate.point }, properties: {} });
+      originFeatures.push({ type: "Feature", geometry: { type: "Point", coordinates: hindcast.origin_estimate.point }, properties: {} });
     }
     if (atEnd && (hindcast as any)?.extra_origins) {
-       for (const ext of (hindcast as any).extra_origins) {
-          originFeatures.push({ type: "Feature", geometry: { type: "Point", coordinates: ext.point }, properties: {} });
-       }
+      for (const ext of (hindcast as any).extra_origins) {
+        originFeatures.push({ type: "Feature", geometry: { type: "Point", coordinates: ext.point }, properties: {} });
+      }
     }
     setData("origin", { type: "FeatureCollection", features: originFeatures });
   }, [ready, hindcast, hindcastIndex, layers.cone, layers.particles]);
@@ -405,12 +461,12 @@ export default function MapView({
       type: "FeatureCollection",
       features: layers.forecast
         ? outer.map((c) => ({
-            type: "Feature", geometry: shrinkPoly(c.polygon),
-            properties: { t: c.t_offset_hours },
-          }))
+          type: "Feature", geometry: shrinkPoly(c.polygon),
+          properties: { t: c.t_offset_hours },
+        }))
         : [],
     });
-    
+
     // Also shrink the path relative to its own centroid so it matches the scaled cone
     let shrunkPath = forecast?.centroid_path;
     if (shrunkPath && shrunkPath.type === "LineString") {
@@ -428,20 +484,20 @@ export default function MapView({
       });
       shrunkPath = { ...shrunkPath, coordinates: newCoords };
     }
-    
+
     setData("forecastPath", {
       type: "FeatureCollection",
       features: layers.forecast && shrunkPath
         ? [{ type: "Feature", geometry: shrunkPath, properties: {} }]
         : [],
     });
-    
+
     // Also render forecast particles if they exist, chunked per slick
     let particleFeatures: GeoJSON.Feature[] = [];
     if (layers.particles && forecastFrame) {
       const numSlicks = detection?.slicks?.length || 1;
       const pointsPerSlick = Math.floor(forecastFrame.points.length / numSlicks);
-      
+
       for (let i = 0; i < numSlicks; i++) {
         const chunk = forecastFrame.points.slice(i * pointsPerSlick, (i + 1) * pointsPerSlick);
         if (chunk.length === 0) continue;
@@ -449,10 +505,12 @@ export default function MapView({
         const cy = chunk.reduce((s, p) => s + p[1], 0) / chunk.length;
         particleFeatures.push(...chunk.map((pt) => ({
           type: "Feature" as const,
-          geometry: { type: "Point" as const, coordinates: [
-            cx + (pt[0] - cx) * SHRINK,
-            cy + (pt[1] - cy) * SHRINK,
-          ] },
+          geometry: {
+            type: "Point" as const, coordinates: [
+              cx + (pt[0] - cx) * SHRINK,
+              cy + (pt[1] - cy) * SHRINK,
+            ]
+          },
           properties: {},
         })));
       }
@@ -467,16 +525,16 @@ export default function MapView({
       type: "FeatureCollection",
       features: layers.tracks && attribution
         ? attribution.candidates.map((c) => ({
-            type: "Feature",
-            geometry: c.track,
-            properties: {
-              mmsi: c.mmsi,
-              name: c.name,
-              suspect: c.flags.includes("DARK_VESSEL"),
-              selected: c.mmsi === selectedMmsi,
-              dimmed: selectedMmsi !== null && c.mmsi !== selectedMmsi,
-            },
-          }))
+          type: "Feature",
+          geometry: c.track,
+          properties: {
+            mmsi: c.mmsi,
+            name: c.name,
+            suspect: c.flags.includes("DARK_VESSEL"),
+            selected: c.mmsi === selectedMmsi,
+            dimmed: selectedMmsi !== null && c.mmsi !== selectedMmsi,
+          },
+        }))
         : [],
     });
   }, [ready, attribution, selectedMmsi, layers.tracks]);
@@ -504,13 +562,13 @@ export default function MapView({
       type: "FeatureCollection",
       features: candidate && origin && track?.type === "LineString"
         ? [{
-            type: "Feature",
-            properties: {},
-            geometry: {
-              type: "LineString",
-              coordinates: [nearestVertex(track.coordinates as [number, number][], origin), origin],
-            },
-          }]
+          type: "Feature",
+          properties: {},
+          geometry: {
+            type: "LineString",
+            coordinates: [nearestVertex(track.coordinates as [number, number][], origin), origin],
+          },
+        }]
         : [],
     });
   }, [ready, attribution, selectedMmsi, hindcast, layers.tracks]);
@@ -542,19 +600,23 @@ export default function MapView({
       const east = bounds.getEast() + 1;
       const south = bounds.getSouth() - 1;
       const north = bounds.getNorth() + 1;
-      
+
       const step = 0.25;
       const from = (v: number) => Math.floor(v / step) * step;
-      
+
       // 1. Graticule
       const lines: GeoJSON.Feature[] = [];
       for (let lon = from(west); lon < east; lon += step) {
-        lines.push({ type: "Feature", properties: {},
-          geometry: { type: "LineString", coordinates: [[lon, south], [lon, north]] } });
+        lines.push({
+          type: "Feature", properties: {},
+          geometry: { type: "LineString", coordinates: [[lon, south], [lon, north]] }
+        });
       }
       for (let lat = from(south); lat < north; lat += step) {
-        lines.push({ type: "Feature", properties: {},
-          geometry: { type: "LineString", coordinates: [[west, lat], [east, lat]] } });
+        lines.push({
+          type: "Feature", properties: {},
+          geometry: { type: "LineString", coordinates: [[west, lat], [east, lat]] }
+        });
       }
       setData("graticule", { type: "FeatureCollection", features: lines });
 

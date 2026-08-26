@@ -2,9 +2,9 @@ import { useState } from "react";
 import { useSpillState } from "../context/SpillContext";
 import { ViewModeProvider } from "../lib/viewMode";
 import { km, hours } from "../lib/format";
-import { 
-  Database, Map as MapIcon, SlidersHorizontal, Search, 
-  Clock, Navigation2, Activity, Settings2 
+import {
+  Database, Map as MapIcon, SlidersHorizontal, Search,
+  Clock, Navigation2, Activity, Settings2
 } from "lucide-react";
 
 export default function VesselIntelligence() {
@@ -26,16 +26,15 @@ export default function VesselIntelligence() {
             </div>
             <p>Reconstruct and filter historical vessel traffic around the probable spill origin.</p>
           </div>
-          
+
           <div className="flex items-center gap-2 bg-ink-50 p-1.5 rounded-lg border border-ink-200 self-start">
             <button
               onClick={() => runAttribute()} // we use the same pipeline to fetch AIS traffic
               disabled={attributing || !hindcast}
-              className={`flex items-center gap-2 px-4 py-2.5 rounded-md text-sm font-bold transition-all ${
-                !hindcast 
-                  ? "text-ink-400 cursor-not-allowed opacity-60" 
-                  : "bg-blue-600 shadow-sm border border-blue-700 text-white hover:bg-blue-700 active:scale-95"
-              }`}
+              className={`flex items-center gap-2 px-4 py-2.5 rounded-md text-sm font-bold transition-all ${!hindcast
+                ? "text-ink-400 cursor-not-allowed opacity-60"
+                : "bg-blue-600 shadow-sm border border-blue-700 text-white hover:bg-blue-700 active:scale-95"
+                }`}
             >
               <Search className="w-4 h-4" />
               Reconstruct Traffic
@@ -45,10 +44,10 @@ export default function VesselIntelligence() {
         </header>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-6">
-          
+
           {/* LEFT: Parameters & Status */}
           <div className="col-span-1 space-y-6">
-            
+
             <div className="bg-white rounded-xl border border-ink-200 shadow-sm overflow-hidden">
               <div className="bg-ink-50 px-4 py-3 border-b border-ink-200 flex items-center gap-2">
                 <Settings2 className="w-4 h-4 text-ink-600" />
@@ -60,28 +59,28 @@ export default function VesselIntelligence() {
                     <label className="text-xs font-bold text-ink-600 uppercase tracking-wider">Time Window (± hours)</label>
                     <span className="text-sm font-mono font-bold text-ink-900">{timeWindow}h</span>
                   </div>
-                  <input 
-                    type="range" min="1" max="24" value={timeWindow} 
+                  <input
+                    type="range" min="1" max="24" value={timeWindow}
                     onChange={e => setTimeWindow(parseInt(e.target.value))}
-                    className="w-full accent-blue-600" 
+                    className="w-full accent-blue-600"
                   />
                 </div>
-                
+
                 <div>
                   <div className="flex justify-between items-center mb-2">
                     <label className="text-xs font-bold text-ink-600 uppercase tracking-wider">Search Radius (km)</label>
                     <span className="text-sm font-mono font-bold text-ink-900">{radius}</span>
                   </div>
-                  <input 
-                    type="range" min="5" max="100" value={radius} 
+                  <input
+                    type="range" min="5" max="100" value={radius}
                     onChange={e => setRadius(parseInt(e.target.value))}
-                    className="w-full accent-blue-600" 
+                    className="w-full accent-blue-600"
                   />
                 </div>
 
                 <div>
                   <label className="text-xs font-bold text-ink-600 uppercase tracking-wider block mb-2">AIS Data Source</label>
-                  <select 
+                  <select
                     value={dataSource}
                     onChange={e => setDataSource(e.target.value)}
                     className="w-full bg-ink-50 border border-ink-200 rounded-lg p-2 text-sm font-semibold text-ink-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -103,7 +102,7 @@ export default function VesselIntelligence() {
               <div className="p-4">
                 <div className="space-y-4 relative">
                   <div className="absolute left-3 top-2 bottom-2 w-0.5 bg-ink-100 z-0" />
-                  
+
                   <div className="flex items-center gap-3 relative z-10">
                     <div className="w-6 h-6 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center shrink-0 border-2 border-white">
                       <Database className="w-3 h-3" />
@@ -163,7 +162,7 @@ export default function VesselIntelligence() {
                   </span>
                 )}
               </div>
-              
+
               <div className="flex-1 overflow-auto p-0">
                 {!attribution ? (
                   <div className="flex flex-col items-center justify-center h-full text-ink-400 py-16">
@@ -191,9 +190,8 @@ export default function VesselIntelligence() {
                           <td className="px-4 py-3 text-right font-mono text-xs font-semibold">{km(c.closest_approach_km)}</td>
                           <td className="px-4 py-3 text-right font-mono text-xs">{c.flags.includes("DARK_VESSEL") ? "Anomaly" : "Steady"}</td>
                           <td className="px-4 py-3 text-center">
-                            <span className={`inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider ${
-                              c.score > 0.8 ? "bg-emerald-100 text-emerald-700" : "bg-ink-100 text-ink-600"
-                            }`}>
+                            <span className={`inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider ${c.score > 0.8 ? "bg-emerald-100 text-emerald-700" : "bg-ink-100 text-ink-600"
+                              }`}>
                               {c.score > 0.8 ? "Candidate" : "Cleared"}
                             </span>
                           </td>
@@ -205,7 +203,7 @@ export default function VesselIntelligence() {
               </div>
             </div>
           </div>
-          
+
         </div>
       </div>
     </ViewModeProvider>
