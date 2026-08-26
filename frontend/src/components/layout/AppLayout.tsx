@@ -5,7 +5,7 @@ import MaritimeMap from "../../pages/MaritimeMap";
 
 export default function AppLayout() {
   const location = useLocation();
-  const isMapOnly = location.pathname === "/map" || location.pathname === "/";
+  const isMapOnly = location.pathname === "/map";
 
   return (
     <div className="flex flex-col h-screen bg-ink-50 font-sans text-ink-900 overflow-hidden">
