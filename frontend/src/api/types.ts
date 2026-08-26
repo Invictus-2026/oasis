@@ -241,3 +241,31 @@ export const SCORE_FACTORS: {
   { key: "heading_consistency", label: "Heading consistency", hint: "Course alignment with the observed slick axis" },
   { key: "speed_anomaly", label: "Speed anomaly", hint: "Slow steaming or unusual manoeuvre near the origin" },
 ];
+
+export interface UploadRegion {
+  contour: [number, number][];
+  circle: { cx: number; cy: number; radius: number };
+  confidence: number;
+  reason: string;
+  area_px: number;
+  area_km2: number;
+  contrast_db: number;
+  thickness_um: number;
+  volume_m3: number;
+  volume_liters: number;
+  volume_barrels: number;
+}
+
+export interface UploadResponse {
+  width: number;
+  height: number;
+  method: DetectionMethod;
+  gsd_m: number;
+  oil_regions: UploadRegion[];
+  rejected_lookalikes: UploadRegion[];
+  total_area_km2: number;
+  total_volume_liters: number;
+  total_volume_barrels: number;
+  processing: ProcessingStep[];
+  notes: string;
+}

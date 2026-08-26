@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, useRef, ReactNode } from "react";
 import * as api from "../api/client";
 import { getDataMode, onDataModeChange } from "../api/client";
+import { shiftHindcast, shiftForecast, shiftAttribution } from "../lib/shiftMock";
 import type {
   AttributeResponse,
   CaseMeta,
@@ -41,11 +42,12 @@ interface SpillContextType {
   viewMode: ViewMode;
   layers: LayerVisibility;
   steps: ProcessingStep[];
+  mockWindDir: number;
 
   runDetect: (m: DetectionMethod) => Promise<void>;
-  runHindcast: () => Promise<void>;
-  runForecast: () => Promise<void>;
-  runAttribute: () => Promise<void>;
+  runHindcast: (windDir?: number) => Promise<void>;
+  runForecast: (windDir?: number) => Promise<void>;
+  runAttribute: (windDir?: number) => Promise<void>;
   runReport: () => Promise<void>;
   
   setHindcastIndex: React.Dispatch<React.SetStateAction<number>>;
@@ -57,6 +59,9 @@ interface SpillContextType {
   setViewMode: React.Dispatch<React.SetStateAction<ViewMode>>;
   toggleLayer: (k: keyof LayerVisibility) => void;
   onFocusLookalike: (id: string) => void;
+  randomizeWind: () => number;  // returns the new direction
+  
+  injectAdHocDetection: (det: DetectResponse) => void;
   
   // Legacy compatibility, though components will migrate off this
   frameIndex: number;
@@ -103,6 +108,8 @@ export function SpillProvider({ children }: { children: ReactNode }) {
   const [layers, setLayers] = useState<LayerVisibility>({
     sar: true, slick: true, lookalikes: true, cone: true, particles: true, forecast: true, tracks: true,
   });
+  
+  const [mockWindDir, setMockWindDir] = useState(0);
 
   const autorun = new URLSearchParams(window.location.search).get("autorun") === "1";
 
@@ -192,11 +199,22 @@ export function SpillProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
-  const runHindcast = useCallback(async () => {
+  const runHindcast = useCallback(async (windDir?: number) => {
     if (!detection?.slicks[0]) return;
     setDrifting("hindcast");
     try {
-      const h = await api.hindcast(detection.slicks[0].id, 24);
+      const isAdhoc = detection.slicks[0].id.startsWith("adhoc-");
+      const raw = isAdhoc
+        ? (await import("../mock/hindcast.json")).default
+        : await api.hindcast(detection.slicks[0].id, 24);
+      let h = raw as HindcastResponse;
+      if (isAdhoc) {
+        const poly = detection.slicks[0].polygon as GeoJSON.Polygon;
+        const pts = poly.coordinates[0];
+        const cLon = pts.reduce((s, p) => s + p[0], 0) / pts.length;
+        const cLat = pts.reduce((s, p) => s + p[1], 0) / pts.length;
+        h = shiftHindcast(h, cLon - (-90.016633), cLat - 28.472599, windDir ?? mockWindDir);
+      }
       setHindcast(h);
       setAttribution(null);
       setSelectedMmsi(null);
@@ -205,32 +223,68 @@ export function SpillProvider({ children }: { children: ReactNode }) {
     } finally {
       setDrifting(null);
     }
-  }, [detection]);
+  }, [detection, mockWindDir]);
 
-  const runForecast = useCallback(async () => {
+  const runForecast = useCallback(async (windDir?: number) => {
     if (!detection?.slicks[0]) return;
     setDrifting("forecast");
     try {
-      setForecast(await api.forecast(detection.slicks[0].id, 12));
+      const isAdhoc = detection.slicks[0].id.startsWith("adhoc-");
+      const raw = isAdhoc
+        ? (await import("../mock/forecast.json")).default
+        : await api.forecast(detection.slicks[0].id, 72);
+      let f = raw as ForecastResponse;
+      if (isAdhoc) {
+        const poly = detection.slicks[0].polygon as GeoJSON.Polygon;
+        const pts = poly.coordinates[0];
+        const cLon = pts.reduce((s, p) => s + p[0], 0) / pts.length;
+        const cLat = pts.reduce((s, p) => s + p[1], 0) / pts.length;
+        f = shiftForecast(f, cLon - (-90.016633), cLat - 28.472599, windDir ?? mockWindDir);
+      }
+      
+      // Limit to max 15 segments as requested
+      if (f.particles_timeline.length > 15) {
+        f.particles_timeline = f.particles_timeline.slice(0, 15);
+        const maxT = f.particles_timeline[f.particles_timeline.length - 1].t_offset_hours;
+        f.cone = f.cone.filter(c => c.t_offset_hours <= maxT);
+        
+        // Also truncate the centroid path coordinates if possible (approximate by segment count)
+        if (f.centroid_path.type === "LineString") {
+           f.centroid_path.coordinates = f.centroid_path.coordinates.slice(0, 15);
+        }
+      }
+      
+      setForecast(f);
       setForecastIndex(0);
       setForecastPlaying(true);
     } finally {
       setDrifting(null);
     }
-  }, [detection]);
+  }, [detection, mockWindDir]);
 
-  const runAttribute = useCallback(async () => {
+  const runAttribute = useCallback(async (windDir?: number) => {
     const o = hindcast?.origin_estimate;
     if (!o) return;
     setAttributing(true);
     try {
-      const a = await api.attribute(o.point, o.time_utc);
+      const isAdhoc = detection?.slicks[0]?.id.startsWith("adhoc-");
+      const raw = isAdhoc
+        ? (await import("../mock/attribution.json")).default
+        : await api.attribute(o.point, o.time_utc);
+      let a = raw as AttributeResponse;
+      if (isAdhoc && detection?.slicks[0]) {
+        const poly = detection.slicks[0].polygon as GeoJSON.Polygon;
+        const pts = poly.coordinates[0];
+        const cLon = pts.reduce((s, p) => s + p[0], 0) / pts.length;
+        const cLat = pts.reduce((s, p) => s + p[1], 0) / pts.length;
+        a = shiftAttribution(a, cLon - (-90.016633), cLat - 28.472599, windDir ?? mockWindDir);
+      }
       setAttribution(a);
       setSelectedMmsi(a.candidates[0]?.mmsi ?? null);
     } finally {
       setAttributing(false);
     }
-  }, [hindcast]);
+  }, [hindcast, detection, mockWindDir]);
 
   const runReport = useCallback(async () => {
     if (!caseMeta || !detection?.slicks[0]) return;
@@ -248,6 +302,23 @@ export function SpillProvider({ children }: { children: ReactNode }) {
 
   const onFocusLookalike = useCallback((id: string) => {
     setFocusRequest({ id, nonce: Date.now() });
+  }, []);
+  
+  const randomizeWind = useCallback((): number => {
+    const d = Math.floor(Math.random() * 360);
+    setMockWindDir(d);
+    return d;
+  }, []);
+
+  const injectAdHocDetection = useCallback((det: DetectResponse) => {
+    setDetection(det);
+    setHindcast(null);
+    setForecast(null);
+    setAttribution(null);
+    setReport(null);
+    setSelectedMmsi(null);
+    setHindcastIndex(0);
+    setForecastIndex(0);
   }, []);
 
   const steps: ProcessingStep[] = [
@@ -290,6 +361,7 @@ export function SpillProvider({ children }: { children: ReactNode }) {
         viewMode,
         layers,
         steps,
+        mockWindDir,
         runDetect,
         runHindcast,
         runForecast,
@@ -305,6 +377,8 @@ export function SpillProvider({ children }: { children: ReactNode }) {
         setViewMode,
         toggleLayer,
         onFocusLookalike,
+        randomizeWind,
+        injectAdHocDetection,
       }}
     >
       {children}
