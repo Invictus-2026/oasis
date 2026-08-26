@@ -31,14 +31,14 @@ export default function EvidencePanel({
       <AnalystOnly>
         {caseMeta && (
           <div className="mb-3">
-            <div className="mb-1.5 text-[10px] uppercase tracking-wider text-mute-400">Data sources</div>
+            <div className="mb-1.5 text-[10px] uppercase tracking-wider text-ink-500">Data sources</div>
             <ul className="space-y-1">
               {caseMeta.sources.map((s) => (
                 <li key={s.name} className="flex items-start gap-1.5">
                   {s.is_synthetic ? <Tag tone="warn">SYNTHETIC</Tag> : <Tag tone="mute">{s.kind.toUpperCase()}</Tag>}
-                  <span className="flex-1 text-[10px] leading-relaxed text-mute-400">
+                  <span className="flex-1 text-[10px] leading-relaxed text-ink-500">
                     {s.name}
-                    {s.licence && <span className="text-mute-400/60"> · {s.licence}</span>}
+                    {s.licence && <span className="text-ink-500/60"> · {s.licence}</span>}
                   </span>
                 </li>
               ))}
@@ -49,17 +49,17 @@ export default function EvidencePanel({
         {steps.length > 0 && (
           <div className="mb-3">
             <div className="mb-1.5 flex items-baseline justify-between">
-              <span className="text-[10px] uppercase tracking-wider text-mute-400">Processing chain (full audit trail)</span>
-              <span className="tnum text-[10px] text-mute-400">{total.toFixed(0)} ms</span>
+              <span className="text-[10px] uppercase tracking-wider text-ink-500">Processing chain (full audit trail)</span>
+              <span className="tnum text-[10px] text-ink-500">{total.toFixed(0)} ms</span>
             </div>
             <ul className="max-h-40 space-y-0.5 overflow-y-auto">
               {steps.map((s, i) => (
                 <li key={`${s.name}-${i}`} className="flex items-baseline gap-2 text-[10px]">
-                  <span className="tnum w-6 shrink-0 text-mute-400/60">{i + 1}</span>
-                  <span className="flex-1 truncate text-mute-300" title={s.detail ?? undefined}>
+                  <span className="tnum w-6 shrink-0 text-ink-500/60">{i + 1}</span>
+                  <span className="flex-1 truncate text-ink-600" title={s.detail ?? undefined}>
                     {s.name}
                   </span>
-                  <span className="tnum shrink-0 text-mute-400">{s.duration_ms.toFixed(0)} ms</span>
+                  <span className="tnum shrink-0 text-ink-500">{s.duration_ms.toFixed(0)} ms</span>
                 </li>
               ))}
             </ul>
@@ -68,14 +68,14 @@ export default function EvidencePanel({
       </AnalystOnly>
 
       {report ? (
-        <div className="border-t border-ink-700 pt-2">
-          <div className="mb-1.5 text-[10px] uppercase tracking-wider text-mute-400">
+        <div className="border-t border-ink-200 pt-2">
+          <div className="mb-1.5 text-[10px] uppercase tracking-wider text-ink-500">
             Known limitations
           </div>
           <ul className="space-y-1.5">
             {report.limitations.map((l, i) => (
-              <li key={i} className="flex gap-1.5 text-[10px] leading-relaxed text-mute-400">
-                <span className="text-mute-400/50">·</span>
+              <li key={i} className="flex gap-1.5 text-[10px] leading-relaxed text-ink-500">
+                <span className="text-ink-500/50">·</span>
                 <span>{l}</span>
               </li>
             ))}

@@ -18,15 +18,15 @@ export default function ScoreBreakdown({ candidate, weights, provenance }: Props
       ) : (
         <>
           <div className="flex items-baseline justify-between">
-            <span className="text-[10px] uppercase tracking-wider text-mute-400">Composite score</span>
-            <span className="tnum text-base font-semibold text-mute-100">
+            <span className="text-[10px] uppercase tracking-wider text-ink-500">Composite score</span>
+            <span className="tnum text-base font-semibold text-ink-900">
               {candidate.score.toFixed(3)}
             </span>
           </div>
-          <p className="mt-1 text-[11px] leading-relaxed text-mute-300">{candidate.narrative}</p>
+          <p className="mt-1 text-[11px] leading-relaxed text-ink-600">{candidate.narrative}</p>
 
           <AnalystOnly>
-            <div className="mb-3 mt-3 grid grid-cols-2 gap-x-3 gap-y-2 border-t border-ink-700 pt-2.5">
+            <div className="mb-3 mt-3 grid grid-cols-2 gap-x-3 gap-y-2 border-t border-ink-200 pt-2.5">
               <Stat label="MMSI" value={candidate.mmsi} />
               <Stat label="Type" value={candidate.vessel_type} />
               <Stat label="Closest approach" value={km(candidate.closest_approach_km)} />
@@ -49,18 +49,18 @@ export default function ScoreBreakdown({ candidate, weights, provenance }: Props
           </AnalystOnly>
 
           {candidate.gaps.length > 0 && (
-            <div className="mt-2.5 border-t border-alert-500/20 pt-2">
+            <div className="mt-2.5 border-t border-red-200 pt-2">
               <div className="mb-1 flex items-center gap-1.5">
                 <Tag tone="alert">AIS GAP</Tag>
-                <span className="tnum text-[11px] text-mute-300">
+                <span className="tnum text-[11px] text-ink-600">
                   {candidate.gaps[0].duration_minutes.toFixed(0)} min
                 </span>
               </div>
-              <div className="tnum text-[10px] text-mute-400">
+              <div className="tnum text-[10px] text-ink-500">
                 {utc(candidate.gaps[0].start_utc)} → {utc(candidate.gaps[0].end_utc)}
               </div>
               {/* Honesty about the base rate is what makes the flag credible. */}
-              <p className="mt-1.5 text-[10px] leading-relaxed text-mute-400">
+              <p className="mt-1.5 text-[10px] leading-relaxed text-ink-500">
                 Gaps are frequently benign — coverage holes and equipment faults are common. This is
                 one weighted signal among five, never a conclusion on its own.
               </p>

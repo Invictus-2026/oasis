@@ -27,8 +27,8 @@ interface Props {
   forecast: ForecastResponse | null;
   attribution: AttributeResponse | null;
   layers: LayerVisibility;
-  /** Index into the hindcast/forecast particle timeline, for the animation. */
-  frameIndex: number;
+  hindcastIndex: number;
+  forecastIndex: number;
   selectedMmsi: string | null;
   onSelectVessel: (mmsi: string | null) => void;
   /** A new object (even with the same id) re-triggers the fly-to, so clicking
@@ -56,12 +56,12 @@ function nearestVertex(coords: [number, number][], target: [number, number]): [n
 const STYLE: maplibregl.StyleSpecification = {
   version: 8,
   sources: {},
-  layers: [{ id: "bg", type: "background", paint: { "background-color": "#0a1526" } }],
+  layers: [{ id: "bg", type: "background", paint: { "background-color": "#e2e8f0" } }], // Light theme ocean color
 };
 
 export default function MapView({
   caseMeta, detection, hindcast, forecast, attribution,
-  layers, frameIndex, selectedMmsi, onSelectVessel, focusRequest,
+  layers, hindcastIndex, forecastIndex, selectedMmsi, onSelectVessel, focusRequest,
 }: Props) {
   const container = useRef<HTMLDivElement>(null);
   const map = useRef<maplibregl.Map | null>(null);
@@ -106,13 +106,12 @@ export default function MapView({
         m.addSource(id, { type: "geojson", data: EMPTY });
       }
 
-      // With no network basemap the ocean is a flat colour, and a flat colour
-      // is indistinguishable from a broken map. A graticule and an AOI frame
-      // give the view scale and orientation before any data exists.
+      // With no network basemap the ocean is a flat colour.
+      // Light theme graticules
       m.addLayer({ id: "graticule-line", source: "graticule", type: "line",
-        paint: { "line-color": "#1d3350", "line-width": 1 } });
+        paint: { "line-color": "#94a3b8", "line-width": 1, "line-opacity": 0.4 } });
       m.addLayer({ id: "frame-line", source: "frame", type: "line",
-        paint: { "line-color": "#31527d", "line-width": 1.5, "line-dasharray": [4, 3] } });
+        paint: { "line-color": "#64748b", "line-width": 1.5, "line-dasharray": [4, 3] } });
 
       // Draw order matters: cones sit under everything, the slick sits above
       // the look-alikes so the retained detection reads as primary.
@@ -135,7 +134,7 @@ export default function MapView({
         paint: { "line-color": C.coneLine, "line-width": 1, "line-opacity": 0.7 } });
 
       m.addLayer({ id: "forecastCone-fill", source: "forecastCone", type: "fill",
-        paint: { "fill-color": "rgba(201, 139, 240, 0.13)" } });
+        paint: { "fill-color": "rgba(147, 51, 234, 0.13)" } });
       m.addLayer({ id: "forecastPath-line", source: "forecastPath", type: "line",
         paint: { "line-color": C.forecast, "line-width": 2.5, "line-dasharray": [2, 1.5] } });
 
@@ -150,7 +149,11 @@ export default function MapView({
         paint: { "line-color": C.slick, "line-width": 2 } });
 
       m.addLayer({ id: "particles-circle", source: "particles", type: "circle",
-        paint: { "circle-radius": 1.9, "circle-color": C.particle, "circle-opacity": 0.55 } });
+        paint: { "circle-radius": 2, "circle-color": C.particle, "circle-opacity": 0.55 } });
+        
+      m.addSource("forecastParticles", { type: "geojson", data: EMPTY });
+      m.addLayer({ id: "forecastParticles-circle", source: "forecastParticles", type: "circle",
+        paint: { "circle-radius": 2, "circle-color": C.forecast, "circle-opacity": 0.55 } });
 
       // Selected vessel is drawn bright; everything else dims. Colour is
       // driven by feature properties so selection is a paint update, not a
@@ -177,8 +180,8 @@ export default function MapView({
                  "line-opacity": 0.6 } });
 
       m.addLayer({ id: "origin-dot", source: "origin", type: "circle",
-        paint: { "circle-radius": 5, "circle-color": C.origin,
-                 "circle-stroke-color": "#062028", "circle-stroke-width": 2 } });
+        paint: { "circle-radius": 6, "circle-color": C.origin,
+                 "circle-stroke-color": "#ffffff", "circle-stroke-width": 2 } });
 
       m.on("click", "tracks-line", (e) => {
         const mmsi = e.features?.[0]?.properties?.mmsi;
@@ -292,7 +295,7 @@ export default function MapView({
   useEffect(() => {
     if (!ready) return;
     const frames = hindcast?.particles_timeline ?? [];
-    const frame = frames[Math.min(frameIndex, frames.length - 1)];
+    const frame = frames[Math.min(hindcastIndex, frames.length - 1)];
     const t = frame?.t_offset_hours;
 
     // Animating frames: the ensemble at this instant.
@@ -320,7 +323,7 @@ export default function MapView({
     // The origin region and marker appear only once the run has settled.
     // Showing them mid-animation would imply more certainty than the ensemble
     // has yet produced.
-    const atEnd = frames.length > 0 && frameIndex >= frames.length - 1;
+    const atEnd = frames.length > 0 && hindcastIndex >= frames.length - 1;
     for (const p of [50, 90] as const) {
       const ring = hindcast?.cone.find((c) => c.kind === "origin" && c.percentile === p);
       setData(`originRegion${p}`, {
@@ -338,12 +341,17 @@ export default function MapView({
         ? [{ type: "Feature", geometry: { type: "Point", coordinates: o.point }, properties: {} }]
         : [],
     });
-  }, [ready, hindcast, frameIndex, layers.cone, layers.particles]);
+  }, [ready, hindcast, hindcastIndex, layers.cone, layers.particles]);
 
   // ---- forecast ---------------------------------------------------------
   useEffect(() => {
     if (!ready) return;
-    const outer = forecast?.cone.filter((c) => c.percentile === 90) ?? [];
+    const forecastFrames = forecast?.particles_timeline ?? [];
+    const forecastFrame = forecastFrames[Math.min(forecastIndex, forecastFrames.length - 1)];
+    const forecastT = forecastFrame?.t_offset_hours ?? 0;
+
+    // Progressively expand the cone by filtering up to the current timestamp
+    const outer = forecast?.cone.filter((c) => c.percentile === 90 && c.t_offset_hours <= forecastT) ?? [];
     setData("forecastCone", {
       type: "FeatureCollection",
       features: layers.forecast
@@ -359,7 +367,17 @@ export default function MapView({
         ? [{ type: "Feature", geometry: forecast.centroid_path, properties: {} }]
         : [],
     });
-  }, [ready, forecast, layers.forecast]);
+    
+    // Also render forecast particles if they exist
+    setData("forecastParticles", {
+      type: "FeatureCollection",
+      features: layers.particles && forecastFrame
+        ? forecastFrame.points.map((pt) => ({
+            type: "Feature", geometry: { type: "Point", coordinates: pt }, properties: {},
+          }))
+        : [],
+    });
+  }, [ready, forecast, layers.forecast, layers.particles, forecastIndex]);
 
   // ---- vessel tracks ----------------------------------------------------
   useEffect(() => {

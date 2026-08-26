@@ -1,88 +1,220 @@
-import type { AttributeResponse, CaseMeta, HindcastResponse } from "../api/types";
-import { utc } from "../lib/format";
-import { C } from "../lib/theme";
+import React, { useRef } from "react";
+import { useSpillState } from "../context/SpillContext";
+import { Play, Pause } from "lucide-react";
 
-export type TimelineStage = "detection" | "drift" | "attribution" | "evidence";
-
-interface Event {
-  t: number; // epoch ms
+interface TrackProps {
   label: string;
-  color: string;
-  stage: TimelineStage;
+  color: "blue" | "purple";
+  frames: number;
+  index: number;
+  playing: boolean;
+  disabled: boolean;
+  onPlay: () => void;
+  onScrub: (i: number) => void;
+  /** direction: hindcast fills right-to-left, forecast left-to-right */
+  reverse?: boolean;
 }
 
-interface Props {
-  caseMeta: CaseMeta | null;
-  hindcast: HindcastResponse | null;
-  attribution: AttributeResponse | null;
-  onSelectStage: (stage: TimelineStage) => void;
-}
+function Track({ label, color, frames, index, playing, disabled, onPlay, onScrub, reverse }: TrackProps) {
+  const trackRef = useRef<HTMLDivElement>(null);
+  const isDragging = useRef(false);
 
-/** The real chronology INSIDE the case: release (backtracked), the vessel's
- *  closest approach, then the satellite pass that captured the scene. All
- *  three sit within the same ~day. Deliberately excludes "when this analysis
- *  was run" — that timestamp is whenever the demo happens to execute, weeks
- *  or months removed from the case, and would collapse this whole chronology
- *  onto one pixel if it shared the axis. Each dot only appears once its stage
- *  has actually produced a timestamp — the strip fills in as the pipeline
- *  runs, it isn't pre-drawn. */
-export default function Timeline({ caseMeta, hindcast, attribution, onSelectStage }: Props) {
-  const events: Event[] = [];
+  const pct = frames > 1 ? (index / (frames - 1)) * 100 : 0;
+  const fillPct = reverse ? 100 - pct : pct;
 
-  if (hindcast) {
-    events.push({
-      t: new Date(hindcast.origin_estimate.time_utc).getTime(),
-      label: "ORIGIN (EST.)", color: C.origin, stage: "drift",
-    });
+  const colorMap = {
+    blue: {
+      label: "text-blue-600",
+      thumb: "bg-blue-600 border-blue-700",
+      fill: "bg-blue-500",
+      track: "bg-blue-100",
+      shadow: "shadow-blue-200",
+      ring: "focus:ring-blue-300",
+    },
+    purple: {
+      label: "text-purple-600",
+      thumb: "bg-purple-600 border-purple-700",
+      fill: "bg-purple-500",
+      track: "bg-purple-100",
+      shadow: "shadow-purple-200",
+      ring: "focus:ring-purple-300",
+    },
+  }[color];
+
+  function getPosFromEvent(e: React.MouseEvent | MouseEvent | React.TouchEvent | TouchEvent): number {
+    const rect = trackRef.current?.getBoundingClientRect();
+    if (!rect) return 0;
+    const clientX = "touches" in e ? e.touches[0].clientX : (e as MouseEvent).clientX;
+    const raw = (clientX - rect.left) / rect.width;
+    const clamped = Math.max(0, Math.min(1, raw));
+    return reverse ? 1 - clamped : clamped;
   }
-  const topApproach = attribution?.candidates.find((c) => c.closest_approach_utc)?.closest_approach_utc;
-  if (topApproach) {
-    events.push({ t: new Date(topApproach).getTime(), label: "AIS CLOSEST APPROACH", color: C.vessel, stage: "attribution" });
-  }
-  if (caseMeta) {
-    events.push({ t: new Date(caseMeta.acquired_at).getTime(), label: "SAR CAPTURE", color: "#9fb0c8", stage: "detection" });
+
+  function scrubTo(ratio: number) {
+    const newIndex = Math.round(ratio * Math.max(0, frames - 1));
+    onScrub(newIndex);
   }
 
-  if (events.length < 2) return null;
+  function handleMouseDown(e: React.MouseEvent) {
+    if (disabled) return;
+    e.preventDefault();
+    isDragging.current = true;
+    scrubTo(getPosFromEvent(e));
 
-  events.sort((a, b) => a.t - b.t);
-  const tMin = events[0].t;
-  const tMax = events[events.length - 1].t;
-  const span = Math.max(tMax - tMin, 1);
-  const pos = (t: number) => 6 + ((t - tMin) / span) * 88; // 6%–94%, room for labels at the ends
+    const onMove = (me: MouseEvent) => {
+      if (!isDragging.current) return;
+      scrubTo(getPosFromEvent(me));
+    };
+    const onUp = () => {
+      isDragging.current = false;
+      window.removeEventListener("mousemove", onMove);
+      window.removeEventListener("mouseup", onUp);
+    };
+    window.addEventListener("mousemove", onMove);
+    window.addEventListener("mouseup", onUp);
+  }
+
+  function handleTouchStart(e: React.TouchEvent) {
+    if (disabled) return;
+    scrubTo(getPosFromEvent(e));
+  }
+
+  function handleTouchMove(e: React.TouchEvent) {
+    if (disabled) return;
+    scrubTo(getPosFromEvent(e));
+  }
 
   return (
-    <div className="pointer-events-auto rounded-sm border border-ink-700 bg-ink-950/70 px-3 pb-2.5 pt-3 backdrop-blur-sm">
-      <div className="relative h-4">
-        <div className="absolute left-[6%] right-[6%] top-1/2 h-px -translate-y-1/2 bg-ink-700" />
-        {events.map((e) => (
-          <button
-            key={e.label}
-            onClick={() => onSelectStage(e.stage)}
-            className="group absolute top-1/2 flex -translate-x-1/2 -translate-y-1/2 flex-col items-center"
-            style={{ left: `${pos(e.t)}%` }}
-          >
-            <span
-              className="h-2.5 w-2.5 rounded-full ring-2 ring-ink-950 transition-transform duration-150 group-hover:scale-125"
-              style={{ background: e.color }}
-            />
-          </button>
-        ))}
-      </div>
-      {/* Labels alternate rows so two close-together events never collide —
-          real timestamps can land arbitrarily close, unlike an illustrative
-          evenly-spaced mockup. */}
-      <div className="relative mt-1 h-11">
-        {events.map((e, i) => (
+    <div className={`flex flex-col gap-1 flex-1 ${disabled ? "opacity-40" : ""}`}>
+      <div className={`text-[10px] font-bold uppercase tracking-widest ${colorMap.label}`}>{label}</div>
+      <div className="flex items-center gap-2">
+        {/* Play button */}
+        <button
+          onClick={onPlay}
+          disabled={disabled || frames === 0}
+          className={`flex-shrink-0 w-7 h-7 rounded-full flex items-center justify-center transition-all border
+            ${disabled || frames === 0
+              ? "bg-ink-100 border-ink-200 text-ink-400 cursor-not-allowed"
+              : `bg-white border-ink-200 text-ink-700 hover:bg-ink-50 hover:border-ink-300 shadow-sm`
+            }`}
+        >
+          {playing
+            ? <Pause className="w-3.5 h-3.5 fill-current" />
+            : <Play className="w-3.5 h-3.5 fill-current ml-0.5" />
+          }
+        </button>
+
+        {/* Scrubber track */}
+        <div
+          ref={trackRef}
+          className={`relative flex-1 h-5 cursor-pointer select-none ${disabled || frames === 0 ? "cursor-not-allowed" : ""}`}
+          onMouseDown={handleMouseDown}
+          onTouchStart={handleTouchStart}
+          onTouchMove={handleTouchMove}
+        >
+          {/* Background */}
+          <div className={`absolute inset-y-0 my-auto h-2 w-full rounded-full ${colorMap.track} border border-ink-200`} />
+
+          {/* Fill */}
           <div
-            key={e.label}
-            className="absolute w-24 -translate-x-1/2 text-center"
-            style={{ left: `${pos(e.t)}%`, top: i % 2 === 0 ? 0 : "1.1rem" }}
-          >
-            <div className="text-[9px] font-medium uppercase tracking-wider text-mute-400">{e.label}</div>
-            <div className="tnum text-[9px] text-mute-400/70">{utc(new Date(e.t).toISOString()).slice(5, 16)}</div>
-          </div>
-        ))}
+            className={`absolute inset-y-0 my-auto h-2 rounded-full ${colorMap.fill} transition-none`}
+            style={reverse
+              ? { left: `${100 - fillPct}%`, right: 0 }
+              : { left: 0, width: `${fillPct}%` }
+            }
+          />
+
+          {/* Tick marks */}
+          {[25, 50, 75].map(t => (
+            <div key={t} className="absolute top-1/2 -translate-y-1/2 h-2.5 w-px bg-ink-300/60" style={{ left: `${t}%` }} />
+          ))}
+
+          {/* Draggable Thumb */}
+          <div
+            className={`absolute top-1/2 -translate-y-1/2 -translate-x-1/2 w-4 h-4 rounded-full border-2 shadow-md transition-none ${colorMap.thumb} ${colorMap.shadow}`}
+            style={{ left: `${pct}%` }}
+          />
+        </div>
+
+        {/* Frame label */}
+        <span className="w-10 text-right text-[10px] font-mono text-ink-500 tabular-nums shrink-0">
+          {frames > 0 ? `${index + 1}/${frames}` : "—"}
+        </span>
+      </div>
+    </div>
+  );
+}
+
+export default function Timeline() {
+  const {
+    hindcast, forecast,
+    hindcastIndex, forecastIndex,
+    hindcastPlaying, forecastPlaying,
+    setHindcastPlaying, setForecastPlaying,
+    setHindcastIndex, setForecastIndex,
+    drifting,
+  } = useSpillState();
+
+  if (!hindcast && !forecast) return null;
+
+  const hindcastFrames = hindcast?.particles_timeline.length ?? 0;
+  const forecastFrames = forecast?.particles_timeline.length ?? 0;
+
+  const toggleHindcast = () => {
+    if (!hindcastPlaying && hindcastIndex >= hindcastFrames - 1) setHindcastIndex(0);
+    setHindcastPlaying(p => !p);
+  };
+  const toggleForecast = () => {
+    if (!forecastPlaying && forecastIndex >= forecastFrames - 1) setForecastIndex(0);
+    setForecastPlaying(p => !p);
+  };
+
+  const scrubHindcast = (i: number) => { setHindcastPlaying(false); setHindcastIndex(i); };
+  const scrubForecast = (i: number) => { setForecastPlaying(false); setForecastIndex(i); };
+
+  return (
+    <div className="pointer-events-auto w-full max-w-4xl mx-auto rounded-xl border border-ink-200 bg-white/95 shadow-xl backdrop-blur-md px-5 py-4 flex flex-col gap-3">
+      {/* Header labels */}
+      <div className="flex items-center justify-between">
+        <span className="text-[11px] font-black uppercase tracking-widest text-blue-600">Hindcast (-24h)</span>
+        <div className="flex items-center gap-1.5">
+          <div className="h-px w-12 bg-ink-200" />
+          <span className="text-[11px] font-black uppercase tracking-widest text-ink-800">Det. 0h</span>
+          <div className="h-px w-12 bg-ink-200" />
+        </div>
+        <span className="text-[11px] font-black uppercase tracking-widest text-purple-600">Forecast (+72h)</span>
+      </div>
+
+      {/* Two tracks */}
+      <div className="flex items-start gap-4">
+        <Track
+          label="Backtrack"
+          color="blue"
+          frames={hindcastFrames}
+          index={hindcastIndex}
+          playing={hindcastPlaying}
+          disabled={!hindcast || !!drifting}
+          onPlay={toggleHindcast}
+          onScrub={scrubHindcast}
+        />
+
+        {/* Center divider */}
+        <div className="flex flex-col items-center gap-0.5 pt-5 shrink-0">
+          <div className="w-0.5 h-3 bg-ink-300 rounded-full" />
+          <div className="w-1.5 h-1.5 rounded-full bg-ink-400" />
+          <div className="w-0.5 h-3 bg-ink-300 rounded-full" />
+        </div>
+
+        <Track
+          label="Forecast"
+          color="purple"
+          frames={forecastFrames}
+          index={forecastIndex}
+          playing={forecastPlaying}
+          disabled={!forecast || !!drifting}
+          onPlay={toggleForecast}
+          onScrub={scrubForecast}
+        />
       </div>
     </div>
   );

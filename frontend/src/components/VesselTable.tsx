@@ -55,29 +55,29 @@ export default function VesselTable({
                 <li key={c.mmsi}>
                   <button
                     onClick={() => onSelect(selected ? null : c.mmsi)}
-                    className={`w-full rounded border px-2 py-1.5 text-left transition-colors duration-150 ${
+                    className={`w-full rounded-lg border px-2.5 py-2 text-left transition-all duration-150 ${
                       selected
-                        ? "border-cone-500/60 bg-cone-500/10 shadow-[0_0_12px_-4px_rgba(53,200,216,0.4)]"
-                        : "border-ink-700 bg-ink-800/50 hover:border-ink-600 hover:bg-ink-800"
+                        ? "border-blue-400 bg-blue-50 shadow-sm"
+                        : "border-ink-200 bg-white hover:border-ink-300 hover:bg-ink-50"
                     }`}
                   >
                     <div className="flex items-center gap-2">
-                      <span className="tnum w-4 shrink-0 text-[11px] text-mute-400">{c.rank}</span>
-                      <span className="flex-1 truncate text-xs text-mute-100">{c.name}</span>
-                      <span className="tnum shrink-0 text-xs font-semibold text-mute-100">
+                      <span className="tnum w-4 shrink-0 text-[11px] text-ink-500">{c.rank}</span>
+                      <span className="flex-1 truncate text-xs text-ink-900">{c.name}</span>
+                      <span className="tnum shrink-0 text-xs font-semibold text-ink-900">
                         {c.score.toFixed(2)}
                       </span>
                     </div>
                     <div className="mt-1 flex items-center gap-2 pl-6">
-                      <div className="h-1 flex-1 overflow-hidden rounded-full bg-ink-800">
+                      <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-ink-100 border border-ink-200">
                         <div
                           className={`h-full rounded-full ${
-                            c.flags.includes("DARK_VESSEL") ? "bg-alert-500" : "bg-vessel-500"
+                            c.flags.includes("DARK_VESSEL") ? "bg-red-500" : "bg-emerald-500"
                           }`}
                           style={{ width: `${c.score * 100}%` }}
                         />
                       </div>
-                      <span className="tnum shrink-0 text-[10px] text-mute-400">
+                      <span className="tnum shrink-0 text-[10px] text-ink-500">
                         {km(c.closest_approach_km)}
                       </span>
                     </div>
@@ -95,9 +95,9 @@ export default function VesselTable({
           </ol>
 
           {/* The framing line. It is on screen, not just in the pitch. */}
-          <p className="mt-2.5 border-t border-ink-700 pt-2 text-[10px] leading-relaxed text-mute-400">
+          <p className="mt-2.5 border-t border-ink-200 pt-2 text-[10px] leading-relaxed text-ink-500">
             Ranked by weighted spatio-temporal and behavioural correlation. This is a
-            confidence-scored candidate list, <span className="text-mute-300">not an identification</span>,
+            confidence-scored candidate list, <span className="text-ink-600">not an identification</span>,
             and it is not on its own evidence of responsibility.
           </p>
         </>

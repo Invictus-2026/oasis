@@ -132,3 +132,23 @@ def load_case() -> CaseBundle | None:
     if not p.exists():
         return None
     return CaseBundle(json.loads(p.read_text()), config.CASE_DIR)
+
+
+def data_files_ready() -> bool:
+    """True only when all required binary data files exist on disk.
+
+    case.json can exist (and load_case() returns a bundle) even when the heavy
+    .npy / .parquet files haven't been generated yet, for example when
+    build_case.py was interrupted.  Any endpoint that would read those files
+    must check this before attempting the real pipeline; if it returns False,
+    fall back to fixtures.
+    """
+    case = load_case()
+    if case is None:
+        return False
+    required = ["sar_db", "mask_oil", "ais"]
+    return all(
+        (case.root / case.meta["files"][k]).exists()
+        for k in required
+        if k in case.meta.get("files", {})
+    )

@@ -3,7 +3,7 @@ from functools import lru_cache
 from fastapi import APIRouter, HTTPException
 
 from app.core import fixtures
-from app.core.case_store import load_case
+from app.core.case_store import load_case, data_files_ready
 from app.core.schemas import DetectRequest, DetectResponse, DetectionMethod
 from app.detection import pipeline, unet
 
@@ -23,9 +23,9 @@ def detect(req: DetectRequest) -> DetectResponse:
     """Stage 1 — detect and characterise the slick.
 
     Runs the real classical detector against the frozen case bundle. Falls back
-    to fixtures only when the bundle has not been built.
+    to fixtures when the bundle has not been built or data files are missing.
     """
-    if load_case() is None:
+    if not data_files_ready():
         return fixtures.detect_response(req.method)
 
     if req.method is DetectionMethod.unet and not unet.available():

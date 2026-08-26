@@ -53,17 +53,17 @@ export default function DriftControls({
               max={Math.max(0, frameCount - 1)}
               value={frameIndex}
               onChange={(e) => onScrub(Number(e.target.value))}
-              className="h-1 flex-1 cursor-pointer appearance-none rounded-full bg-ink-700 accent-cone-500"
+              className="h-1.5 flex-1 cursor-pointer appearance-none rounded-full bg-ink-100 accent-blue-500"
             />
-            <span className="tnum w-14 text-right text-[11px] text-mute-300">
+            <span className="tnum w-14 text-right text-[11px] text-ink-600">
               {t > 0 ? "+" : ""}{t.toFixed(0)} h
             </span>
           </div>
 
           {o && (
-            <div className="border-t border-ink-700 pt-2">
+            <div className="border-t border-ink-200 pt-2">
               <div className="mb-2 flex items-center justify-between">
-                <span className="text-[10px] uppercase tracking-wider text-mute-400">
+                <span className="text-[10px] uppercase tracking-wider text-ink-500">
                   Estimated origin
                 </span>
                 {/* The cone, not the pin, is the actual answer. Say so. */}
@@ -90,8 +90,8 @@ export default function DriftControls({
           )}
 
           {forecast && (
-            <div className="mt-2.5 border-t border-ink-700 pt-2.5">
-              <div className="mb-1.5 text-[10px] uppercase tracking-wider text-mute-400">
+            <div className="mt-2.5 border-t border-ink-200 pt-2.5">
+              <div className="mb-1.5 text-[10px] uppercase tracking-wider text-ink-500">
                 Forward forecast
               </div>
               {forecast.impact_flags.length === 0 ? (
@@ -100,8 +100,8 @@ export default function DriftControls({
                 <ul className="space-y-1">
                   {forecast.impact_flags.map((f) => (
                     <li key={f.name} className="flex items-center justify-between gap-2 text-[11px]">
-                      <span className="text-mute-300">{f.name}</span>
-                      <span className="tnum text-mute-400">
+                      <span className="text-ink-600">{f.name}</span>
+                      <span className="tnum text-ink-500">
                         {km(f.distance_km)} · ETA {hours(f.eta_hours)}
                       </span>
                     </li>

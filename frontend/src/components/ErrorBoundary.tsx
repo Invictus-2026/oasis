@@ -20,7 +20,7 @@ export default class ErrorBoundary extends Component<
       return (
         <div className="rounded-lg border border-alert-500/30 bg-alert-500/5 px-3 py-2">
           <p className="text-[11px] text-alert-500">{this.props.label} unavailable</p>
-          <p className="mt-0.5 text-[10px] text-mute-400">
+          <p className="mt-0.5 text-[10px] text-ink-500">
             The rest of the pipeline is unaffected.
           </p>
         </div>

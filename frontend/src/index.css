@@ -1,74 +1,121 @@
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap");
 @import "tailwindcss";
 @import "maplibre-gl/dist/maplibre-gl.css";
 
-/* SpillTrace operations-console palette.
-   Dark by default: maps read better dark, and it looks like a watch-floor
-   tool rather than a web app. */
+
+/* Ocean Sentinel — Light-theme operations palette */
 @theme {
-  --color-ink-950: #070b12;
-  --color-ink-900: #0b111b;
-  --color-ink-850: #111927;
-  --color-ink-800: #172132;
-  --color-ink-700: #223047;
-  --color-ink-600: #33455f;
+  /* === SURFACE GRAYS (Light UI) === */
+  --color-ink-50:  #f8fafc;
+  --color-ink-100: #f1f5f9;
+  --color-ink-200: #e2e8f0;
+  --color-ink-300: #cbd5e1;
+  --color-ink-400: #94a3b8;
+  --color-ink-500: #64748b;
+  --color-ink-600: #475569;
+  --color-ink-700: #334155;
+  --color-ink-800: #1e293b;
+  --color-ink-900: #0f172a;
+  --color-ink-950: #020617;
 
-  --color-mute-400: #7c8ca6;
-  --color-mute-300: #9fb0c8;
-  --color-mute-100: #dfe7f2;
+  /* Legacy dark-mode aliases — now remap to light equivalents */
+  --color-mute-400: #94a3b8;   /* → ink-400 */
+  --color-mute-300: #64748b;   /* → ink-500 */
+  --color-mute-200: #475569;   /* → ink-600 */
+  --color-mute-100: #334155;   /* → ink-700 */
 
-  /* Oil / slick */
-  --color-slick-500: #f0a03c;
-  --color-slick-400: #ffb85c;
-  /* Look-alikes we ruled out */
+  /* === DATA LAYER COLORS (visible on light bg) === */
+  /* Oil slick — amber */
+  --color-slick-500: #d97706;
+  --color-slick-400: #f59e0b;
+  /* Look-alikes */
   --color-reject-500: #6b7a92;
-  /* Drift cone */
-  --color-cone-500: #35c8d8;
-  /* Vessels */
-  --color-vessel-500: #7ee0a8;
-  /* Suspicion / dark vessel */
-  --color-alert-500: #f2545b;
+  /* Drift cone / hindcast — blue */
+  --color-cone-500: #2563eb;
+  --color-cone-400: #3b82f6;
+  /* Vessels — green */
+  --color-vessel-500: #059669;
+  --color-vessel-400: #10b981;
+  /* Suspicion / dark vessel — red */
+  --color-alert-500: #dc2626;
+  --color-alert-400: #ef4444;
+  /* Forecast — purple */
+  --color-forecast-500: #7c3aed;
 
+  /* === TYPOGRAPHY === */
   --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
   --font-mono: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, monospace;
 
-  /* A slightly softer, more deliberate ease than the Tailwind defaults —
-     used on anything that should feel like an instrument responding, not a
-     webpage animating. */
+  /* Smooth ease for data instruments */
   --ease-out-soft: cubic-bezier(0.16, 1, 0.3, 1);
 }
 
-html,
-body,
-#root {
-  height: 100%;
-}
+/* ── Base ────────────────────────────────────────── */
+html, body, #root { height: 100%; }
 
 body {
   margin: 0;
-  background: var(--color-ink-950);
-  color: var(--color-mute-100);
+  background: var(--color-ink-50);
+  color: var(--color-ink-900);
   font-family: var(--font-sans);
+  font-size: 14px;
+  line-height: 1.6;
   -webkit-font-smoothing: antialiased;
 }
 
-/* Numeric readouts should be tabular so values do not jitter as they update. */
+/* ── Page Layout Consistency ─────────────────────── */
+.page-shell {
+  padding: 2rem 1.5rem;
+  max-width: 72rem;
+  margin: 0 auto;
+  height: 100%;
+  overflow-y: auto;
+}
+
+.page-header {
+  margin-bottom: 1.5rem;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid var(--color-ink-200);
+}
+
+.page-header h2 {
+  font-size: 1.25rem;
+  font-weight: 800;
+  color: var(--color-ink-900);
+  letter-spacing: -0.01em;
+  margin: 0 0 0.25rem 0;
+}
+
+.page-header p {
+  font-size: 0.8125rem;
+  color: var(--color-ink-500);
+  margin: 0;
+}
+
+.content-card {
+  background: white;
+  border: 1px solid var(--color-ink-200);
+  border-radius: 0.75rem;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04);
+  padding: 1.25rem;
+}
+
+/* ── Tabular numerals ────────────────────────────── */
 .tnum {
   font-variant-numeric: tabular-nums;
   font-family: var(--font-mono);
 }
 
-/* Visible, on-brand keyboard focus. Replaces the browser default everywhere
-   at once instead of per-component. */
+/* ── Focus ring ──────────────────────────────────── */
 :focus-visible {
   outline: 2px solid var(--color-cone-500);
   outline-offset: 2px;
   border-radius: 4px;
 }
 
+/* ── Reduced motion ──────────────────────────────── */
 @media (prefers-reduced-motion: reduce) {
-  *,
-  *::before,
-  *::after {
+  *, *::before, *::after {
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
@@ -76,64 +123,51 @@ body {
   }
 }
 
-/* Loading placeholder for panels waiting on their first response. A moving
-   gradient reads as "working" without borrowing attention the way a spinner
-   does. */
+/* ── Skeleton shimmer ────────────────────────────── */
 @keyframes shimmer {
-  0% { background-position: -200% 0; }
-  100% { background-position: 200% 0; }
+  0%   { background-position: -200% 0; }
+  100% { background-position:  200% 0; }
 }
 .skeleton {
-  background: linear-gradient(90deg, var(--color-ink-800) 25%, var(--color-ink-700) 50%, var(--color-ink-800) 75%);
+  background: linear-gradient(90deg,
+    var(--color-ink-100) 25%,
+    var(--color-ink-200) 50%,
+    var(--color-ink-100) 75%
+  );
   background-size: 200% 100%;
   animation: shimmer 1.6s ease-in-out infinite;
+  border-radius: 0.25rem;
 }
 
-::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
-}
-::-webkit-scrollbar-thumb {
-  background: var(--color-ink-700);
-  border-radius: 4px;
-}
-::-webkit-scrollbar-track {
-  background: transparent;
-}
+/* ── Scrollbar ───────────────────────────────────── */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-thumb { background: var(--color-ink-300); border-radius: 4px; }
+::-webkit-scrollbar-track { background: transparent; }
 
+/* ── MapLibre controls (light) ───────────────────── */
 .maplibregl-ctrl-attrib {
   font-size: 10px;
-  background: rgba(7, 11, 18, 0.7) !important;
+  background: rgba(255,255,255,0.8) !important;
+  color: var(--color-ink-600) !important;
 }
-.maplibregl-ctrl-attrib a {
-  color: var(--color-mute-400) !important;
-}
-
-/* MapLibre's default control chrome is light-themed and reads as a bug on a
-   dark console. Re-skin nav/scale controls to match rather than leave a
-   second design system floating on the map. */
+.maplibregl-ctrl-attrib a { color: var(--color-ink-600) !important; }
 .maplibregl-ctrl-group {
-  background: var(--color-ink-900) !important;
-  border: 1px solid var(--color-ink-700);
-  box-shadow: 0 8px 20px -12px rgba(0, 0, 0, 0.7) !important;
+  background: white !important;
+  border: 1px solid var(--color-ink-200) !important;
+  box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1), 0 2px 4px -1px rgba(0,0,0,0.06) !important;
   overflow: hidden;
+  border-radius: 0.5rem !important;
 }
-.maplibregl-ctrl-group button {
-  background: transparent !important;
-}
-.maplibregl-ctrl-group button:hover {
-  background: var(--color-ink-800) !important;
-}
-.maplibregl-ctrl-group button:not(:last-child) {
-  border-bottom: 1px solid var(--color-ink-700);
-}
-.maplibregl-ctrl-icon {
-  filter: invert(85%) grayscale(1) brightness(1.1);
-}
+.maplibregl-ctrl-group button { background: transparent !important; }
+.maplibregl-ctrl-group button:hover { background: var(--color-ink-50) !important; }
+.maplibregl-ctrl-group button:not(:last-child) { border-bottom: 1px solid var(--color-ink-200) !important; }
+.maplibregl-ctrl-icon { filter: none; }
 .maplibregl-ctrl-scale {
-  background: rgba(11, 17, 27, 0.75) !important;
-  border-color: var(--color-mute-400) !important;
-  color: var(--color-mute-300) !important;
+  background: rgba(255,255,255,0.85) !important;
+  border-color: var(--color-ink-300) !important;
+  color: var(--color-ink-700) !important;
   font-family: var(--font-mono);
+  font-size: 10px;
   backdrop-filter: blur(4px);
+  border-radius: 4px;
 }

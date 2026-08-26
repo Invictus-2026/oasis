@@ -26,7 +26,7 @@ interface Props {
 
 const GLYPH: Record<Status, string> = { done: "✓", running: "●", pending: "○" };
 const COLOR: Record<Status, string> = {
-  done: "text-vessel-500", running: "text-cone-500", pending: "text-mute-400/50",
+  done: "text-emerald-600", running: "text-blue-500", pending: "text-ink-400",
 };
 
 /** The pipeline as an operational status board, not a decorative stepper.
@@ -77,22 +77,22 @@ export default function Pipeline({
   ];
 
   return (
-    <div className="rounded border border-ink-700 bg-ink-850/60 px-3 py-2">
-      <div className="mb-1.5 text-[11px] font-semibold uppercase tracking-[0.14em] text-mute-300">Pipeline</div>
+    <div className="rounded border border-ink-200 bg-white px-3 py-2">
+      <div className="mb-1.5 text-[11px] font-semibold uppercase tracking-[0.14em] text-ink-600">Pipeline</div>
       <ul>
         {stages.map((s) => (
           <li key={s.n} className="flex items-center gap-2 py-0.5 text-[11px]">
-            <span className="tnum w-4 shrink-0 text-mute-400/60">{s.n}</span>
+            <span className="tnum w-4 shrink-0 text-ink-500/60">{s.n}</span>
             <span className={`w-3.5 shrink-0 text-center ${COLOR[s.status]} ${s.status === "running" ? "animate-pulse" : ""}`}>
               {GLYPH[s.status]}
             </span>
-            <span className={`flex-1 truncate ${s.status === "pending" ? "text-mute-400/60" : "text-mute-200"}`}>
+            <span className={`flex-1 truncate ${s.status === "pending" ? "text-ink-500/60" : "text-ink-700"}`}>
               {s.label}
             </span>
             {s.result && (
-              <span className="tnum shrink-0 text-mute-400">
+              <span className="tnum shrink-0 text-ink-500">
                 {s.result}
-                {s.fixture && <span className="text-mute-400/50"> · fixture</span>}
+                {s.fixture && <span className="text-ink-500/50"> · fixture</span>}
               </span>
             )}
           </li>

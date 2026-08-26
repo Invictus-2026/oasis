@@ -4,7 +4,7 @@ from fastapi import APIRouter, HTTPException
 
 from app.api.detection import _run as run_detection
 from app.core import fixtures
-from app.core.case_store import load_case
+from app.core.case_store import load_case, data_files_ready
 from app.core.schemas import (
     DetectionMethod,
     DriftRequest,
@@ -22,7 +22,12 @@ DEFAULT_AGE_WINDOW = (4.0, 20.0)
 
 
 def _slick_context(slick_id: str):
-    det = run_detection(DetectionMethod.classical)
+    # If binary data files are missing, use the fixture detection response
+    # so drift can still be demonstrated without the full case bundle.
+    if data_files_ready():
+        det = run_detection(DetectionMethod.classical)
+    else:
+        det = fixtures.detect_response(DetectionMethod.classical)
     slick = next((s for s in det.slicks if s.id == slick_id), None) or (
         det.slicks[0] if det.slicks else None
     )
@@ -47,13 +52,8 @@ def _forecast(slick_id: str, hours: float, n: int, wf: float, seed: int) -> Fore
 
 @router.post("/hindcast", response_model=HindcastResponse)
 def hindcast(req: DriftRequest) -> HindcastResponse:
-    """Stage 2a — run the ensemble backward to a containment region.
-
-    The run length and the origin window come from Stage 1's age estimate, not
-    from `hours`: a backtrack alone cannot say when the release happened, so
-    something must bound the elapsed time.
-    """
-    if load_case() is None:
+    """Stage 2a — run the ensemble backward to a containment region."""
+    if not data_files_ready():
         return fixtures.hindcast_response(req.hours, req.n_particles, req.seed, req.wind_factor)
     return _hindcast(req.slick_id, req.n_particles, req.wind_factor, req.seed)
 
@@ -61,6 +61,6 @@ def hindcast(req: DriftRequest) -> HindcastResponse:
 @router.post("/forecast", response_model=ForecastResponse)
 def forecast(req: DriftRequest) -> ForecastResponse:
     """Stage 2b — the same engine forward, for response planning."""
-    if load_case() is None:
+    if not data_files_ready():
         return fixtures.forecast_response(req.hours, req.n_particles, req.seed, req.wind_factor)
     return _forecast(req.slick_id, req.hours, req.n_particles, req.wind_factor, req.seed)
