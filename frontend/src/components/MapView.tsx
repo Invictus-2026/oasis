@@ -211,25 +211,13 @@ export default function MapView({
     src?.setData(data);
   };
 
-  // ---- fit to the case bbox, draw the graticule and AOI frame ----------
+  // ---- fit to the case bbox and draw the AOI frame ----------
   useEffect(() => {
     if (!map.current || !caseMeta) return;
     const b = caseMeta.bbox;
     map.current.fitBounds([[b.west, b.south], [b.east, b.north]], { padding: 60, duration: 700 });
 
     if (!ready) return;
-    const step = 0.25;
-    const lines: GeoJSON.Feature[] = [];
-    const from = (v: number) => Math.ceil(v / step) * step;
-    for (let lon = from(b.west); lon < b.east; lon += step) {
-      lines.push({ type: "Feature", properties: {},
-        geometry: { type: "LineString", coordinates: [[lon, b.south], [lon, b.north]] } });
-    }
-    for (let lat = from(b.south); lat < b.north; lat += step) {
-      lines.push({ type: "Feature", properties: {},
-        geometry: { type: "LineString", coordinates: [[b.west, lat], [b.east, lat]] } });
-    }
-    setData("graticule", { type: "FeatureCollection", features: lines });
     setData("frame", {
       type: "FeatureCollection",
       features: [{ type: "Feature", properties: {}, geometry: { type: "LineString",
@@ -542,44 +530,72 @@ export default function MapView({
     );
   }, [ready, focusRequest, detection]);
 
-  // ---- Wind field --------------------------------------------------------
+  // ---- Dynamic endless graticule and wind field --------------------------
   useEffect(() => {
-    if (!ready || !caseMeta || mockWindDir === undefined) return;
-    const step = 0.25;
-    const b = caseMeta.bbox;
-    const features: GeoJSON.Feature[] = [];
-    const rad = (90 - mockWindDir) * (Math.PI / 180);
-    const arrowLen = 0.08;
-    const headLen = 0.03;
-    const headAngle = 30 * (Math.PI / 180);
+    const m = map.current;
+    if (!ready || !m || mockWindDir === undefined) return;
 
-    const dx = Math.cos(rad) * arrowLen;
-    const dy = Math.sin(rad) * arrowLen;
-
-    const hx1 = Math.cos(rad + Math.PI - headAngle) * headLen;
-    const hy1 = Math.sin(rad + Math.PI - headAngle) * headLen;
-    const hx2 = Math.cos(rad + Math.PI + headAngle) * headLen;
-    const hy2 = Math.sin(rad + Math.PI + headAngle) * headLen;
-
-    for (let lon = b.west + step / 2; lon < b.east; lon += step) {
-      for (let lat = b.south + step / 2; lat < b.north; lat += step) {
-        const endLon = lon + dx;
-        const endLat = lat + dy;
-        features.push({
-          type: "Feature", properties: {},
-          geometry: {
-            type: "MultiLineString",
-            coordinates: [
-              [[lon, lat], [endLon, endLat]],
-              [[endLon, endLat], [endLon + hx1, endLat + hy1]],
-              [[endLon, endLat], [endLon + hx2, endLat + hy2]]
-            ]
-          }
-        });
+    const updateGridAndArrows = () => {
+      const bounds = m.getBounds();
+      // Pad bounds slightly so lines don't pop in at the exact edge
+      const west = bounds.getWest() - 1;
+      const east = bounds.getEast() + 1;
+      const south = bounds.getSouth() - 1;
+      const north = bounds.getNorth() + 1;
+      
+      const step = 0.25;
+      const from = (v: number) => Math.floor(v / step) * step;
+      
+      // 1. Graticule
+      const lines: GeoJSON.Feature[] = [];
+      for (let lon = from(west); lon < east; lon += step) {
+        lines.push({ type: "Feature", properties: {},
+          geometry: { type: "LineString", coordinates: [[lon, south], [lon, north]] } });
       }
-    }
-    setData("windField", { type: "FeatureCollection", features });
-  }, [caseMeta, mockWindDir, ready]);
+      for (let lat = from(south); lat < north; lat += step) {
+        lines.push({ type: "Feature", properties: {},
+          geometry: { type: "LineString", coordinates: [[west, lat], [east, lat]] } });
+      }
+      setData("graticule", { type: "FeatureCollection", features: lines });
+
+      // 2. Wind Arrows
+      const arrows: GeoJSON.Feature[] = [];
+      const rad = (90 - mockWindDir) * (Math.PI / 180);
+      const arrowLen = 0.08;
+      const headLen = 0.03;
+      const headAngle = 30 * (Math.PI / 180);
+
+      const dx = Math.cos(rad) * arrowLen;
+      const dy = Math.sin(rad) * arrowLen;
+      const hx1 = Math.cos(rad + Math.PI - headAngle) * headLen;
+      const hy1 = Math.sin(rad + Math.PI - headAngle) * headLen;
+      const hx2 = Math.cos(rad + Math.PI + headAngle) * headLen;
+      const hy2 = Math.sin(rad + Math.PI + headAngle) * headLen;
+
+      for (let lon = from(west) + step / 2; lon < east; lon += step) {
+        for (let lat = from(south) + step / 2; lat < north; lat += step) {
+          const endLon = lon + dx;
+          const endLat = lat + dy;
+          arrows.push({
+            type: "Feature", properties: {},
+            geometry: {
+              type: "MultiLineString",
+              coordinates: [
+                [[lon, lat], [endLon, endLat]],
+                [[endLon, endLat], [endLon + hx1, endLat + hy1]],
+                [[endLon, endLat], [endLon + hx2, endLat + hy2]]
+              ]
+            }
+          });
+        }
+      }
+      setData("windField", { type: "FeatureCollection", features: arrows });
+    };
+
+    updateGridAndArrows();
+    m.on("move", updateGridAndArrows);
+    return () => { m.off("move", updateGridAndArrows); };
+  }, [ready, mockWindDir]);
 
   return <div ref={container} className="absolute inset-0 h-full w-full" />;
 }

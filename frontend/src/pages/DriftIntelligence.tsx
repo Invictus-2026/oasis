@@ -64,7 +64,7 @@ export default function DriftIntelligence() {
     viewMode
   } = useSpillState();
 
-  const isAdhoc = detection?.slicks[0]?.id.startsWith("adhoc-");
+  const isAdhoc = detection?.slicks?.some(s => s.id.startsWith("adhoc-")) ?? false;
 
   const o = hindcast?.origin_estimate;
   const t = hindcast?.particles_timeline[Math.min(hindcastIndex, frames - 1)]?.t_offset_hours ?? 0;
