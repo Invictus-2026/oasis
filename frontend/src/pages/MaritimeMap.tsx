@@ -26,6 +26,9 @@ export default function MaritimeMap() {
     mockWindDir,
     activeSlickId,
     customOverlays,
+    runHindcast,
+    runForecast,
+    drifting,
   } = useSpillState();
 
   const location = useLocation();
@@ -83,6 +86,28 @@ export default function MaritimeMap() {
 
           <div className="pointer-events-none absolute left-4 top-4 z-10 flex flex-col gap-4">
             <LayerToggles layers={layers} onToggle={toggleLayer} />
+          </div>
+
+          <div className="pointer-events-none absolute right-4 top-4 z-10">
+            <div className="pointer-events-auto flex gap-2 rounded-md border border-ink-200 bg-white shadow-sm p-2">
+              <button
+                onClick={() => runHindcast()}
+                disabled={!!drifting}
+                className="flex items-center gap-2 px-3 py-1.5 rounded bg-ink-50 hover:bg-blue-50 border border-ink-200 hover:border-blue-200 transition-colors text-sm text-ink-700 disabled:opacity-50"
+              >
+                <div className={`w-2 h-2 rounded-full ${hindcast ? "bg-blue-500" : "bg-ink-300"}`} />
+                {drifting === "hindcast" ? "Running..." : "Hindcast"}
+              </button>
+
+              <button
+                onClick={() => runForecast()}
+                disabled={!!drifting}
+                className="flex items-center gap-2 px-3 py-1.5 rounded bg-ink-50 hover:bg-blue-50 border border-ink-200 hover:border-blue-200 transition-colors text-sm text-ink-700 disabled:opacity-50"
+              >
+                <div className={`w-2 h-2 rounded-full ${forecast ? "bg-purple-500" : "bg-ink-300"}`} />
+                {drifting === "forecast" ? "Running..." : "Forecast"}
+              </button>
+            </div>
           </div>
 
           {/* Compass Widget */}
