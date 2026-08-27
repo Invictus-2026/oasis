@@ -87,12 +87,50 @@ export const forecast = (slickId: string, hours = 12, nParticles = 500) =>
     forecastMock,
   );
 
-export const attribute = (origin: LonLat, originTimeUtc: string, radiusKm = 25) =>
-  call<AttributeResponse>(
+/** Builds a rough circular polygon (Phase 7's AttributeRequest wants a
+ *  region, not a point) around the hindcast origin estimate at the given
+ *  radius in km. A coarse approximation is fine here: this is the ORIGIN
+ *  REGION input to step 1's spatial filter, not a geometry the UI renders. */
+function circleRegion([lon, lat]: LonLat, radiusKm: number, steps = 24): GeoJSON.Polygon {
+  const kmPerDegLat = 110.574;
+  const kmPerDegLon = 111.32 * Math.cos((lat * Math.PI) / 180);
+  const ring: LonLat[] = [];
+  for (let i = 0; i <= steps; i++) {
+    const t = (2 * Math.PI * i) / steps;
+    ring.push([lon + (radiusKm * Math.cos(t)) / kmPerDegLon, lat + (radiusKm * Math.sin(t)) / kmPerDegLat]);
+  }
+  return { type: "Polygon", coordinates: [ring] };
+}
+
+export const attribute = (
+  origin: LonLat,
+  originTimeUtc: string,
+  opts?: {
+    uncertaintyRadiusKm?: number;
+    timeWindowHours?: [number, number];
+    driftBearingDeg?: number;
+    counterfactualTopN?: number;
+  },
+) => {
+  const radiusKm = opts?.uncertaintyRadiusKm ?? 25;
+  const [winLo, winHi] = opts?.timeWindowHours ?? [0, 6];
+  const centre = new Date(originTimeUtc).getTime();
+  const start = new Date(centre - winHi * 3600_000).toISOString();
+  const end = new Date(centre + winLo * 3600_000).toISOString();
+
+  return call<AttributeResponse>(
     "/api/attribute",
-    { origin, origin_time_utc: originTimeUtc, search_radius_km: radiusKm },
+    {
+      origin_region: circleRegion(origin, Math.max(radiusKm, 5)),
+      release_window_start_utc: start,
+      release_window_end_utc: end,
+      drift_bearing_deg: opts?.driftBearingDeg ?? 48.0,
+      search_radius_km: radiusKm,
+      counterfactual_top_n: opts?.counterfactualTopN ?? 5,
+    },
     attributionMock,
   );
+};
 
 export const report = (caseId: string, slickId: string) =>
   call<ReportContent>("/api/report", { case_id: caseId, slick_id: slickId }, null);

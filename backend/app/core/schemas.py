@@ -414,21 +414,39 @@ class AISTracksResponse(BaseModel):
 
 class ScoreBreakdown(BaseModel):
     """Every factor normalised 0-1 and returned individually, so the UI can
-    show WHY a vessel ranks where it does. No black-box score."""
+    show WHY a vessel ranks where it does. No black-box score.
 
-    proximity: float = Field(ge=0.0, le=1.0)
-    temporal_overlap: float = Field(ge=0.0, le=1.0)
-    heading_consistency: float = Field(ge=0.0, le=1.0)
+    Six components (Phase 7): origin proximity, temporal compatibility,
+    trajectory consistency, behaviour anomaly, AIS gap, and counterfactual
+    simulation similarity. `counterfactual_similarity` is null for a
+    candidate that did not receive the expensive simulate-and-compare step
+    (see app/attribution/scoring.py — only the top-ranked candidates get it),
+    never a fabricated 0.
+    """
+
+    origin_proximity: float = Field(ge=0.0, le=1.0)
+    temporal_compatibility: float = Field(ge=0.0, le=1.0)
+    trajectory_consistency: float = Field(ge=0.0, le=1.0)
+    behaviour_anomaly: float = Field(ge=0.0, le=1.0)
     ais_gap: float = Field(ge=0.0, le=1.0)
-    speed_anomaly: float = Field(ge=0.0, le=1.0)
+    counterfactual_similarity: float | None = Field(
+        default=None, ge=0.0, le=1.0,
+        description="null when this candidate did not receive a counterfactual simulation run",
+    )
 
 
 class ScoreWeights(BaseModel):
-    proximity: float = 0.30
-    temporal_overlap: float = 0.25
-    ais_gap: float = 0.20
-    heading_consistency: float = 0.15
-    speed_anomaly: float = 0.10
+    """Named, documented weights — the only place a percentage exists in the
+    whole scoring path, and it is an inspectable constant, never baked
+    silently into the composite. See app/attribution/scoring.SCORE_WEIGHTS,
+    the source of these defaults."""
+
+    origin_proximity: float = 0.22
+    temporal_compatibility: float = 0.18
+    trajectory_consistency: float = 0.18
+    behaviour_anomaly: float = 0.14
+    ais_gap: float = 0.14
+    counterfactual_similarity: float = 0.14
 
 
 class AISGap(BaseModel):
@@ -451,13 +469,24 @@ class CandidateFlag(str, Enum):
     closest_approach = "CLOSEST_APPROACH"
 
 
+class CandidateLabel(str, Enum):
+    """Acceptance vocabulary (Phase 7): a vessel is a CANDIDATE, or an
+    INVESTIGATION LEAD when the evidence is stronger — never a "suspect" or
+    "culprit". Crossing the lead threshold is a stronger plausibility
+    signal, not a verdict; see app/attribution/scoring.INVESTIGATION_LEAD_THRESHOLD."""
+
+    candidate = "candidate"
+    investigation_lead = "investigation lead"
+
+
 class VesselCandidate(BaseModel):
     mmsi: str
-    name: str
-    vessel_type: str
+    name: str | None = None
+    vessel_type: str | None = None
     track: GeoJSON
     score: float = Field(ge=0.0, le=1.0)
     rank: int
+    label: CandidateLabel = CandidateLabel.candidate
     flags: list[CandidateFlag] = Field(default_factory=list)
     breakdown: ScoreBreakdown
     gaps: list[AISGap] = Field(default_factory=list)
@@ -469,10 +498,24 @@ class VesselCandidate(BaseModel):
 
 
 class AttributeRequest(BaseModel):
-    origin: LonLat
-    origin_time_utc: datetime
+    origin_region: GeoJSON = Field(
+        description="origin probability region (Polygon), e.g. Phase 5's origin-search region_50/region_90"
+    )
+    release_window_start_utc: datetime
+    release_window_end_utc: datetime
+    drift_bearing_deg: float = Field(
+        description="the observed slick's OWN measured orientation (e.g. Phase 2's "
+                    "geometry.orientation_deg) — the trail's own axis, not a current/wind drift "
+                    "direction. An underway discharge's trail runs along the vessel's heading at "
+                    "the moment of release, then the current reshapes it afterward, so a "
+                    "vessel's later drift-like motion is not the diagnostic signal here; whether "
+                    "the vessel's own track once ran along the trail's axis is."
+    )
     search_radius_km: float = 25.0
-    time_window_hours: float = 6.0
+    counterfactual_top_n: int = Field(
+        default=5, ge=0, le=50,
+        description="how many top-ranked candidates receive the expensive counterfactual simulation step",
+    )
     weights: ScoreWeights = Field(default_factory=ScoreWeights)
 
 

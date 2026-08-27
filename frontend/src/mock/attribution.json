@@ -87,27 +87,42 @@
           ]
         ]
       },
-      "score": 0.936,
+      "score": 0.926,
       "rank": 1,
+      "label": "investigation lead",
       "flags": [
         "DARK_VESSEL",
         "CLOSEST_APPROACH",
         "SLOW_STEAMING"
       ],
       "breakdown": {
-        "proximity": 0.928,
-        "temporal_overlap": 0.955,
-        "heading_consistency": 0.978,
+        "origin_proximity": 0.928,
+        "temporal_compatibility": 0.955,
+        "trajectory_consistency": 0.978,
+        "behaviour_anomaly": 0.72,
         "ais_gap": 1.0,
-        "speed_anomaly": 0.72
+        "counterfactual_similarity": 0.953
       },
       "gaps": [
         {
           "start_utc": "2023-06-15T03:13:00Z",
           "end_utc": "2023-06-15T04:47:00Z",
           "duration_minutes": 94.0,
-          "interpolated_path": null,
-          "overlaps_origin_window": true
+          "interpolated_path": {
+            "type": "LineString",
+            "coordinates": [
+              [
+                -90.18286820067894,
+                28.340621325083582
+              ],
+              [
+                -90.02187296166785,
+                28.449398852436342
+              ]
+            ]
+          },
+          "overlaps_origin_window": true,
+          "label": "AIS reporting gap \u2014 investigation signal, not a finding of wrongdoing"
         }
       ],
       "closest_approach_km": 1.8,
@@ -199,25 +214,40 @@
           ]
         ]
       },
-      "score": 0.729,
+      "score": 0.759,
       "rank": 2,
+      "label": "investigation lead",
       "flags": [
         "SLOW_STEAMING"
       ],
       "breakdown": {
-        "proximity": 0.744,
-        "temporal_overlap": 0.84,
-        "heading_consistency": 0.928,
+        "origin_proximity": 0.744,
+        "temporal_compatibility": 0.84,
+        "trajectory_consistency": 0.928,
+        "behaviour_anomaly": 0.72,
         "ais_gap": 0.422,
-        "speed_anomaly": 0.72
+        "counterfactual_similarity": 0.836
       },
       "gaps": [
         {
           "start_utc": "2023-06-15T03:41:00Z",
           "end_utc": "2023-06-15T04:19:00Z",
           "duration_minutes": 38.0,
-          "interpolated_path": null,
-          "overlaps_origin_window": false
+          "interpolated_path": {
+            "type": "LineString",
+            "coordinates": [
+              [
+                -90.17144607488088,
+                28.315312840338894
+              ],
+              [
+                -89.99301780357423,
+                28.399347684225923
+              ]
+            ]
+          },
+          "overlaps_origin_window": false,
+          "label": "AIS reporting gap \u2014 investigation signal, not a finding of wrongdoing"
         }
       ],
       "closest_approach_km": 6.4,
@@ -309,120 +339,22 @@
           ]
         ]
       },
-      "score": 0.485,
+      "score": 0.488,
       "rank": 3,
+      "label": "candidate",
       "flags": [],
       "breakdown": {
-        "proximity": 0.636,
-        "temporal_overlap": 0.772,
-        "heading_consistency": 0.556,
+        "origin_proximity": 0.636,
+        "temporal_compatibility": 0.772,
+        "trajectory_consistency": 0.556,
+        "behaviour_anomaly": 0.18,
         "ais_gap": 0.0,
-        "speed_anomaly": 0.18
+        "counterfactual_similarity": 0.596
       },
       "gaps": [],
       "closest_approach_km": 9.1,
       "closest_approach_utc": "2023-06-15T04:31:00Z",
       "narrative": "Passed within 9.1 km of the estimated origin during the release window with continuous AIS reporting and no behavioural anomaly."
-    },
-    {
-      "mmsi": "366998210",
-      "name": "SEACOR REVIVAL",
-      "vessel_type": "Offshore Supply Vessel",
-      "track": {
-        "type": "LineString",
-        "coordinates": [
-          [
-            -90.05884585973989,
-            28.834449429196397
-          ],
-          [
-            -90.07553541128308,
-            28.793981790625445
-          ],
-          [
-            -90.09911663666695,
-            28.751379547437548
-          ],
-          [
-            -90.12118960977055,
-            28.71137640065835
-          ],
-          [
-            -90.143609659864,
-            28.669721038605065
-          ],
-          [
-            -90.16327833810648,
-            28.628113716221172
-          ],
-          [
-            -90.18437087288217,
-            28.58840927148718
-          ],
-          [
-            -90.20276874128432,
-            28.546882576167526
-          ],
-          [
-            -90.2305749529951,
-            28.504323634659084
-          ],
-          [
-            -90.25109752580262,
-            28.466272601142173
-          ],
-          [
-            -90.27350424506595,
-            28.424074357538114
-          ],
-          [
-            -90.28953471738703,
-            28.376421515986294
-          ],
-          [
-            -90.31867623078361,
-            28.341789551759586
-          ],
-          [
-            -90.33637044312843,
-            28.300795558079393
-          ],
-          [
-            -90.36006917168842,
-            28.260755442690005
-          ],
-          [
-            -90.37982885334014,
-            28.21711192506304
-          ],
-          [
-            -90.3959255594719,
-            28.178113219354476
-          ],
-          [
-            -90.42512598356345,
-            28.13610348570259
-          ],
-          [
-            -90.4458677607792,
-            28.095204520450444
-          ]
-        ]
-      },
-      "score": 0.319,
-      "rank": 4,
-      "flags": [],
-      "breakdown": {
-        "proximity": 0.412,
-        "temporal_overlap": 0.633,
-        "heading_consistency": 0.128,
-        "ais_gap": 0.0,
-        "speed_anomaly": 0.18
-      },
-      "gaps": [],
-      "closest_approach_km": 14.7,
-      "closest_approach_utc": "2023-06-15T04:27:00Z",
-      "narrative": "Present in the region but closest approach was 14.7 km, outside the high-probability origin area."
     },
     {
       "mmsi": "356420119",
@@ -509,28 +441,133 @@
           ]
         ]
       },
-      "score": 0.296,
-      "rank": 5,
+      "score": 0.347,
+      "rank": 4,
+      "label": "candidate",
       "flags": [],
       "breakdown": {
-        "proximity": 0.148,
-        "temporal_overlap": 0.468,
-        "heading_consistency": 0.778,
+        "origin_proximity": 0.148,
+        "temporal_compatibility": 0.468,
+        "trajectory_consistency": 0.778,
+        "behaviour_anomaly": 0.18,
         "ais_gap": 0.0,
-        "speed_anomaly": 0.18
+        "counterfactual_similarity": 0.463
       },
       "gaps": [],
       "closest_approach_km": 21.3,
       "closest_approach_utc": "2023-06-15T03:20:00Z",
       "narrative": "Present in the region but closest approach was 21.3 km, outside the high-probability origin area."
+    },
+    {
+      "mmsi": "366998210",
+      "name": "SEACOR REVIVAL",
+      "vessel_type": "Offshore Supply Vessel",
+      "track": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            -90.05884585973989,
+            28.834449429196397
+          ],
+          [
+            -90.07553541128308,
+            28.793981790625445
+          ],
+          [
+            -90.09911663666695,
+            28.751379547437548
+          ],
+          [
+            -90.12118960977055,
+            28.71137640065835
+          ],
+          [
+            -90.143609659864,
+            28.669721038605065
+          ],
+          [
+            -90.16327833810648,
+            28.628113716221172
+          ],
+          [
+            -90.18437087288217,
+            28.58840927148718
+          ],
+          [
+            -90.20276874128432,
+            28.546882576167526
+          ],
+          [
+            -90.2305749529951,
+            28.504323634659084
+          ],
+          [
+            -90.25109752580262,
+            28.466272601142173
+          ],
+          [
+            -90.27350424506595,
+            28.424074357538114
+          ],
+          [
+            -90.28953471738703,
+            28.376421515986294
+          ],
+          [
+            -90.31867623078361,
+            28.341789551759586
+          ],
+          [
+            -90.33637044312843,
+            28.300795558079393
+          ],
+          [
+            -90.36006917168842,
+            28.260755442690005
+          ],
+          [
+            -90.37982885334014,
+            28.21711192506304
+          ],
+          [
+            -90.3959255594719,
+            28.178113219354476
+          ],
+          [
+            -90.42512598356345,
+            28.13610348570259
+          ],
+          [
+            -90.4458677607792,
+            28.095204520450444
+          ]
+        ]
+      },
+      "score": 0.291,
+      "rank": 5,
+      "label": "candidate",
+      "flags": [],
+      "breakdown": {
+        "origin_proximity": 0.412,
+        "temporal_compatibility": 0.633,
+        "trajectory_consistency": 0.128,
+        "behaviour_anomaly": 0.18,
+        "ais_gap": 0.0,
+        "counterfactual_similarity": 0.27
+      },
+      "gaps": [],
+      "closest_approach_km": 14.7,
+      "closest_approach_utc": "2023-06-15T04:27:00Z",
+      "narrative": "Present in the region but closest approach was 14.7 km, outside the high-probability origin area."
     }
   ],
   "weights": {
-    "proximity": 0.3,
-    "temporal_overlap": 0.25,
-    "ais_gap": 0.2,
-    "heading_consistency": 0.15,
-    "speed_anomaly": 0.1
+    "origin_proximity": 0.22,
+    "temporal_compatibility": 0.18,
+    "trajectory_consistency": 0.18,
+    "behaviour_anomaly": 0.14,
+    "ais_gap": 0.14,
+    "counterfactual_similarity": 0.14
   },
   "all_tracks": null,
   "processing": [
@@ -567,15 +604,16 @@
       "radius_km": 25.0,
       "window_hours": 6.0,
       "weights": {
-        "proximity": 0.3,
-        "temporal_overlap": 0.25,
-        "ais_gap": 0.2,
-        "heading_consistency": 0.15,
-        "speed_anomaly": 0.1
+        "origin_proximity": 0.22,
+        "temporal_compatibility": 0.18,
+        "trajectory_consistency": 0.18,
+        "behaviour_anomaly": 0.14,
+        "ais_gap": 0.14,
+        "counterfactual_similarity": 0.14
       },
       "gap_threshold_min": 30
     },
-    "generated_at": "2026-08-23T16:22:25.361742Z",
+    "generated_at": "2026-08-27T14:44:45.310429Z",
     "inputs": [
       "NOAA AccessAIS extract",
       "hindcast origin estimate"

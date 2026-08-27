@@ -117,23 +117,22 @@ def test_invalid_gap_threshold_is_rejected(client):
     assert r.status_code == 422
 
 
-def test_existing_attribute_endpoint_is_unaffected(client):
-    """Existing endpoint's behaviour (including its pre-existing
-    ScoreBreakdown schema mismatch — one of test_contract.py's known-failing
-    assertions, unrelated to and untouched by Phase 6) must not change: this
-    just confirms Phase 6 did not alter engine.py or its route. Uses
-    raises_server_exceptions=False since the pre-existing bug is an unhandled
-    ValidationError that the default TestClient would otherwise re-raise here
-    instead of surfacing as a 500."""
-    from fastapi.testclient import TestClient as _TestClient
-
-    from app.main import app as _app
-
-    with _TestClient(_app, raise_server_exceptions=False) as lenient_client:
-        r = lenient_client.post("/api/attribute", json={
-            "origin": [-90.05, 28.45], "origin_time_utc": "2023-06-15T04:00:00Z",
-        })
-    assert r.status_code == 500
+def test_attribute_endpoint_still_answers(client):
+    """/api/attribute was fixture-only and pre-existing-broken (a
+    ScoreBreakdown schema mismatch) as of Phase 6 — fixed in Phase 7, which
+    rewired it to the real six-component pipeline. This just confirms Phase
+    6's AIS work composes cleanly with it now that both exist; the endpoint's
+    own contract is covered by tests/test_attribution_scoring.py and
+    test_contract.py."""
+    r = client.post("/api/attribute", json={
+        "origin_region": {"type": "Polygon", "coordinates": [[
+            [-90.20, 28.35], [-89.95, 28.35], [-89.95, 28.65], [-90.20, 28.65], [-90.20, 28.35],
+        ]]},
+        "release_window_start_utc": "2023-06-15T02:00:00Z",
+        "release_window_end_utc": "2023-06-15T06:00:00Z",
+        "drift_bearing_deg": 64.9,
+    })
+    assert r.status_code == 200
 
 
 def test_existing_health_and_detect_endpoints_are_unaffected(client):

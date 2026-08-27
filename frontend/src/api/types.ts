@@ -185,20 +185,27 @@ export interface ForecastResponse {
   provenance: Provenance;
 }
 
+/** Six components (Phase 7), each stored separately so a candidate's rank is
+ *  always traceable to individual evidence, never a black-box number.
+ *  counterfactual_similarity is null for a candidate that did not receive
+ *  the expensive simulate-and-compare step (only the top-ranked candidates
+ *  do) — never a fabricated 0. */
 export interface ScoreBreakdown {
-  proximity: number;
-  temporal_overlap: number;
-  heading_consistency: number;
+  origin_proximity: number;
+  temporal_compatibility: number;
+  trajectory_consistency: number;
+  behaviour_anomaly: number;
   ais_gap: number;
-  speed_anomaly: number;
+  counterfactual_similarity: number | null;
 }
 
 export interface ScoreWeights {
-  proximity: number;
-  temporal_overlap: number;
+  origin_proximity: number;
+  temporal_compatibility: number;
+  trajectory_consistency: number;
+  behaviour_anomaly: number;
   ais_gap: number;
-  heading_consistency: number;
-  speed_anomaly: number;
+  counterfactual_similarity: number;
 }
 
 export interface AISGap {
@@ -207,6 +214,8 @@ export interface AISGap {
   duration_minutes: number;
   interpolated_path: Geom | null;
   overlaps_origin_window: boolean;
+  /** Deliberately phrased as an investigation signal, never an accusation. */
+  label: string;
 }
 
 export type CandidateFlag =
@@ -215,13 +224,18 @@ export type CandidateFlag =
   | "SLOW_STEAMING"
   | "CLOSEST_APPROACH";
 
+/** Acceptance vocabulary: a vessel is a candidate, or an investigation lead
+ *  when the evidence is stronger — never a "suspect" or "culprit". */
+export type CandidateLabel = "candidate" | "investigation lead";
+
 export interface VesselCandidate {
   mmsi: string;
-  name: string;
-  vessel_type: string;
+  name: string | null;
+  vessel_type: string | null;
   track: Geom;
   score: number;
   rank: number;
+  label: CandidateLabel;
   flags: CandidateFlag[];
   breakdown: ScoreBreakdown;
   gaps: AISGap[];
@@ -253,17 +267,18 @@ export interface ReportContent {
   provenance: Provenance;
 }
 
-/** The order of the five scoring factors as shown in the UI. */
+/** The order of the six scoring factors (Phase 7) as shown in the UI. */
 export const SCORE_FACTORS: {
   key: keyof ScoreBreakdown;
   label: string;
   hint: string;
 }[] = [
-  { key: "proximity", label: "Proximity to origin", hint: "Distance to the estimated release point, weighted by the cone's probability density" },
-  { key: "temporal_overlap", label: "Temporal overlap", hint: "Vessel presence within the estimated release time window" },
-  { key: "ais_gap", label: "AIS gap", hint: "Reporting gap overlapping the release window — the dark-vessel signal" },
-  { key: "heading_consistency", label: "Heading consistency", hint: "Course alignment with the observed slick axis" },
-  { key: "speed_anomaly", label: "Speed anomaly", hint: "Slow steaming or unusual manoeuvre near the origin" },
+  { key: "origin_proximity", label: "Origin proximity", hint: "How close this vessel's track comes to the origin probability region" },
+  { key: "temporal_compatibility", label: "Temporal compatibility", hint: "Vessel presence within the estimated release time window" },
+  { key: "trajectory_consistency", label: "Trajectory consistency", hint: "Whether the vessel's own track ran along the slick's measured axis" },
+  { key: "behaviour_anomaly", label: "Behaviour anomaly", hint: "Speed jumps, sharp course changes, unexpected stops and erratic legs — transparent rule-based indicators" },
+  { key: "ais_gap", label: "AIS gap", hint: "Reporting gap overlapping the release window — an investigation signal, not a finding" },
+  { key: "counterfactual_similarity", label: "Counterfactual simulation", hint: "How closely a simulated release from this vessel's track reproduces the observed slick — computed only for the top-ranked candidates" },
 ];
 
 export interface UploadRegion {
