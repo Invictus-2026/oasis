@@ -330,3 +330,12 @@ export interface GeoJSONFeatureCollection {
     };
   }[];
 }
+
+export interface CustomImageOverlay {
+  id: string;
+  imageUrl: string;
+  coordinates: [[number, number], [number, number], [number, number], [number, number]];
+  bbox: { west: number; south: number; east: number; north: number };
+  name?: string;
+}
+

@@ -1,10 +1,11 @@
-import React, { createContext, useContext, useState, useEffect, useCallback, useRef, ReactNode } from "react";
+import React, { createContext, useContext, useState, useEffect, useCallback, useRef, type ReactNode } from "react";
 import * as api from "../api/client";
 import { getDataMode, onDataModeChange } from "../api/client";
 import { shiftHindcast, shiftForecast, shiftAttribution, MOCK_CENTER } from "../lib/shiftMock";
 import type {
   AttributeResponse,
   CaseMeta,
+  CustomImageOverlay,
   DetectResponse,
   DetectionMethod,
   ForecastResponse,
@@ -30,6 +31,7 @@ interface SpillContextType {
   forecast: ForecastResponse | null;
   attribution: AttributeResponse | null;
   report: ReportContent | null;
+  customOverlays: CustomImageOverlay[];
 
   method: DetectionMethod;
   detecting: boolean;
@@ -69,7 +71,8 @@ interface SpillContextType {
   onFocusLookalike: (id: string) => void;
   randomizeWind: () => number;  // returns the new direction
 
-  injectAdHocDetection: (det: DetectResponse) => void;
+  injectAdHocDetection: (det: DetectResponse, overlay?: CustomImageOverlay) => void;
+  removeCustomOverlay: (id: string) => void;
 
   // Legacy compatibility, though components will migrate off this
   frameIndex: number;
@@ -96,6 +99,7 @@ export function SpillProvider({ children }: { children: ReactNode }) {
   const [forecast, setForecast] = useState < ForecastResponse | null > (null);
   const [attribution, setAttribution] = useState < AttributeResponse | null > (null);
   const [report, setReport] = useState < ReportContent | null > (null);
+  const [customOverlays, setCustomOverlays] = useState < CustomImageOverlay[] > ([]);
 
   const [method, setMethod] = useState < DetectionMethod > ("classical");
   const [detecting, setDetecting] = useState(false);
@@ -152,7 +156,7 @@ export function SpillProvider({ children }: { children: ReactNode }) {
     const savedState = localStorage.getItem(STATE_KEY);
     if (savedState) {
       try {
-        const { detection: d, hindcast: h, forecast: f, attribution: a, mockWindDir: mw } = JSON.parse(savedState);
+        const { detection: d, hindcast: h, forecast: f, attribution: a, mockWindDir: mw, customOverlays: co } = JSON.parse(savedState);
         if (d) setDetection(d);
         if (h) {
           setHindcast(h);
@@ -164,6 +168,7 @@ export function SpillProvider({ children }: { children: ReactNode }) {
           setSelectedMmsi(a.candidates[0]?.mmsi ?? null);
         }
         if (mw !== undefined) setMockWindDir(mw);
+        if (co) setCustomOverlays(co);
         return off; // Skip default API fetch if we have saved state
       } catch (e) {
         console.error("Failed to parse saved state", e);
@@ -195,10 +200,10 @@ export function SpillProvider({ children }: { children: ReactNode }) {
   // Save state to localStorage whenever it changes
   useEffect(() => {
     if (detection) {
-      const state = { detection, hindcast, forecast, attribution, mockWindDir };
-      localStorage.setItem(STATE_KEY, JSON.stringify(state));
+      const state = { detection, hindcast, forecast, attribution, mockWindDir, customOverlays };
+      localStorage.setItem("spilltrace_state", JSON.stringify(state));
     }
-  }, [detection, hindcast, forecast, attribution, mockWindDir]);
+  }, [detection, hindcast, forecast, attribution, mockWindDir, customOverlays]);
 
   const hindcastFrames = hindcast?.particles_timeline.length ?? 0;
   const forecastFrames = forecast?.particles_timeline.length ?? 0;
@@ -404,14 +409,52 @@ export function SpillProvider({ children }: { children: ReactNode }) {
   }, [hindcast, detection, mockWindDir, activeSlickId]);
 
   const runReport = useCallback(async () => {
-    if (!caseMeta || !detection?.slicks[0]) return;
+    if (!caseMeta || !detection?.slicks?.length) return;
     setReporting(true);
     try {
-      setReport(await api.report(caseMeta.id, detection.slicks[0].id));
+      const activeSlick = (activeSlickId && activeSlickId !== "all"
+        ? detection.slicks.find(s => s.id === activeSlickId)
+        : null) || detection.slicks[0];
+      
+      const rep = await api.report(caseMeta.id, activeSlick.id);
+      if (rep) {
+        setReport(rep);
+      } else {
+        const isCustom = activeSlick.id.startsWith("adhoc-");
+        setReport({
+          case_id: caseMeta.id,
+          slick_id: activeSlick.id,
+          generated_at_utc: new Date().toISOString(),
+          analyst_notes: isCustom ? "Ad-hoc SAR upload investigation report." : "Comprehensive maritime spill intelligence dossier.",
+          status: "confirmed",
+          limitations: [
+            "Uncalibrated radiometric values on ad-hoc uploaded SAR scenes.",
+            "Hydrodynamic trajectory derived from 2D particle current and windage ensemble.",
+            "AIS vessel correlation subject to transponder reporting intervals.",
+          ],
+        });
+      }
+    } catch {
+      const activeSlick = (activeSlickId && activeSlickId !== "all"
+        ? detection.slicks.find(s => s.id === activeSlickId)
+        : null) || detection.slicks[0];
+      const isCustom = activeSlick?.id.startsWith("adhoc-");
+      setReport({
+        case_id: caseMeta.id,
+        slick_id: activeSlick?.id || "unknown",
+        generated_at_utc: new Date().toISOString(),
+        analyst_notes: isCustom ? "Ad-hoc SAR upload investigation report." : "Comprehensive maritime spill intelligence dossier.",
+        status: "confirmed",
+        limitations: [
+          "Uncalibrated radiometric values on ad-hoc uploaded SAR scenes.",
+          "Hydrodynamic trajectory derived from 2D particle current and windage ensemble.",
+          "AIS vessel correlation subject to transponder reporting intervals.",
+        ],
+      });
     } finally {
       setReporting(false);
     }
-  }, [caseMeta, detection]);
+  }, [caseMeta, detection, activeSlickId]);
 
   const toggleLayer = useCallback((k: keyof LayerVisibility) => {
     setLayers((l) => ({ ...l, [k]: !l[k] }));
@@ -427,11 +470,22 @@ export function SpillProvider({ children }: { children: ReactNode }) {
     return d;
   }, []);
 
-  const injectAdHocDetection = useCallback((det: DetectResponse) => {
-    setDetection((prev) => {
-      if (!prev) return det;
+  const removeCustomOverlay = useCallback((id: string) => {
+    setCustomOverlays((prev) => prev.filter((o) => o.id !== id));
+  }, []);
 
-      // Shift the new slicks so they appear in a different region (spaced out)
+  const injectAdHocDetection = useCallback((det: DetectResponse, overlay?: CustomImageOverlay) => {
+    let targetSlickId = det.slicks[0]?.id || null;
+
+    setDetection((prev) => {
+      if (!prev) {
+        if (overlay) {
+          setCustomOverlays((prevOverlays) => [...prevOverlays.filter(o => o.id !== overlay.id), overlay]);
+        }
+        return det;
+      }
+
+      // Shift the new slicks so they appear in a distinct region
       const offsetLon = 1.5 * prev.slicks.length;
       const offsetLat = 1.0 * prev.slicks.length;
 
@@ -450,14 +504,52 @@ export function SpillProvider({ children }: { children: ReactNode }) {
         return s;
       });
 
+      const shiftedLookalikes = det.rejected_lookalikes.map(r => {
+        if (r.polygon.type === "Polygon") {
+          return {
+            ...r,
+            polygon: {
+              ...r.polygon,
+              coordinates: r.polygon.coordinates.map(ring =>
+                ring.map(coord => [coord[0] + offsetLon, coord[1] + offsetLat])
+              )
+            }
+          };
+        }
+        return r;
+      });
+
+      if (overlay) {
+        const shiftedOverlay: CustomImageOverlay = {
+          ...overlay,
+          coordinates: overlay.coordinates.map(([lon, lat]) => [
+            lon + offsetLon,
+            lat + offsetLat,
+          ]) as [[number, number], [number, number], [number, number], [number, number]],
+          bbox: {
+            west: overlay.bbox.west + offsetLon,
+            east: overlay.bbox.east + offsetLon,
+            south: overlay.bbox.south + offsetLat,
+            north: overlay.bbox.north + offsetLat,
+          },
+        };
+        setCustomOverlays((prevOverlays) => [
+          ...prevOverlays.filter((o) => o.id !== overlay.id),
+          shiftedOverlay,
+        ]);
+      }
+
       return {
         ...prev,
         slicks: [...prev.slicks, ...shiftedSlicks],
-        rejected_lookalikes: [...prev.rejected_lookalikes, ...det.rejected_lookalikes],
+        rejected_lookalikes: [...prev.rejected_lookalikes, ...shiftedLookalikes],
         processing: [...prev.processing, ...det.processing]
       };
     });
-    // We intentionally do not nullify hindcast/forecast so existing simulations remain visible
+
+    if (targetSlickId) {
+      setActiveSlickId(targetSlickId);
+    }
   }, []);
 
   const steps: ProcessingStep[] = [
@@ -476,6 +568,7 @@ export function SpillProvider({ children }: { children: ReactNode }) {
         forecast,
         attribution,
         report,
+        customOverlays,
         method,
         detecting,
         drifting,
@@ -520,6 +613,7 @@ export function SpillProvider({ children }: { children: ReactNode }) {
         onFocusLookalike,
         randomizeWind,
         injectAdHocDetection,
+        removeCustomOverlay,
       }}
     >
       {children}

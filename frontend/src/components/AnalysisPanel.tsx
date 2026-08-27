@@ -1,5 +1,4 @@
 import { useSpillState } from "../context/SpillContext";
-import { Play, Pause, FastForward, Rewind } from "lucide-react";
 
 export default function AnalysisPanel() {
   const {
@@ -9,10 +8,6 @@ export default function AnalysisPanel() {
     runHindcast,
     runForecast,
     drifting,
-    playing,
-    setPlaying,
-    frameIndex,
-    frames,
   } = useSpillState();
 
   if (!caseMeta) return null;

@@ -1,4 +1,3 @@
-import React from "react";
 import { useSpillState } from "../context/SpillContext";
 import { Droplet, ArrowRight, Wind } from "lucide-react";
 import { lonLat, km } from "../lib/format";

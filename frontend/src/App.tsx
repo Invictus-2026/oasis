@@ -1,7 +1,6 @@
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import AppLayout from "./components/layout/AppLayout";
 import Overview from "./pages/Overview";
-import MaritimeMap from "./pages/MaritimeMap";
 import Placeholder from "./pages/Placeholder";
 import { SpillProvider } from "./context/SpillContext";
 import SatelliteIntelligence from "./pages/SatelliteIntelligence";
@@ -9,6 +8,7 @@ import VesselIntelligence from "./pages/VesselIntelligence";
 import DriftIntelligence from "./pages/DriftIntelligence";
 import Attribution from "./pages/Attribution";
 import Reports from "./pages/Reports";
+import DataSources from "./pages/DataSources";
 
 export default function App() {
   return (
@@ -25,7 +25,7 @@ export default function App() {
             <Route path="attribution" element={<Attribution />} />
             <Route path="reports" element={<Reports />} />
             <Route path="alerts" element={<Placeholder title="Alerts" />} />
-            <Route path="data" element={<Placeholder title="Data Sources" />} />
+            <Route path="data" element={<DataSources />} />
             <Route path="models" element={<Placeholder title="Models" />} />
             <Route path="settings" element={<Placeholder title="Settings" />} />
           </Route>
