@@ -25,22 +25,7 @@ export default function Overview() {
                   title="Marine Traffic Live Map"
                />
                
-               {/* Glassmorphic Overlay Banner */}
-               <div className="absolute top-6 left-6 right-6 z-10">
-                  <div className="bg-white/10 backdrop-blur-md border border-white/20 rounded-2xl p-6 shadow-2xl">
-                     <div className="flex items-center gap-3 mb-3">
-                        <span className="relative flex h-3 w-3">
-                           <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                           <span className="relative inline-flex rounded-full h-3 w-3 bg-emerald-500"></span>
-                        </span>
-                        <span className="text-emerald-400 font-bold tracking-widest text-[10px] uppercase">Live Operational Feed</span>
-                     </div>
-                     <h1 className="text-2xl font-black text-white tracking-tight leading-tight mb-2">Ocean Sentinel Command</h1>
-                     <p className="text-blue-100/80 text-xs leading-relaxed max-w-sm">
-                        Global monitoring of maritime anomalies, dark vessel activity, and environmental hazards.
-                     </p>
-                  </div>
-               </div>
+               
                
                {/* Bottom fade out */}
                <div className="absolute bottom-0 left-0 right-0 h-24 bg-gradient-to-t from-ink-50 to-transparent z-10 pointer-events-none" />
