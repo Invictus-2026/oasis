@@ -417,6 +417,34 @@ dx = (u_current + wind_factor · u_wind) · dt  +  √(2·K·dt) · N(0,1)
   collapse the origin uncertainty the slick's own extent implies.
 - Defaults: 500 particles, 15-minute timestep.
 
+### 5.1b Configurable simulation + the mock path (Phase 4)
+
+`/api/drift/hindcast` and `/api/drift/forecast` now accept `timestep_minutes` and
+`diffusion_m2s` alongside the existing `hours` (duration), `n_particles` and
+`wind_factor` (windage) — every knob Phase 4 requires is a per-request parameter, not a
+fixed constant, with defaults matching the values that were previously hardcoded so an
+old client sees no change.
+
+**`drift/simulate.py`** is a second, parallel implementation of the same physics,
+written to depend on `EnvironmentalDataProvider` (§4b) instead of `ForcingField`
+directly. It exists so a mock run can execute the *real* simulation equations —
+advection + Okubo diffusion + the same timestep loop — against synthetic environmental
+data, rather than faking particle motion. It does not replace `drift/lagrangian.py`,
+which still backs the real case-bundle path unchanged (§5.5's numbers are the
+regression floor); `CaseBundleProvider.surface_velocity()` was already proven
+bit-identical to `ForcingField` in Phase 3, so both implementations agree on the real
+path's physics.
+
+**What mock mode used to do:** `core/fixtures.py`'s `_drift()` faked particle motion
+with `random.gauss()` jitter around a fixed straight-line velocity (1.20, 0.88 km/h)
+and never read wind or current at all — the pre-generated/translated pattern Phase 4
+rules out. **What it does now:** `drift/mock_engine.py` runs `drift/simulate.py`
+against `MockEnvironmentalProvider` (§4b), with the same cone-extraction and
+origin-estimate logic `engine.py` uses on the real path. `fixtures.hindcast_response()`/
+`forecast_response()` still exist and still back `/api/pipeline/run`, an unconditional
+all-fixture demo warm-start endpoint outside this phase's scope — they are simply no
+longer reachable from `/api/drift/*`.
+
 ### 5.3 From particle cloud to an answer
 
 A scatter of 500 dots isn't something a judge can read. `drift/cone.py` kernel-densities

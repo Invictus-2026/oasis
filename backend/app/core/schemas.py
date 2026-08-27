@@ -250,6 +250,18 @@ class DriftRequest(BaseModel):
         description="fraction of 10m wind added to surface current; 0.02-0.04 is the defensible range",
     )
     seed: int = 42
+    # Phase 4 additions. Defaults match the values engine.py already used as
+    # fixed constants, so an old client that omits these fields gets the
+    # identical run it always got.
+    timestep_minutes: float = Field(
+        default=15.0, gt=0.0, le=1440.0,
+        description="integration step; smaller values trade runtime for finer trajectories",
+    )
+    diffusion_m2s: float | None = Field(
+        default=None, ge=0.0,
+        description="fixed horizontal eddy diffusivity; omit to derive it from the ensemble's "
+                    "own spread each step via the Okubo (1971) scale-dependent law",
+    )
 
 
 class HindcastResponse(BaseModel):

@@ -154,12 +154,27 @@ class EnvironmentalDataProvider(ABC):
         """Total surface drift velocity (u, v) in m/s: current + wind_factor x wind.
 
         This is the method the Lagrangian engine needs, expressed once here so
-        every provider inherits identical physics. Providers backed by a
-        gridded field override it to interpolate all four components in one
-        vectorised pass instead of looping per particle.
+        every provider inherits identical physics. Accepts either a scalar or
+        an array of positions — the simulation engine calls this once per
+        timestep with the ENTIRE particle ensemble, not once per particle, so
+        a provider that only handled scalars would force a Python loop over
+        every particle at every step.
+
+        Providers backed by a gridded field (CaseBundleProvider) override this
+        to interpolate all four components in one vectorised numpy pass rather
+        than looping `.at()` per particle, which is what this default does.
         """
-        s = self.at(float(lon), float(lat), time)
-        return (
-            s.u_current_ms + wind_factor * s.u_wind_ms,
-            s.v_current_ms + wind_factor * s.v_wind_ms,
-        )
+        import numpy as np
+
+        lon_arr = np.atleast_1d(np.asarray(lon, dtype=float))
+        lat_arr = np.atleast_1d(np.asarray(lat, dtype=float))
+        u = np.empty_like(lon_arr)
+        v = np.empty_like(lat_arr)
+        for i, (lo, la) in enumerate(zip(lon_arr, lat_arr)):
+            s = self.at(float(lo), float(la), time)
+            u[i] = s.u_current_ms + wind_factor * s.u_wind_ms
+            v[i] = s.v_current_ms + wind_factor * s.v_wind_ms
+
+        if np.isscalar(lon) or (hasattr(lon, "ndim") and lon.ndim == 0):
+            return float(u[0]), float(v[0])
+        return u, v
