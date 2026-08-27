@@ -114,6 +114,24 @@ export function SpillProvider({ children }: { children: ReactNode }) {
 
   const [mockWindDir, setMockWindDir] = useState(0);
 
+  // Clear simulation data when switching between spills
+  const prevActiveSlick = useRef<string | null>(null);
+  useEffect(() => {
+    if (prevActiveSlick.current !== null && activeSlickId !== prevActiveSlick.current) {
+      // User switched spills — wipe old hindcast/forecast/attribution so
+      // old blue/purple regions don't linger on the map
+      setHindcast(null);
+      setForecast(null);
+      setAttribution(null);
+      setSelectedMmsi(null);
+      setHindcastIndex(0);
+      setForecastIndex(0);
+      setHindcastPlaying(false);
+      setForecastPlaying(false);
+    }
+    prevActiveSlick.current = activeSlickId;
+  }, [activeSlickId]);
+
   const autorun = new URLSearchParams(window.location.search).get("autorun") === "1";
 
   // Initialization
