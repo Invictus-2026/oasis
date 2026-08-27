@@ -2,18 +2,18 @@
   "id": "gom-2023-06-15",
   "name": "Gulf of Mexico \u2014 offshore Louisiana",
   "bbox": {
-    "west": -90.6,
-    "south": 28.1,
-    "east": -89.4,
-    "north": 29.0
+    "west": -90.36,
+    "south": 28.345,
+    "east": -89.64,
+    "north": 28.75
   },
   "center": [
-    -90.0,
-    28.55
+    -89.85125,
+    28.47625
   ],
   "scene_id": "S1A_IW_GRDH_1SDV_20230615T120000",
   "acquired_at": "2023-06-15T12:00:00Z",
-  "sar_overlay_url": null,
+  "sar_overlay_url": "/sar/scene-sar.png",
   "sources": [
     {
       "name": "Sentinel-1 SAR oil-spill dataset (Parts I-III)",
@@ -58,8 +58,8 @@
   ],
   "ground_truth": {
     "origin": [
-      -90.115,
-      28.408
+      -89.948346,
+      28.412659
     ],
     "origin_time_utc": "2023-06-15T04:10:00Z",
     "polluter_mmsi": "367301820",

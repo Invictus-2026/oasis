@@ -275,7 +275,7 @@ export function SpillProvider({ children }: { children: ReactNode }) {
           const pts = poly.coordinates[0];
           const cLon = pts.reduce((s, p) => s + p[0], 0) / pts.length;
           const cLat = pts.reduce((s, p) => s + p[1], 0) / pts.length;
-          h = shiftHindcast(h, cLon - (-90.016633), cLat - 28.472599, windDir ?? mockWindDir);
+          h = shiftHindcast(h, cLon - (-89.85125), cLat - 28.47625, windDir ?? mockWindDir);
 
           if (!finalH) {
             finalH = h;
@@ -323,7 +323,7 @@ export function SpillProvider({ children }: { children: ReactNode }) {
           const pts = poly.coordinates[0];
           const cLon = pts.reduce((s, p) => s + p[0], 0) / pts.length;
           const cLat = pts.reduce((s, p) => s + p[1], 0) / pts.length;
-          f = shiftForecast(f, cLon - (-90.016633), cLat - 28.472599, windDir ?? mockWindDir);
+          f = shiftForecast(f, cLon - (-89.85125), cLat - 28.47625, windDir ?? mockWindDir);
 
           if (!finalF) {
             finalF = f;
@@ -385,7 +385,7 @@ export function SpillProvider({ children }: { children: ReactNode }) {
         const pts = poly.coordinates[0];
         const cLon = pts.reduce((s, p) => s + p[0], 0) / pts.length;
         const cLat = pts.reduce((s, p) => s + p[1], 0) / pts.length;
-        a = shiftAttribution(a, cLon - (-90.016633), cLat - 28.472599, windDir ?? mockWindDir);
+        a = shiftAttribution(a, cLon - (-89.85125), cLat - 28.47625, windDir ?? mockWindDir);
       }
       setAttribution(a);
       setSelectedMmsi(a.candidates[0]?.mmsi ?? null);

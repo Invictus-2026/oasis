@@ -4,8 +4,9 @@ import type { HindcastResponse, ForecastResponse, AttributeResponse } from "../a
 // Computed from centroid_path start→end in mock/forecast.json.
 const BASE_FORECAST_COMPASS = 56.5;
 
-// Mock data is centered on this lon/lat.
-const MOCK_CENTER: [number, number] = [-90.016633, 28.472599];
+// Mock data is centered on this lon/lat — the "Oil Spill Extent" location
+// marked on the bundled SAR scene (frontend/public/sar/scene-sar.png).
+const MOCK_CENTER: [number, number] = [-89.85125, 28.47625];
 
 /** Rotate point p around pivot, then translate by [dx, dy]. */
 function xfmPt(

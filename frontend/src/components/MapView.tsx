@@ -400,14 +400,29 @@ export default function MapView({
   // Added in its own effect rather than in the style-load handler: the case is
   // fetched asynchronously and usually arrives AFTER the style has loaded, so
   // adding it during load would silently skip the imagery.
+  //
+  // The bundled scene ships as two tonal variants — a moody, dark-water render
+  // for the SAR/dark theme and a brighter inverted render for the light
+  // theme — swapped in place via updateImage() rather than removing and
+  // re-adding the source, so toggling theme doesn't flash the map blank.
   useEffect(() => {
     const m = map.current;
-    if (!ready || !m || !caseMeta?.sar_overlay_url || m.getSource("sar")) return;
+    if (!ready || !m || !caseMeta?.sar_overlay_url) return;
+
+    const url = theme === "dark"
+      ? caseMeta.sar_overlay_url
+      : caseMeta.sar_overlay_url.replace(/\.png$/, "-inverted.png");
+
+    const existing = m.getSource("sar") as maplibregl.ImageSource | undefined;
+    if (existing) {
+      existing.updateImage({ url });
+      return;
+    }
 
     const b = caseMeta.bbox;
     m.addSource("sar", {
       type: "image",
-      url: caseMeta.sar_overlay_url,
+      url,
       // Image sources take corners clockwise from the top-left.
       coordinates: [
         [b.west, b.north], [b.east, b.north],
@@ -423,7 +438,7 @@ export default function MapView({
       },
       "graticule-line",
     );
-  }, [ready, caseMeta]);
+  }, [ready, caseMeta, theme]);
 
   useEffect(() => {
     if (!ready || !map.current?.getLayer("sar-raster")) return;
