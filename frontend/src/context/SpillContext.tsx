@@ -54,9 +54,9 @@ interface SpillContextType {
   mockWindDir: number;
 
   runDetect: (m: DetectionMethod) => Promise<void>;
-  runHindcast: (windDir?: number) => Promise<void>;
+  runHindcast: (windDir?: number) => Promise<HindcastResponse | null>;
   runForecast: (windDir?: number) => Promise<void>;
-  runAttribute: (windDir?: number) => Promise<void>;
+  runAttribute: (windDir?: number, hindcastOverride?: HindcastResponse) => Promise<void>;
   runReport: () => Promise<void>;
 
   setHindcastIndex: React.Dispatch<React.SetStateAction<number>>;
@@ -269,16 +269,17 @@ export function SpillProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
-  const runHindcast = useCallback(async (windDir?: number) => {
-    if (!detection?.slicks?.length) return;
+  const runHindcast = useCallback(async (windDir?: number): Promise<HindcastResponse | null> => {
+    if (!detection?.slicks?.length) return null;
     setDrifting("hindcast");
     try {
       // Filter slicks based on active selection
       const targetSlicks = activeSlickId && activeSlickId !== "all"
         ? detection.slicks.filter(s => s.id === activeSlickId)
         : detection.slicks;
-      if (!targetSlicks.length) return;
+      if (!targetSlicks.length) return null;
 
+      let result: HindcastResponse;
       const isAdhoc = targetSlicks.some(s => s.id.startsWith("adhoc-"));
       if (isAdhoc) {
         const raw = (await import("../mock/hindcast.json")).default;
@@ -302,16 +303,17 @@ export function SpillProvider({ children }: { children: ReactNode }) {
             }
           }
         }
-        setHindcast(finalH!);
+        result = finalH!;
       } else {
-        const h = await api.hindcast(targetSlicks[0].id, 24);
-        setHindcast(h);
+        result = await api.hindcast(targetSlicks[0].id, 24);
       }
+      setHindcast(result);
 
       setAttribution(null);
       setSelectedMmsi(null);
       setHindcastIndex(0);
       setHindcastPlaying(true);
+      return result;
     } finally {
       setDrifting(null);
     }
@@ -374,8 +376,9 @@ export function SpillProvider({ children }: { children: ReactNode }) {
     }
   }, [detection, mockWindDir, activeSlickId]);
 
-  const runAttribute = useCallback(async (windDir?: number) => {
-    const o = hindcast?.origin_estimate;
+  const runAttribute = useCallback(async (windDir?: number, hindcastOverride?: HindcastResponse) => {
+    const h = hindcastOverride ?? hindcast;
+    const o = h?.origin_estimate;
     if (!o) return;
     setAttributing(true);
     try {

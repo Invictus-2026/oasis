@@ -7,7 +7,15 @@ import {
 } from "lucide-react";
 
 export default function Overview() {
-   const { caseMeta, detection, hindcast, forecast, attribution, viewMode } = useSpillState();
+   const {
+      caseMeta, detection, hindcast, forecast, attribution, viewMode,
+      runHindcast, runAttribute, drifting, attributing,
+   } = useSpillState();
+
+   const runAisCorrelation = async () => {
+      const h = hindcast ?? (await runHindcast());
+      if (h) await runAttribute(undefined, h);
+   };
 
    const slick = detection?.slicks[0];
    const origin = hindcast?.origin_estimate;
@@ -235,7 +243,17 @@ export default function Overview() {
                            )}
                         </div>
                      ) : (
-                        <div className="text-center text-ink-400 text-sm font-bold italic py-2">AIS correlation not run.</div>
+                        <div className="flex flex-col items-center gap-3 py-4">
+                           <div className="text-ink-400 text-sm font-bold italic">AIS correlation not run.</div>
+                           <button
+                              onClick={runAisCorrelation}
+                              disabled={!!drifting || attributing}
+                              className="flex items-center gap-2 px-4 py-2 rounded-lg bg-purple-600 hover:bg-purple-700 text-white text-xs font-bold uppercase tracking-widest transition-colors disabled:opacity-50"
+                           >
+                              <Anchor className="w-3.5 h-3.5" />
+                              {attributing || drifting ? "Correlating..." : "Run AIS Correlation"}
+                           </button>
+                        </div>
                      )}
                   </div>
                </div>
