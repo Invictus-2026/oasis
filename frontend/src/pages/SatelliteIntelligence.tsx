@@ -88,7 +88,14 @@ function AdHocUpload() {
       form.append("file", file);
       form.append("method", method);
       form.append("gsd_m", String(gsd));
-      
+      // Anchor the scene so the backend can georeference the detected regions
+      // and return a MapLibre-ready FeatureCollection. Without this it can only
+      // hand back pixel contours.
+      if (caseMeta) {
+        form.append("lon", String(caseMeta.center[0]));
+        form.append("lat", String(caseMeta.center[1]));
+      }
+
       const res = await fetch("/api/detect/upload", {
         method: "POST",
         body: form
@@ -173,39 +180,27 @@ function AdHocUpload() {
     if (!result || !caseMeta || result.oil_regions.length === 0) return;
 
     const primaryRegion = result.oil_regions[0];
-    const cx = result.width / 2;
-    const cy = result.height / 2;
-    const gsd = result.gsd_m;
 
-    const centerLon = caseMeta.center[0];
-    const centerLat = caseMeta.center[1];
-    const cosLat = Math.cos((centerLat * Math.PI) / 180);
-
-    const pixelToLonLat = (x: number, y: number): [number, number] => {
-      const scale = 5;
-      const dx_m = (x - cx) * gsd * scale;
-      const dy_m = (cy - y) * gsd * scale;
-      const lon = centerLon + dx_m / (111320.0 * cosLat);
-      const lat = centerLat + dy_m / 111320.0;
-      return [lon, lat];
-    };
-
-    const coordinates = primaryRegion.contour.map(([x, y]) => pixelToLonLat(x, y));
-    if (coordinates.length > 0) coordinates.push(coordinates[0]);
+    // The backend georeferences the contour from the anchor supplied with the
+    // upload, so the polygon drawn on the map is the same geometry the
+    // morphology numbers were measured on. If no anchor reached the backend
+    // there is no honest lon/lat and nothing to project.
+    const polygon = primaryRegion.polygon;
+    if (!polygon) {
+      setError("No georeferenced geometry returned — cannot place this detection on the map.");
+      return;
+    }
 
     injectAdHocDetection({
       slicks: [{
         id: "adhoc-" + Date.now(),
-        polygon: { type: "Polygon", coordinates: [coordinates] },
+        polygon,
         confidence: primaryRegion.confidence,
         method: result.method,
-        geometry: {
-          area_km2: primaryRegion.area_km2,
-          perimeter_km: 0,
-          elongation: 1.0,
-          orientation_deg: 0,
-          compactness: 0.5
-        },
+        // Real measurements from the backend's morphology extraction, not
+        // placeholders — the detector measures every one of these per region.
+        geometry: primaryRegion.morphology,
+        backscatter: primaryRegion.backscatter,
         age: null,
         evidence: null
       }],

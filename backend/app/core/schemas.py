@@ -99,11 +99,38 @@ class CaseMeta(BaseModel):
 
 
 class SlickGeometry(BaseModel):
+    """Morphology of one detected region, in real-world units.
+
+    Fields carry defaults so a fixture or an older cached payload that predates
+    the extent measurements still validates — mock mode must never break on a
+    schema addition.
+    """
+
     area_km2: float
     perimeter_km: float
+    length_km: float = Field(default=0.0, description="extent along the region's major axis")
+    width_km: float = Field(default=0.0, description="extent along the region's minor axis")
+    aspect_ratio: float = Field(default=1.0, description="length/width of the principal-axis extents")
     elongation: float = Field(description="major/minor axis ratio of the fitted ellipse")
     orientation_deg: float = Field(description="major-axis bearing, 0=N, clockwise")
     compactness: float = Field(description="4*pi*A/P^2; 1.0 = perfect circle")
+    solidity: float = Field(default=1.0, description="area/convex-hull area; 1.0 = convex, lower = ragged")
+
+
+class BackscatterStats(BaseModel):
+    """Radiometric statistics measured on the speckle-filtered raster.
+
+    These are the numbers behind the contrast and variance sub-scores, exposed
+    so a confidence value can be traced back to physical measurements. For
+    uploaded imagery with no calibrated Sigma0 these are relative, not absolute
+    — see the upload endpoint's notes field."""
+
+    mean_db: float = Field(description="mean backscatter inside the region")
+    std_db: float = Field(description="backscatter standard deviation inside the region")
+    background_db: float = Field(description="mean backscatter of the surrounding annulus")
+    contrast_db: float = Field(description="background - inside; positive means darker than the sea")
+    variance_ratio: float = Field(description="inside std / background std; oil damps speckle below 1")
+    edge_gradient: float = Field(default=0.0, description="mean |gradient| on the region boundary")
 
 
 class AgeEstimate(BaseModel):
@@ -149,6 +176,7 @@ class Slick(BaseModel):
     confidence: float = Field(ge=0.0, le=1.0)
     method: DetectionMethod
     geometry: SlickGeometry
+    backscatter: BackscatterStats | None = None
     age: AgeEstimate | None = None
     evidence: DetectionEvidence | None = None
 
@@ -161,6 +189,8 @@ class RejectedLookalike(BaseModel):
     polygon: GeoJSON
     reason: str
     confidence: float = Field(ge=0.0, le=1.0)
+    geometry: SlickGeometry | None = None
+    backscatter: BackscatterStats | None = None
     evidence: DetectionEvidence | None = None
 
 

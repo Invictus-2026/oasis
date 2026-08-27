@@ -210,15 +210,40 @@
       "geometry": {
         "area_km2": 59.4,
         "perimeter_km": 41.8,
+        "length_km": 36.0,
+        "width_km": 8.4,
+        "aspect_ratio": 4.29,
         "elongation": 4.29,
         "orientation_deg": 48.0,
-        "compactness": 0.427
+        "compactness": 0.427,
+        "solidity": 0.94
+      },
+      "backscatter": {
+        "mean_db": -18.2,
+        "std_db": 1.31,
+        "background_db": -9.8,
+        "contrast_db": 8.4,
+        "variance_ratio": 0.61,
+        "edge_gradient": 0.42
       },
       "age": {
         "min_hours": 6.0,
         "max_hours": 14.0,
         "confidence": "low",
-        "method_note": "Heuristic proxy: Fay gravity-viscous spreading rate inferred from slick area, cross-checked against backscatter contrast decay. Not a calibrated measurement; treat as an order-of-magnitude bracket."
+        "method_note": "Heuristic proxy: Fay gravity-viscous spreading rate inferred from slick area, cross-checked against backscatter contrast decay. Not a calibrated measurement; treat as an order-of-magnitude bracket.",
+        "diffusivity_m2s": 0.3,
+        "damping_db": 6.2,
+        "weathering": "weathering"
+      },
+      "evidence": {
+        "contrast": 0.81,
+        "variance": 0.77,
+        "shape": 0.68,
+        "edge": 0.54,
+        "weight_contrast": 0.34,
+        "weight_variance": 0.31,
+        "weight_shape": 0.23,
+        "weight_edge": 0.12
       }
     }
   ],
@@ -429,7 +454,36 @@
         ]
       },
       "reason": "Low-wind zone: high compactness (0.81) and soft edge gradient; ERA5 wind 1.9 m/s, below the 3 m/s detectability floor.",
-      "confidence": 0.74
+      "confidence": 0.74,
+      "geometry": {
+        "area_km2": 31.1,
+        "perimeter_km": 19.6,
+        "length_km": 22.0,
+        "width_km": 18.0,
+        "aspect_ratio": 1.22,
+        "elongation": 1.22,
+        "orientation_deg": 10.0,
+        "compactness": 0.81,
+        "solidity": 0.97
+      },
+      "backscatter": {
+        "mean_db": -13.4,
+        "std_db": 2.44,
+        "background_db": -10.3,
+        "contrast_db": 3.1,
+        "variance_ratio": 0.94,
+        "edge_gradient": 0.14
+      },
+      "evidence": {
+        "contrast": 0.31,
+        "variance": 0.22,
+        "shape": 0.18,
+        "edge": 0.29,
+        "weight_contrast": 0.34,
+        "weight_variance": 0.31,
+        "weight_shape": 0.23,
+        "weight_edge": 0.12
+      }
     },
     {
       "id": "lookalike-002",
@@ -637,7 +691,36 @@
         ]
       },
       "reason": "Biogenic slick signature: weak backscatter damping (-3.1 dB vs -8.4 dB for the retained slick) and no coherent drift-consistent elongation.",
-      "confidence": 0.66
+      "confidence": 0.66,
+      "geometry": {
+        "area_km2": 14.6,
+        "perimeter_km": 13.4,
+        "length_km": 15.0,
+        "width_km": 12.4,
+        "aspect_ratio": 1.21,
+        "elongation": 1.21,
+        "orientation_deg": 120.0,
+        "compactness": 1.0,
+        "solidity": 0.96
+      },
+      "backscatter": {
+        "mean_db": -12.9,
+        "std_db": 2.61,
+        "background_db": -10.1,
+        "contrast_db": 2.8,
+        "variance_ratio": 1.02,
+        "edge_gradient": 0.11
+      },
+      "evidence": {
+        "contrast": 0.18,
+        "variance": 0.35,
+        "shape": 0.41,
+        "edge": 0.2,
+        "weight_contrast": 0.34,
+        "weight_variance": 0.31,
+        "weight_shape": 0.23,
+        "weight_edge": 0.12
+      }
     }
   ],
   "processing": [
@@ -685,7 +768,7 @@
       "speckle": "lee_7x7",
       "threshold": "otsu_adaptive"
     },
-    "generated_at": "2026-08-23T16:22:25.342562Z",
+    "generated_at": "2026-08-27T08:26:44.373279Z",
     "inputs": [
       "S1A_IW_GRDH_1SDV_20230615T120000"
     ],

@@ -20,6 +20,7 @@ from app.core.schemas import (
     AISGap,
     AgeEstimate,
     AttributeResponse,
+    BackscatterStats,
     CandidateFlag,
     CaseMeta,
     ConePolygon,
@@ -174,9 +175,24 @@ def detect_response(method: DetectionMethod = DetectionMethod.classical) -> Dete
         geometry=SlickGeometry(
             area_km2=59.4,
             perimeter_km=41.8,
+            # Extents match the ellipse this fixture's own polygon is drawn
+            # from (18.0 x 4.2 km semi-axes), so mock morphology stays
+            # internally consistent with the mock geometry on screen.
+            length_km=36.0,
+            width_km=8.4,
+            aspect_ratio=4.29,
             elongation=4.29,
             orientation_deg=48.0,
             compactness=0.427,
+            solidity=0.94,
+        ),
+        backscatter=BackscatterStats(
+            mean_db=-18.2,
+            std_db=1.31,
+            background_db=-9.8,
+            contrast_db=8.4,
+            variance_ratio=0.61,
+            edge_gradient=0.42,
         ),
         age=AgeEstimate(
             min_hours=6.0,
@@ -206,6 +222,15 @@ def detect_response(method: DetectionMethod = DetectionMethod.classical) -> Dete
             },
             reason="Low-wind zone: high compactness (0.81) and soft edge gradient; ERA5 wind 1.9 m/s, below the 3 m/s detectability floor.",
             confidence=0.74,
+            geometry=SlickGeometry(
+                area_km2=31.1, perimeter_km=19.6, length_km=22.0, width_km=18.0,
+                aspect_ratio=1.22, elongation=1.22, orientation_deg=10.0,
+                compactness=0.81, solidity=0.97,
+            ),
+            backscatter=BackscatterStats(
+                mean_db=-13.4, std_db=2.44, background_db=-10.3,
+                contrast_db=3.1, variance_ratio=0.94, edge_gradient=0.14,
+            ),
             evidence=DetectionEvidence(contrast=0.31, variance=0.22, shape=0.18, edge=0.29),
         ),
         RejectedLookalike(
@@ -219,6 +244,15 @@ def detect_response(method: DetectionMethod = DetectionMethod.classical) -> Dete
             },
             reason="Biogenic slick signature: weak backscatter damping (-3.1 dB vs -8.4 dB for the retained slick) and no coherent drift-consistent elongation.",
             confidence=0.66,
+            geometry=SlickGeometry(
+                area_km2=14.6, perimeter_km=13.4, length_km=15.0, width_km=12.4,
+                aspect_ratio=1.21, elongation=1.21, orientation_deg=120.0,
+                compactness=1.0, solidity=0.96,
+            ),
+            backscatter=BackscatterStats(
+                mean_db=-12.9, std_db=2.61, background_db=-10.1,
+                contrast_db=2.8, variance_ratio=1.02, edge_gradient=0.11,
+            ),
             evidence=DetectionEvidence(contrast=0.18, variance=0.35, shape=0.41, edge=0.20),
         ),
     ]

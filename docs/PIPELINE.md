@@ -70,6 +70,28 @@ Lee speckle filter → land/bright-target mask → adaptive local threshold
    to 2px tolerance, with a 220px minimum area floor.
 6. **Per-region discrimination** (`classify()`) — the actual oil-vs-lookalike decision.
 
+### 2.1b Morphology extraction (per candidate region)
+
+Every retained *and* rejected region carries a full measurement record
+(`detection/geometry.py: describe()` / `backscatter()`), returned through the API on
+both `Slick.geometry`/`Slick.backscatter` and `RejectedLookalike`:
+
+| Measurement | How it is computed |
+|---|---|
+| `area_km2` | pixel count × pixel ground area (not the simplified polygon, which would bias low) |
+| `perimeter_km` | contour ring length under a local flat-earth approximation |
+| `length_km` / `width_km` | extents along the region's **own principal axes**, not an axis-aligned bounding box — a diagonal trail would otherwise report a width equal to its diagonal |
+| `aspect_ratio` | `length_km / width_km` |
+| `elongation` | second-moment eigenvalue ratio of the fitted ellipse (distinct from aspect ratio: mass distribution vs. bounding extent) |
+| `orientation_deg` | major-axis compass bearing, 0=N clockwise |
+| `compactness` | `4πA/P²` recomputed in real units |
+| `solidity` | area / convex-hull area; separates a solid trail from a ragged patch |
+| backscatter stats | `mean_db`, `std_db`, `background_db`, `contrast_db`, `variance_ratio`, `edge_gradient` — the radiometry behind the confidence score |
+
+Width is the quantity age estimation inverts through the Okubo diffusivity law (§4.1),
+so it is a physical input, not a display field. Measured on the frozen case study: a
+26.24 km × 0.94 km trail, aspect ratio 28.0, bearing 064.9°.
+
 ### 2.2 The discrimination formula
 
 Four physically-motivated 0–1 terms, weight-averaged into a confidence score:
@@ -112,6 +134,25 @@ string assembled from whichever terms were decisive — that's the text behind t
 
 `backend/tests/test_detection.py` asserts `detection_iou >= 0.80` as the regression
 floor. Re-measure with `cd backend && .venv/bin/python -m pytest tests/test_detection.py -q`.
+
+### 2.4 Ad-hoc upload path (`POST /api/detect/upload`)
+
+The same detector, run on a user-supplied image rather than the frozen bundle. Two
+things differ and are stated in the response's `notes` rather than hidden:
+
+- **No calibrated Sigma0.** An uploaded PNG/JPEG carries brightness, not backscatter, so
+  `classical.normalise()` applies a 1st/99th-percentile stretch onto a dB-like span. The
+  detector only ever reasons about *relative* local contrast, which is what makes this
+  sound; absolute dB values for uploaded imagery are not physically meaningful.
+- **No geotransform.** Ground sampling distance is a user-supplied assumption (default
+  10 m/px, Sentinel-1 IW GRD class), and lon/lat exist only if the caller anchors the
+  scene centre via `lon`/`lat` form fields. With an anchor the response includes a
+  GeoJSON `FeatureCollection` the MapLibre map renders directly; **without one, `geojson`
+  is `null`** rather than a polygon placed at an invented location.
+
+**No accuracy metric is reported on this path** — there is no ground-truth mask for an
+arbitrary upload, so IoU/recall/precision are absent by design, not omitted by oversight.
+`backend/tests/test_upload_geojson.py` asserts that absence.
 
 ---
 

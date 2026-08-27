@@ -64,9 +64,30 @@ export type DetectionMethod = "classical" | "unet";
 export interface SlickGeometry {
   area_km2: number;
   perimeter_km: number;
+  /** Extent along the region's own major axis (not a bounding box). */
+  length_km: number;
+  /** Extent along the region's minor axis; the quantity age estimation inverts. */
+  width_km: number;
+  /** length_km / width_km. Distinct from `elongation`, which is the
+   *  second-moment eigenvalue ratio of the fitted ellipse. */
+  aspect_ratio: number;
   elongation: number;
   orientation_deg: number;
   compactness: number;
+  /** area / convex-hull area; 1.0 = convex, lower = ragged. */
+  solidity: number;
+}
+
+/** Radiometric statistics measured per region on the speckle-filtered raster.
+ *  Absolute for calibrated case-study SAR; relative only for uploaded imagery
+ *  that carries no Sigma0 calibration. */
+export interface BackscatterStats {
+  mean_db: number;
+  std_db: number;
+  background_db: number;
+  contrast_db: number;
+  variance_ratio: number;
+  edge_gradient: number;
 }
 
 export interface AgeEstimate {
@@ -98,6 +119,7 @@ export interface Slick {
   confidence: number;
   method: DetectionMethod;
   geometry: SlickGeometry;
+  backscatter?: BackscatterStats | null;
   age: AgeEstimate | null;
   evidence?: DetectionEvidence | null;
 }
@@ -107,6 +129,8 @@ export interface RejectedLookalike {
   polygon: Geom;
   reason: string;
   confidence: number;
+  geometry?: SlickGeometry | null;
+  backscatter?: BackscatterStats | null;
   evidence?: DetectionEvidence | null;
 }
 
@@ -254,6 +278,10 @@ export interface UploadRegion {
   volume_m3: number;
   volume_liters: number;
   volume_barrels: number;
+  morphology: SlickGeometry;
+  backscatter: BackscatterStats;
+  /** Georeferenced ring; null unless lon/lat were supplied with the upload. */
+  polygon?: Geom | null;
 }
 
 export interface UploadResponse {
@@ -268,4 +296,22 @@ export interface UploadResponse {
   total_volume_barrels: number;
   processing: ProcessingStep[];
   notes: string;
+  /** FeatureCollection ready for MapLibre; null when the upload carried no
+   *  lon/lat anchor, since there is then no honest georeferencing. */
+  geojson?: GeoJSONFeatureCollection | null;
+}
+
+/** RFC 7946 FeatureCollection as returned by the detection endpoints.
+ *  Morphology and backscatter fields are flattened into feature properties so
+ *  MapLibre expressions can style directly off them. */
+export interface GeoJSONFeatureCollection {
+  type: "FeatureCollection";
+  features: {
+    type: "Feature";
+    geometry: Geom;
+    properties: Record<string, unknown> & {
+      class: "oil" | "lookalike";
+      confidence: number;
+    };
+  }[];
 }
