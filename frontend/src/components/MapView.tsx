@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import type {
   AttributeResponse,
   CaseMeta,
+  CustomImageOverlay,
   DetectResponse,
   ForecastResponse,
   HindcastResponse,
@@ -36,6 +37,7 @@ interface Props {
   focusRequest: { id: string; nonce: number } | null;
   activeSlickId?: string | null;
   mockWindDir?: number;
+  customOverlays?: CustomImageOverlay[];
 }
 
 const EMPTY: GeoJSON.FeatureCollection = { type: "FeatureCollection", features: [] };
@@ -123,6 +125,7 @@ import { useTheme } from "../context/ThemeContext";
 export default function MapView({
   caseMeta, detection, hindcast, forecast, attribution,
   layers, hindcastIndex, forecastIndex, selectedMmsi, onSelectVessel, focusRequest, activeSlickId, mockWindDir,
+  customOverlays = [],
 }: Props) {
   const container = useRef < HTMLDivElement > (null);
   const map = useRef < maplibregl.Map | null > (null);
@@ -440,10 +443,75 @@ export default function MapView({
     );
   }, [ready, caseMeta, theme]);
 
+  // ---- Custom Uploaded SAR Overlays -------------------------------------
+  const registeredOverlayIds = useRef<Set<string>>(new Set());
   useEffect(() => {
-    if (!ready || !map.current?.getLayer("sar-raster")) return;
-    map.current.setLayoutProperty("sar-raster", "visibility", layers.sar ? "visible" : "none");
-  }, [ready, layers.sar, caseMeta]);
+    const m = map.current;
+    if (!ready || !m) return;
+
+    const currentIds = new Set(customOverlays.map(o => o.id));
+
+    // Remove layers/sources no longer present
+    registeredOverlayIds.current.forEach(id => {
+      if (!currentIds.has(id)) {
+        const layerId = `sar-raster-custom-${id}`;
+        const sourceId = `sar-custom-${id}`;
+        if (m.getLayer(layerId)) m.removeLayer(layerId);
+        if (m.getSource(sourceId)) m.removeSource(sourceId);
+        registeredOverlayIds.current.delete(id);
+      }
+    });
+
+    // Add or update custom overlays
+    customOverlays.forEach(overlay => {
+      const sourceId = `sar-custom-${overlay.id}`;
+      const layerId = `sar-raster-custom-${overlay.id}`;
+
+      const existing = m.getSource(sourceId) as maplibregl.ImageSource | undefined;
+      if (existing) {
+        existing.updateImage({
+          url: overlay.imageUrl,
+          coordinates: overlay.coordinates,
+        });
+      } else {
+        m.addSource(sourceId, {
+          type: "image",
+          url: overlay.imageUrl,
+          coordinates: overlay.coordinates,
+        });
+
+        const beforeLayer = m.getLayer("graticule-line") ? "graticule-line" : undefined;
+        m.addLayer(
+          {
+            id: layerId,
+            source: sourceId,
+            type: "raster",
+            paint: {
+              "raster-opacity": 0.95,
+              "raster-fade-duration": 300,
+            },
+          },
+          beforeLayer
+        );
+        registeredOverlayIds.current.add(overlay.id);
+      }
+    });
+  }, [ready, customOverlays]);
+
+  // Update visibility for all SAR raster layers (built-in + custom uploads)
+  useEffect(() => {
+    const m = map.current;
+    if (!ready || !m) return;
+    if (m.getLayer("sar-raster")) {
+      m.setLayoutProperty("sar-raster", "visibility", layers.sar ? "visible" : "none");
+    }
+    customOverlays.forEach(overlay => {
+      const layerId = `sar-raster-custom-${overlay.id}`;
+      if (m.getLayer(layerId)) {
+        m.setLayoutProperty(layerId, "visibility", layers.sar ? "visible" : "none");
+      }
+    });
+  }, [ready, layers.sar, caseMeta, customOverlays]);
 
   // ---- detection --------------------------------------------------------
   useEffect(() => {
@@ -468,13 +536,22 @@ export default function MapView({
     });
   }, [ready, targetSlicks, layers.slick, layers.lookalikes, detection, activeSlickId]);
 
-  // ---- fly to isolated slick --------------------------------------------
+  // ---- fly to isolated slick / custom upload ---------------------------
   useEffect(() => {
     if (!ready || !map.current || !activeSlickId || activeSlickId === "all" || !detection) return;
     const active = detection.slicks.find(s => s.id === activeSlickId);
     if (active && active.polygon.type === "Polygon") {
-      const coord = active.polygon.coordinates[0][0];
-      map.current.flyTo({ center: coord as [number, number], zoom: 9, duration: 1000 });
+      const pts = active.polygon.coordinates[0] as [number, number][];
+      const lons = pts.map(p => p[0]);
+      const lats = pts.map(p => p[1]);
+      const minLon = Math.min(...lons);
+      const maxLon = Math.max(...lons);
+      const minLat = Math.min(...lats);
+      const maxLat = Math.max(...lats);
+      map.current.fitBounds(
+        [[minLon, minLat], [maxLon, maxLat]],
+        { padding: 100, maxZoom: 11, duration: 1200 }
+      );
     }
   }, [ready, activeSlickId, detection]);
 

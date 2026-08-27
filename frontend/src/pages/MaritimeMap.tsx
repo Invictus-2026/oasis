@@ -26,6 +26,7 @@ export default function MaritimeMap() {
     focusRequest,
     mockWindDir,
     activeSlickId,
+    customOverlays,
   } = useSpillState();
 
   const location = useLocation();
@@ -74,6 +75,7 @@ export default function MaritimeMap() {
               focusRequest={focusRequest}
               activeSlickId={effectiveSlickId}
               mockWindDir={mockWindDir}
+              customOverlays={customOverlays}
             />
           </ErrorBoundary>
 
