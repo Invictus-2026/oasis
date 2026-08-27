@@ -11,7 +11,17 @@ a time, without the API contract changing.
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.api import attribution, case, detection, drift, pipeline, report, scene, upload
+from app.api import (
+    attribution,
+    case,
+    detection,
+    drift,
+    environment,
+    pipeline,
+    report,
+    scene,
+    upload,
+)
 from app.core import config
 
 app = FastAPI(
@@ -33,7 +43,8 @@ app.add_middleware(
 )
 
 for r in (case.router, detection.router, drift.router, attribution.router,
-          report.router, pipeline.router, scene.router, upload.router):
+          report.router, pipeline.router, scene.router, upload.router,
+          environment.router):
     app.include_router(r)
 
 

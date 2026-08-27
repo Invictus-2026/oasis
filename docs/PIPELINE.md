@@ -336,6 +336,48 @@ weathered → older end) but never sets the bracket itself.
 
 ---
 
+## 4b. Environmental data abstraction (Phase 3)
+
+The drift ensemble needs currents and wind. Rather than let it import a specific
+data source, everything environmental goes through one seam in
+`backend/app/environment/`:
+
+| Piece | File | Role |
+|---|---|---|
+| `EnvironmentalData` | `base.py` | The normalised type: lon, lat, timestamp, u/v current, u/v wind, optional waves, plus provenance (`source`, `is_synthetic`, `is_steady`) |
+| `EnvironmentalDataProvider` | `base.py` | ABC. One required method, `at()`; `series()` and `surface_velocity()` derive from it |
+| `CaseBundleProvider` | `bundle.py` | Real path — adapts the existing `ForcingField` over `data/case/forcing.npz` |
+| `MockEnvironmentalProvider` | `mock.py` | Always-available synthetic fallback |
+| `get_provider()` | `resolver.py` | Picks the best available provider; falls back to mock. `ENV_DATA_MODE=mock` forces it |
+
+Served at `GET /api/environment` for a point, a time range, or an incident id, and
+`GET /api/environment/providers` to inspect what is available.
+
+**Direction convention**, stated because the alternative is equally common and differs
+by 180°: directions are the way a vector points **toward**, degrees clockwise from
+north. Due-east flow reads 90°.
+
+Three honesty properties worth noting:
+
+- **Steady ≠ time-varying.** The case bundle's forcing has no time axis, so
+  `CaseBundleProvider` returns the same field for any timestamp and sets
+  `is_steady=True`. The interface still takes a `time` so a real time-varying source
+  (CMEMS, ERA5, INCOIS) drops in with no caller changes.
+- **Synthetic ≠ fallback.** The frozen case's forcing is itself synthesised, so the
+  *real* provider legitimately reports `is_synthetic=True`. The response distinguishes
+  which provider served the request from whether its values are modelled.
+- **Absent ≠ zero.** The bundle ships no wave data, so wave fields are `None` rather
+  than 0.0.
+
+**Not yet wired into simulation.** `drift/lagrangian.py` still calls `ForcingField`
+directly, and the measured drift numbers in §5.5 are unchanged (origin error 7.7 km,
+re-verified). `CaseBundleProvider.surface_velocity()` is a vectorised passthrough to
+that same object and returns bit-identical velocities for a full 500-particle array —
+asserted by `test_provider_accepts_a_whole_particle_array_like_the_drift_engine_does`
+— so wiring the engine through the provider is a one-line swap, not a physics change.
+
+---
+
 ## 5. Stage 2 — Drift hindcast/forecast (Lagrangian ensemble)
 
 A stochastic particle simulation, not a neural model — included here because it's
