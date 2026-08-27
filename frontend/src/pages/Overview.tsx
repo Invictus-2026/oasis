@@ -2,7 +2,7 @@ import { useSpillState } from "../context/SpillContext";
 import { ViewModeProvider } from "../lib/viewMode";
 import { km2, pct, hours, km } from "../lib/format";
 import {
-   Activity, AlertTriangle, Anchor, Map,
+   Activity, AlertTriangle, Anchor,
    Satellite, Search, Waves, Wind, Navigation, ShieldCheck, Target, Crosshair
 } from "lucide-react";
 

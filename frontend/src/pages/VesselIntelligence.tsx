@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useSpillState } from "../context/SpillContext";
 import { ViewModeProvider } from "../lib/viewMode";
 import SpillSelector from "../components/SpillSelector";
-import { km, hours } from "../lib/format";
+import { km } from "../lib/format";
 import {
   Database, Map as MapIcon, SlidersHorizontal, Search,
   Clock, Navigation2, Activity, Settings2
@@ -19,8 +19,6 @@ export default function VesselIntelligence() {
       />
     );
   }
-
-  const origin = hindcast?.origin_estimate;
 
   const [timeWindow, setTimeWindow] = useState(6);
   const [radius, setRadius] = useState(25);

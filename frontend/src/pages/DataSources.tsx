@@ -1,4 +1,4 @@
-import { Satellite, MapPin, Calendar, Radio, Ruler, ShieldCheck } from "lucide-react";
+import { Satellite, MapPin, Calendar, Radio, Ruler } from "lucide-react";
 
 interface SampleScene {
   file: string;
