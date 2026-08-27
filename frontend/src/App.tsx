@@ -3,6 +3,7 @@ import AppLayout from "./components/layout/AppLayout";
 import Overview from "./pages/Overview";
 import Placeholder from "./pages/Placeholder";
 import { SpillProvider } from "./context/SpillContext";
+import MaritimeMap from "./pages/MaritimeMap";
 import SatelliteIntelligence from "./pages/SatelliteIntelligence";
 import VesselIntelligence from "./pages/VesselIntelligence";
 import DriftIntelligence from "./pages/DriftIntelligence";
@@ -18,7 +19,7 @@ export default function App() {
           <Route path="/" element={<AppLayout />}>
             <Route index element={<Overview />} />
             <Route path="incidents" element={<Placeholder title="Incident Investigation" />} />
-            <Route path="map" element={<div />} />
+            <Route path="map" element={<MaritimeMap />} />
             <Route path="satellite" element={<SatelliteIntelligence />} />
             <Route path="vessel" element={<VesselIntelligence />} />
             <Route path="drift" element={<DriftIntelligence />} />

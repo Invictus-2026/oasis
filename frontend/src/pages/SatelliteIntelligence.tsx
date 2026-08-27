@@ -5,7 +5,7 @@ import { ViewModeProvider } from "../lib/viewMode";
 import { bearingLabel, deg, hours, km, pct, ratio } from "../lib/format";
 import { generateMockUploadDetection } from "../lib/mockDetector";
 import {
-  Satellite, Search, Layers, Zap, 
+  Satellite, Search, Layers, Zap, BrainCircuit, Maximize,
   Clock, EyeOff, AlertTriangle, Eye, ChevronDown, ChevronRight,
   UploadCloud, FileImage, Image as ImageIcon, MapPin, CheckCircle2, ArrowRight, Sparkles
 } from "lucide-react";
@@ -286,6 +286,7 @@ function AdHocUpload() {
       rejected_lookalikes: result.rejected_lookalikes.map((rl, idx) => ({
         id: `lookalike-${slickId}-${idx}`,
         polygon: rl.polygon || { type: "Polygon", coordinates: [] },
+        confidence: rl.confidence ?? 0.0,
         reason: rl.reason,
       })),
       processing: result.processing,
@@ -298,6 +299,7 @@ function AdHocUpload() {
       },
     }, customOverlay);
 
+    setActiveSlickId(slickId);
     setProjected(true);
   };
 

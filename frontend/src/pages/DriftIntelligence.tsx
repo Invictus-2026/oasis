@@ -5,7 +5,7 @@ import SpillSelector from "../components/SpillSelector";
 import { hours, km, lonLat, utc } from "../lib/format";
 import {
   Map, History, ArrowRight, Crosshair, HelpCircle,
-  Clock, Navigation, Search, AlertTriangle, ShieldCheck, Play, Pause, ChevronDown, ChevronRight, Wind
+  Navigation, AlertTriangle, ShieldCheck, Play, Pause, ChevronDown, ChevronRight, Wind
 } from "lucide-react";
 
 // ── helpers ────────────────────────────────────────────────────
@@ -57,7 +57,6 @@ function StatBox({ label, value, hint }: { label: string; value: string | React.
 // ── main component ─────────────────────────────────────────────
 export default function DriftIntelligence() {
   const {
-    detection,
     hindcast, forecast, drifting,
     hindcastPlaying, hindcastIndex, frames,
     runHindcast, runForecast, randomizeWind,

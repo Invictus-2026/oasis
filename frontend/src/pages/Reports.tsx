@@ -3,7 +3,7 @@ import { useSpillState } from "../context/SpillContext";
 import { ViewModeProvider } from "../lib/viewMode";
 import { utc } from "../lib/format";
 import {
-  FileText, Download, ShieldAlert, Clock, Anchor, Layers,
+  FileText, ShieldAlert, Clock, Anchor, Layers,
   ChevronDown, ChevronRight, CheckCircle2, AlertTriangle, Circle,
   BookOpen, Database, Cpu, Map, Users,
 } from "lucide-react";

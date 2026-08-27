@@ -423,15 +423,25 @@ export function SpillProvider({ children }: { children: ReactNode }) {
         const isCustom = activeSlick.id.startsWith("adhoc-");
         setReport({
           case_id: caseMeta.id,
-          slick_id: activeSlick.id,
-          generated_at_utc: new Date().toISOString(),
-          analyst_notes: isCustom ? "Ad-hoc SAR upload investigation report." : "Comprehensive maritime spill intelligence dossier.",
-          status: "confirmed",
+          generated_at: new Date().toISOString(),
+          scene_id: caseMeta.scene_id || caseMeta.id,
+          acquired_at: caseMeta.acquired_at || new Date().toISOString(),
+          processing_chain: [],
+          detection_summary: { slick_id: activeSlick.id, area_km2: activeSlick.geometry.area_km2 },
+          origin_summary: {},
+          candidates: [],
           limitations: [
             "Uncalibrated radiometric values on ad-hoc uploaded SAR scenes.",
             "Hydrodynamic trajectory derived from 2D particle current and windage ensemble.",
             "AIS vessel correlation subject to transponder reporting intervals.",
           ],
+          provenance: {
+            model_version: "1.0",
+            params: {},
+            generated_at: new Date().toISOString(),
+            inputs: [],
+            notes: isCustom ? "Ad-hoc SAR upload investigation report." : "Comprehensive maritime spill intelligence dossier.",
+          }
         });
       }
     } catch {
@@ -441,15 +451,25 @@ export function SpillProvider({ children }: { children: ReactNode }) {
       const isCustom = activeSlick?.id.startsWith("adhoc-");
       setReport({
         case_id: caseMeta.id,
-        slick_id: activeSlick?.id || "unknown",
-        generated_at_utc: new Date().toISOString(),
-        analyst_notes: isCustom ? "Ad-hoc SAR upload investigation report." : "Comprehensive maritime spill intelligence dossier.",
-        status: "confirmed",
+        generated_at: new Date().toISOString(),
+        scene_id: caseMeta.scene_id || caseMeta.id,
+        acquired_at: caseMeta.acquired_at || new Date().toISOString(),
+        processing_chain: [],
+        detection_summary: { slick_id: activeSlick?.id || "unknown", area_km2: activeSlick?.geometry.area_km2 ?? 0 },
+        origin_summary: {},
+        candidates: [],
         limitations: [
           "Uncalibrated radiometric values on ad-hoc uploaded SAR scenes.",
           "Hydrodynamic trajectory derived from 2D particle current and windage ensemble.",
           "AIS vessel correlation subject to transponder reporting intervals.",
         ],
+        provenance: {
+          model_version: "1.0",
+          params: {},
+          generated_at: new Date().toISOString(),
+          inputs: [],
+          notes: isCustom ? "Ad-hoc SAR upload investigation report." : "Comprehensive maritime spill intelligence dossier.",
+        }
       });
     } finally {
       setReporting(false);
