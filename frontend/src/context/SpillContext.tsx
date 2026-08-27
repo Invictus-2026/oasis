@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, useRef, type ReactNode } from "react";
 import * as api from "../api/client";
 import { getDataMode, onDataModeChange } from "../api/client";
-import { shiftHindcast, shiftForecast, shiftAttribution } from "../lib/shiftMock";
+import { shiftHindcast, shiftForecast, shiftAttribution, MOCK_CENTER } from "../lib/shiftMock";
 import type {
   AttributeResponse,
   CaseMeta,
@@ -17,6 +17,12 @@ import { type LayerVisibility } from "../components/MapView";
 import { type ViewMode } from "../lib/viewMode";
 
 const FRAME_MS = 150; // Slower playback for smoother analysis
+
+const DEFAULT_WIND_DIR = 306;
+
+// Bump whenever the bundled fixtures move, so a browser holding a cached run
+// from the previous geometry doesn't paint stale layers over the SAR scene.
+const STATE_KEY = "spilltrace_state_v2";
 
 interface SpillContextType {
   caseMeta: CaseMeta | null;
@@ -116,7 +122,9 @@ export function SpillProvider({ children }: { children: ReactNode }) {
     sar: true, slick: true, lookalikes: true, cone: true, particles: true, forecast: true, tracks: true,
   });
 
-  const [mockWindDir, setMockWindDir] = useState(0);
+  // The drift bearing of the bundled case: WNW, matching the slick axis traced
+  // off the SAR scene (carrier in the south-east -> slick head in the bay).
+  const [mockWindDir, setMockWindDir] = useState(DEFAULT_WIND_DIR);
 
   // Clear simulation data when switching between spills
   const prevActiveSlick = useRef<string | null>(null);
@@ -144,7 +152,8 @@ export function SpillProvider({ children }: { children: ReactNode }) {
     api.getCase().then(setCaseMeta);
 
     // Try restoring from localStorage first
-    const savedState = localStorage.getItem("spilltrace_state");
+    localStorage.removeItem("spilltrace_state");   // pre-v2 geometry
+    const savedState = localStorage.getItem(STATE_KEY);
     if (savedState) {
       try {
         const { detection: d, hindcast: h, forecast: f, attribution: a, mockWindDir: mw, customOverlays: co } = JSON.parse(savedState);
@@ -280,7 +289,7 @@ export function SpillProvider({ children }: { children: ReactNode }) {
           const pts = poly.coordinates[0];
           const cLon = pts.reduce((s, p) => s + p[0], 0) / pts.length;
           const cLat = pts.reduce((s, p) => s + p[1], 0) / pts.length;
-          h = shiftHindcast(h, cLon - (-89.85125), cLat - 28.47625, windDir ?? mockWindDir);
+          h = shiftHindcast(h, cLon - MOCK_CENTER[0], cLat - MOCK_CENTER[1], windDir ?? mockWindDir);
 
           if (!finalH) {
             finalH = h;
@@ -328,7 +337,7 @@ export function SpillProvider({ children }: { children: ReactNode }) {
           const pts = poly.coordinates[0];
           const cLon = pts.reduce((s, p) => s + p[0], 0) / pts.length;
           const cLat = pts.reduce((s, p) => s + p[1], 0) / pts.length;
-          f = shiftForecast(f, cLon - (-89.85125), cLat - 28.47625, windDir ?? mockWindDir);
+          f = shiftForecast(f, cLon - MOCK_CENTER[0], cLat - MOCK_CENTER[1], windDir ?? mockWindDir);
 
           if (!finalF) {
             finalF = f;
@@ -390,7 +399,7 @@ export function SpillProvider({ children }: { children: ReactNode }) {
         const pts = poly.coordinates[0];
         const cLon = pts.reduce((s, p) => s + p[0], 0) / pts.length;
         const cLat = pts.reduce((s, p) => s + p[1], 0) / pts.length;
-        a = shiftAttribution(a, cLon - (-89.85125), cLat - 28.47625, windDir ?? mockWindDir);
+        a = shiftAttribution(a, cLon - MOCK_CENTER[0], cLat - MOCK_CENTER[1], windDir ?? mockWindDir);
       }
       setAttribution(a);
       setSelectedMmsi(a.candidates[0]?.mmsi ?? null);

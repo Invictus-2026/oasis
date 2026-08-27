@@ -3,7 +3,12 @@
  *
  * Demo rule: the UI must never show a blank screen. If the backend is down or
  * slow, we fall back to the bundled fixtures and surface a visible banner
- * rather than failing. Set VITE_FORCE_MOCK=1 to work offline deliberately.
+ * rather than failing.
+ *
+ * The bundled fixtures are hand-georeferenced to the SAR scene shipped in
+ * public/sar/, so for the presentation build they are the source of truth and
+ * the network is not consulted at all. Set VITE_USE_BACKEND=1 to talk to the
+ * live pipeline instead (or VITE_FORCE_MOCK=1 to pin fixtures explicitly).
  */
 
 import caseMock from "../mock/case.json";
@@ -23,7 +28,8 @@ import type {
   ReportContent,
 } from "./types";
 
-const FORCE_MOCK = import.meta.env.VITE_FORCE_MOCK === "1";
+const FORCE_MOCK =
+  import.meta.env.VITE_FORCE_MOCK === "1" || import.meta.env.VITE_USE_BACKEND !== "1";
 const TIMEOUT_MS = 8000;
 
 export type DataMode = "live" | "mock";

@@ -1,12 +1,12 @@
 import type { HindcastResponse, ForecastResponse, AttributeResponse } from "../api/types";
 
-// The mock forecast's natural compass heading (NE ~57°).
+// The mock forecast's natural compass heading (WNW ~306°).
 // Computed from centroid_path start→end in mock/forecast.json.
-const BASE_FORECAST_COMPASS = 56.5;
+const BASE_FORECAST_COMPASS = 305.9;
 
-// Mock data is centered on this lon/lat — the "Oil Spill Extent" location
-// marked on the bundled SAR scene (frontend/public/sar/scene-sar.png).
-const MOCK_CENTER: [number, number] = [-89.85125, 28.47625];
+// Mock data is centered on this lon/lat — the centroid of the "Oil Spill
+// Extent" traced off the bundled SAR scene (frontend/public/sar/scene-sar.png).
+export const MOCK_CENTER: [number, number] = [-89.983125, 28.591429];
 
 /** Rotate point p around pivot, then translate by [dx, dy]. */
 function xfmPt(
