@@ -1,4 +1,3 @@
-import React from "react";
 import { useSpillState } from "../context/SpillContext";
 import { Droplet, ArrowRight, Wind } from "lucide-react";
 import { lonLat, km } from "../lib/format";
@@ -48,7 +47,7 @@ export default function SpillSelector({
           <div>
             <h3 className="text-base font-bold">All Spills</h3>
             <span className="text-[10px] font-bold uppercase tracking-wider mt-1 inline-block text-blue-200">
-              {detection.slicks.length} regions · {km(detection.slicks.reduce((s, slick) => s + (slick.area_km2 || 0), 0))}²
+              {detection.slicks.length} regions · {km(detection.slicks.reduce((s, slick) => s + (slick.geometry?.area_km2 || 0), 0))}²
             </span>
           </div>
           <div className="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center text-white group-hover:bg-white group-hover:text-blue-600 transition-colors">
@@ -83,7 +82,7 @@ export default function SpillSelector({
                   {lonLat(center)}
                 </div>
                 <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider mt-1.5 inline-block ${isCustom ? "bg-purple-100 text-purple-700" : "bg-blue-50 text-blue-600"}`}>
-                  {isCustom ? "Sandbox" : "Verified"} · {km(slick.area_km2 || 0)}²
+                  {isCustom ? "Sandbox" : "Verified"} · {km(slick.geometry?.area_km2 || 0)}²
                 </span>
               </div>
               <div className="w-8 h-8 rounded-full bg-ink-50 flex items-center justify-center text-ink-400 group-hover:bg-blue-50 group-hover:text-blue-600 transition-colors">

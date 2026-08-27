@@ -1,7 +1,6 @@
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import AppLayout from "./components/layout/AppLayout";
 import Overview from "./pages/Overview";
-import MaritimeMap from "./pages/MaritimeMap";
 import Placeholder from "./pages/Placeholder";
 import { SpillProvider } from "./context/SpillContext";
 import SatelliteIntelligence from "./pages/SatelliteIntelligence";

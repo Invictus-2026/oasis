@@ -1,4 +1,4 @@
-import { Search, Bell, Settings, User, Moon, Sun } from "lucide-react";
+import { Search, Bell, Settings, Moon, Sun } from "lucide-react";
 import { useTheme } from "../../context/ThemeContext";
 
 export default function Topbar() {
