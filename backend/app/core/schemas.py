@@ -350,6 +350,64 @@ class ForecastResponse(BaseModel):
 
 
 # --------------------------------------------------------------------------
+# GET /api/ais/tracks  (Phase 6 — ingestion + track reconstruction)
+# --------------------------------------------------------------------------
+
+
+class AISPositionOut(BaseModel):
+    """One normalised AIS broadcast. `imo`/`heading_deg` are null whenever
+    the source does not carry them — the real case-bundle AIS source (NOAA
+    AccessAIS-derived) has neither; never fabricated to fill the field."""
+
+    timestamp: datetime
+    lat: float
+    lon: float
+    speed_knots: float | None = None
+    course_deg: float | None = None
+    heading_deg: float | None = None
+    imo: str | None = None
+
+
+class VesselOut(BaseModel):
+    mmsi: str
+    name: str | None = None
+    vessel_type_code: int | None = None
+    imo: str | None = None
+
+
+class VesselTrackOut(BaseModel):
+    vessel: VesselOut
+    positions: list[AISPositionOut]
+    linestring: GeoJSON | None = Field(
+        default=None, description="null when fewer than two valid fixes exist for this vessel"
+    )
+    interpolated_segments: list[dict[str, Any]] = Field(
+        default_factory=list,
+        description="short, plausibility-checked straight-line fills between two real fixes — "
+                    "never fabricated across a long or physically implausible gap",
+    )
+    gaps: list[AISGap] = Field(
+        default_factory=list,
+        description="reporting gaps above the threshold. A plain geometric/temporal fact, "
+                    "never a suspicion label — see AISGap.label",
+    )
+
+
+class AISTracksResponse(BaseModel):
+    """Phase 6 output: real AIS ingestion and track reconstruction, not
+    attribution scoring — no proximity/heading/suspicion score is computed
+    or returned here. That remains /api/attribute's job."""
+
+    vessels: list[VesselTrackOut]
+    geojson: GeoJSON = Field(description="every vessel's track as one FeatureCollection of "
+                                          "LineStrings, ready for the existing MapLibre map")
+    total_positions_parsed: int
+    total_vessels: int
+    processing: list[ProcessingStep]
+    provenance: Provenance
+
+
+# --------------------------------------------------------------------------
 # POST /api/attribute
 # --------------------------------------------------------------------------
 
@@ -374,11 +432,16 @@ class ScoreWeights(BaseModel):
 
 
 class AISGap(BaseModel):
+    """A plain geometric/temporal fact about a silence in AIS reporting.
+    Never a verdict — `label` is deliberately phrased as an investigation
+    signal, not an accusation. See app/attribution/ais_ingest.py (Phase 6)."""
+
     start_utc: datetime
     end_utc: datetime
     duration_minutes: float
     interpolated_path: GeoJSON | None = None
     overlaps_origin_window: bool = False
+    label: str = "AIS reporting gap — investigation signal, not a finding of wrongdoing"
 
 
 class CandidateFlag(str, Enum):

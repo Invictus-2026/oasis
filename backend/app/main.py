@@ -12,6 +12,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.api import (
+    ais,
     attribution,
     case,
     detection,
@@ -44,7 +45,7 @@ app.add_middleware(
 
 for r in (case.router, detection.router, drift.router, attribution.router,
           report.router, pipeline.router, scene.router, upload.router,
-          environment.router):
+          environment.router, ais.router):
     app.include_router(r)
 
 

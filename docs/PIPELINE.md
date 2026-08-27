@@ -537,16 +537,38 @@ ranking is auditable rather than a single asserted answer.
 
 ---
 
-## 6. Stage 3 — AIS attribution scoring: **not yet real**
+## 6. Stage 3 — AIS attribution scoring: **ingestion is real, scoring is not**
 
-Be precise about this with judges: **`POST /api/attribute` returns fixture data
-unconditionally** (`backend/app/api/attribution.py` calls
-`fixtures.attribute_response()` regardless of input). There is no code in
-`backend/app/attribution/` — the directory contains only an empty `__init__.py`. This is
-the one stage where the UI's explainability (the 5-factor score breakdown, the
-narrative sentences, the DARK_VESSEL flag) is real *presentation* of a *designed but
-unimplemented* computation. The dashboard now surfaces a "· fixture" honesty tag on this
-panel precisely so this distinction is never silently lost in a demo.
+Be precise about this with judges: **`POST /api/attribute` (the scoring endpoint) still
+calls `engine.reconstruct_and_score()` against a hardcoded `MOCK_VESSELS` Python list**,
+regardless of input — it does not read `data/case/ais.parquet` at all. This is the one
+stage where the UI's explainability (the 5-factor score breakdown, the narrative
+sentences, the DARK_VESSEL flag) is real *presentation* of a *designed but unimplemented*
+computation. The dashboard's "· fixture" honesty tag on this panel is accurate.
+
+**What changed (Phase 6):** real AIS ingestion now exists and runs against the real
+data, at `GET /api/ais/tracks` — a separate, additive endpoint, not a change to
+`/api/attribute`. `backend/app/attribution/ais_ingest.py` parses the actual parquet
+(MMSI, BaseDateTime, LAT, LON, SOG, COG, VesselName, VesselType — the columns the real
+NOAA AccessAIS-derived source ships, no IMO or true-heading column, so those two output
+fields are honestly `null` rather than fabricated), groups by vessel, sorts
+chronologically, reconstructs a GeoJSON LineString track per vessel, plausibility-gates
+straight-line interpolation across short gaps, and detects genuine reporting gaps. Live
+against the frozen case: **the injected polluter (MV KESTREL TRADER, MMSI 367301820)
+shows a real 96-minute AIS gap that overlaps the origin time window** — the actual
+dark-vessel signal, surfaced by real ingestion instead of the `has_gap: True` flag
+hand-set in `MOCK_VESSELS`. `ais_ingest.py` computes no score and labels a gap only as
+"AIS reporting gap — investigation signal, not a finding of wrongdoing," never a
+suspicion verdict — attribution scoring (§6.2 below) is a separate, later step that
+would consume this module's output.
+
+One current limitation, not a Phase 6 bug: the case bundle's `ais.parquet` today
+contains only the single injected vessel (314 real positions, one real vessel) — the
+broader background traffic `test_case_bundle.py`'s (already-failing, pre-existing)
+`test_ais_contains_real_traffic_not_only_the_injected_vessel` expects has not actually
+been built into the bundle yet. The ingestion pipeline itself handles an arbitrary
+number of vessels (`tests/test_ais_ingest.py` exercises multi-vessel grouping directly);
+it is the data file that is currently sparse.
 
 ### 6.1 What's already designed (schema, not code)
 
@@ -571,22 +593,31 @@ Weights are request-configurable and returned in the response (`AttributeRespons
 specifically so the composite is auditable rather than magic — that part of the design
 is sound and doesn't need to change when real code lands.
 
-### 6.2 What real implementation needs
+### 6.2 What real implementation still needs
 
-Per `plan.md`'s Phase 4 spec, in order:
+Per `plan.md`'s Phase 4 spec:
 
-1. `ais_ingest.py` — parse the AccessAIS extract, group by MMSI, sort by time,
-   reconstruct tracks, interpolate to a common time grid, drop implausible jumps.
-2. `gaps.py` — detect reporting gaps above threshold, record start/end/duration and the
-   interpolated position across the gap (already has a schema slot: `AISGap.interpolated_path`).
+1. ~~`ais_ingest.py` — parse the AccessAIS extract, group by MMSI, sort by time,
+   reconstruct tracks, interpolate to a common time grid, drop implausible jumps.~~
+   **Done (Phase 6)** — `backend/app/attribution/ais_ingest.py`, exposed at
+   `GET /api/ais/tracks`. Interpolation is plausibility-gated (max 60 min gap, implied
+   speed under 40 kn) rather than forced onto a fixed time grid — a long or physically
+   implausible gap is left un-bridged and reported as an `AISGap` instead.
+2. ~~`gaps.py` — detect reporting gaps above threshold...~~ **Done (Phase 6)**, folded
+   into `ais_ingest.detect_gaps()` rather than a separate module; already has the schema
+   slot `AISGap.interpolated_path` plus a new `AISGap.label` field stating the gap is an
+   investigation signal, not a verdict.
 3. `filters.py` — prune to vessels whose track comes within `search_radius_km` of the
    origin estimate during the origin time window; report `total_vessels_in_region` vs.
-   `after_filter` (already real numbers in the schema, currently fixture-sourced).
+   `after_filter` (already real numbers in the schema, currently fixture-sourced). **Not
+   yet built** — `/api/attribute` still uses `MOCK_VESSELS`, not
+   `ais_ingest.ingest()`'s output.
 4. `scoring.py` — the weighted composite above, computed from real track geometry
-   instead of a `rng.gauss`-jittered straight line.
+   instead of a `rng.gauss`-jittered straight line. **Not yet built.**
 5. Validate against `data/case/case.json`'s ground truth: the injected polluter (MV
    KESTREL TRADER, MMSI in the case bundle) must rank #1, with a recorded score margin
-   over #2 — a concrete number worth putting in the deck.
+   over #2 — a concrete number worth putting in the deck. **Not yet possible** until 3-4
+   land; ingestion alone has no ranking to validate.
 
 The real AIS data needed for this already exists in the case bundle
 (`data/case/ais.parquet`, built from synthesized/NOAA AccessAIS traffic per
