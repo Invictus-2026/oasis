@@ -50,6 +50,49 @@
   --ease-out-soft: cubic-bezier(0.16, 1, 0.3, 1);
 }
 
+/* ── Dark Theme Overrides ────────────────────────── */
+.dark {
+  /* Invert the surface grays */
+  --color-ink-50:  #020617;
+  --color-ink-100: #0f172a;
+  --color-ink-200: #1e293b;
+  --color-ink-300: #334155;
+  --color-ink-400: #475569;
+  --color-ink-500: #64748b;
+  --color-ink-600: #94a3b8;
+  --color-ink-700: #cbd5e1;
+  --color-ink-800: #e2e8f0;
+  --color-ink-900: #f8fafc;
+  --color-ink-950: #ffffff;
+
+  /* Redefine white to be our dark surface color so bg-white/95 etc work automatically */
+  --color-white: var(--color-ink-100);
+
+  /* Darken semantic surface colors (used in badges and alert cards) */
+  --color-blue-50: #172554;
+  --color-blue-100: #1e3a8a;
+  --color-purple-50: #3b0764;
+  --color-purple-100: #581c87;
+  --color-amber-50: #451a03;
+  --color-amber-100: #78350f;
+  --color-red-50: #450a0a;
+  --color-red-100: #7f1d1d;
+  --color-emerald-50: #022c22;
+  --color-emerald-100: #064e3b;
+  --color-orange-50: #431407;
+  --color-orange-100: #7c2d12;
+}
+
+/* Ensure background of app updates to dark */
+.dark body {
+  background: var(--color-ink-50);
+  color: var(--color-ink-900);
+}
+
+.dark .text-ink-900 {
+  color: var(--color-ink-900) !important;
+}
+
 /* ── Base ────────────────────────────────────────── */
 html, body, #root { height: 100%; }
 
@@ -98,6 +141,10 @@ body {
   border-radius: 0.75rem;
   box-shadow: 0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04);
   padding: 1.25rem;
+}
+.dark .content-card {
+  background: var(--color-ink-100);
+  border-color: var(--color-ink-200);
 }
 
 /* ── Tabular numerals ────────────────────────────── */
@@ -170,4 +217,24 @@ body {
   font-size: 10px;
   backdrop-filter: blur(4px);
   border-radius: 4px;
+}
+
+/* Dark mode map controls */
+.dark .maplibregl-ctrl-group {
+  background: var(--color-ink-100) !important;
+  border-color: var(--color-ink-200) !important;
+}
+.dark .maplibregl-ctrl-group button:hover {
+  background: var(--color-ink-200) !important;
+}
+.dark .maplibregl-ctrl-attrib {
+  background: rgba(2, 6, 23, 0.8) !important;
+  color: var(--color-ink-600) !important;
+}
+.dark .maplibregl-ctrl-scale {
+  background: rgba(2, 6, 23, 0.85) !important;
+  color: var(--color-ink-700) !important;
+}
+.dark .maplibregl-ctrl-icon {
+  filter: invert(1);
 }
