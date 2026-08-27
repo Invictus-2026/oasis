@@ -120,7 +120,7 @@ export default function DriftIntelligence() {
                 }`}
             >
               <ArrowRight className="w-4 h-4" />
-              Forecast 12h
+              Forecast 9h
               {drifting === "forecast" && <span className="w-3 h-3 rounded-full border-2 border-current border-t-transparent animate-spin ml-1" />}
             </button>
           </div>

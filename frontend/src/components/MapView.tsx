@@ -485,20 +485,9 @@ export default function MapView({
     const frame = frames[Math.min(hindcastIndex, frames.length - 1)];
     const t = frame?.t_offset_hours;
 
-    // Origin estimation should be tighter than the forecast spread.
-    // Shrink hindcast geometry toward its centroid by this factor.
-    const SHRINK = 0.45;
-    function shrinkPoly(geom: GeoJSON.Geometry): GeoJSON.Geometry {
-      if (geom.type !== "Polygon") return geom;
-      const coords = geom.coordinates.map(ring => {
-        const cx = ring.reduce((s, p) => s + p[0], 0) / ring.length;
-        const cy = ring.reduce((s, p) => s + p[1], 0) / ring.length;
-        return ring.map(p => [cx + (p[0] - cx) * SHRINK, cy + (p[1] - cy) * SHRINK]);
-      });
-      return { ...geom, coordinates: coords };
-    }
-
-    // Animating frames: the ensemble cone at this instant.
+    // Animating frames: the ensemble cone at this instant. The fixtures are
+    // authored directly against the bundled SAR scene, so geometry is drawn at
+    // its true extent — no display-only rescaling.
     for (const p of [50, 90] as const) {
       const rings = hindcast?.cone.filter(
         (c) => c.percentile === p && c.t_offset_hours === t,
@@ -506,34 +495,19 @@ export default function MapView({
       setData(`cone${p}`, {
         type: "FeatureCollection",
         features: layers.cone
-          ? rings.map(ring => ({ type: "Feature", geometry: shrinkPoly(ring.polygon), properties: { percentile: p } }))
+          ? rings.map(ring => ({ type: "Feature", geometry: ring.polygon, properties: { percentile: p } }))
           : [],
       });
     }
 
-    // Shrink particles toward their frame centroid PER slick
-    let particleFeatures: GeoJSON.Feature[] = [];
-    if (layers.particles && frame) {
-      const numSlicks = targetSlicks.length || 1;
-      const pointsPerSlick = Math.floor(frame.points.length / numSlicks);
-
-      for (let i = 0; i < numSlicks; i++) {
-        const chunk = frame.points.slice(i * pointsPerSlick, (i + 1) * pointsPerSlick);
-        if (chunk.length === 0) continue;
-        const cx = chunk.reduce((s, p) => s + p[0], 0) / chunk.length;
-        const cy = chunk.reduce((s, p) => s + p[1], 0) / chunk.length;
-        particleFeatures.push(...chunk.map((pt) => ({
+    const particleFeatures: GeoJSON.Feature[] =
+      layers.particles && frame
+        ? frame.points.map((pt) => ({
           type: "Feature" as const,
-          geometry: {
-            type: "Point" as const, coordinates: [
-              cx + (pt[0] - cx) * SHRINK,
-              cy + (pt[1] - cy) * SHRINK,
-            ]
-          },
+          geometry: { type: "Point" as const, coordinates: pt },
           properties: {},
-        })));
-      }
-    }
+        }))
+        : [];
     setData("particles", { type: "FeatureCollection", features: particleFeatures });
 
     // The origin region and marker appear only once the run has settled.
@@ -550,7 +524,7 @@ export default function MapView({
     // Grow the origin-region cones outward from a point rather than popping
     // in fully formed, the first time a given hindcast run settles. Scrubbing
     // back off the final frame and forward again does not replay it.
-    const TARGET_SHRINK = 0.45;
+    const TARGET_SHRINK = 1;
     const growKey = atEnd ? `${hindcast?.origin_estimate?.point?.join(",")}-${minT}` : "";
     if (originGrowAnim.current.raf) cancelAnimationFrame(originGrowAnim.current.raf);
     const renderOriginRegions = (factor: number) => {
@@ -623,79 +597,35 @@ export default function MapView({
     const forecastFrame = forecastFrames[Math.min(forecastIndex, forecastFrames.length - 1)];
     const forecastT = forecastFrame?.t_offset_hours ?? 0;
 
-    // Shrink forecast by 0.55. It should still be larger than origin (0.45)
-    // but not overwhelmingly massive when simulated out to 72 hours.
-    const SHRINK = 0.55;
-    function shrinkPoly(geom: GeoJSON.Geometry): GeoJSON.Geometry {
-      if (geom.type !== "Polygon") return geom;
-      const coords = geom.coordinates.map(ring => {
-        const cx = ring.reduce((s, p) => s + p[0], 0) / ring.length;
-        const cy = ring.reduce((s, p) => s + p[1], 0) / ring.length;
-        return ring.map(p => [cx + (p[0] - cx) * SHRINK, cy + (p[1] - cy) * SHRINK]);
-      });
-      return { ...geom, coordinates: coords };
-    }
-
-    // Progressively expand the cone by filtering up to the current timestamp
+    // Progressively expand the cone by filtering up to the current timestamp.
+    // Same rule as the hindcast: the fixture geometry is already georeferenced
+    // to the SAR scene, so it is drawn at its true extent.
     const outer = forecast?.cone.filter((c) => c.percentile === 90 && c.t_offset_hours <= forecastT) ?? [];
     setData("forecastCone", {
       type: "FeatureCollection",
       features: layers.forecast
         ? outer.map((c) => ({
-          type: "Feature", geometry: shrinkPoly(c.polygon),
+          type: "Feature", geometry: c.polygon,
           properties: { t: c.t_offset_hours },
         }))
         : [],
     });
 
-    // Also shrink the path relative to its own centroid so it matches the scaled cone
-    let shrunkPath = forecast?.centroid_path;
-    if (shrunkPath && shrunkPath.type === "LineString") {
-      const cx = shrunkPath.coordinates.reduce((s, p) => s + p[0], 0) / shrunkPath.coordinates.length;
-      const cy = shrunkPath.coordinates.reduce((s, p) => s + p[1], 0) / shrunkPath.coordinates.length;
-      shrunkPath = {
-        ...shrunkPath,
-        coordinates: shrunkPath.coordinates.map(p => [cx + (p[0] - cx) * SHRINK, cy + (p[1] - cy) * SHRINK])
-      };
-    } else if (shrunkPath && shrunkPath.type === "MultiLineString") {
-      const newCoords = shrunkPath.coordinates.map(line => {
-        const cx = line.reduce((s, p) => s + p[0], 0) / line.length;
-        const cy = line.reduce((s, p) => s + p[1], 0) / line.length;
-        return line.map(p => [cx + (p[0] - cx) * SHRINK, cy + (p[1] - cy) * SHRINK]);
-      });
-      shrunkPath = { ...shrunkPath, coordinates: newCoords };
-    }
-
     setData("forecastPath", {
       type: "FeatureCollection",
-      features: layers.forecast && shrunkPath
-        ? [{ type: "Feature", geometry: shrunkPath, properties: {} }]
+      features: layers.forecast && forecast?.centroid_path
+        ? [{ type: "Feature", geometry: forecast.centroid_path, properties: {} }]
         : [],
     });
 
-    // Also render forecast particles if they exist, chunked per slick
-    let particleFeatures: GeoJSON.Feature[] = [];
-    if (layers.particles && forecastFrame) {
-      const numSlicks = targetSlicks.length || 1;
-      const pointsPerSlick = Math.floor(forecastFrame.points.length / numSlicks);
-
-      for (let i = 0; i < numSlicks; i++) {
-        const chunk = forecastFrame.points.slice(i * pointsPerSlick, (i + 1) * pointsPerSlick);
-        if (chunk.length === 0) continue;
-        const cx = chunk.reduce((s, p) => s + p[0], 0) / chunk.length;
-        const cy = chunk.reduce((s, p) => s + p[1], 0) / chunk.length;
-        particleFeatures.push(...chunk.map((pt) => ({
+    const particleFeatures: GeoJSON.Feature[] =
+      layers.particles && forecastFrame
+        ? forecastFrame.points.map((pt) => ({
           type: "Feature" as const,
-          geometry: {
-            type: "Point" as const, coordinates: [
-              cx + (pt[0] - cx) * SHRINK,
-              cy + (pt[1] - cy) * SHRINK,
-            ]
-          },
+          geometry: { type: "Point" as const, coordinates: pt },
           properties: {},
-        })));
-      }
-    }
+        }))
+        : [];
     setData("forecastParticles", { type: "FeatureCollection", features: particleFeatures });
   }, [ready, forecast, layers.forecast, layers.particles, forecastIndex]);
 

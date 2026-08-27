@@ -1,7 +1,6 @@
 import MapView from "../components/MapView";
 import LayerToggles from "../components/LayerToggles";
 import Timeline from "../components/Timeline";
-import AnalysisPanel from "../components/AnalysisPanel";
 import ErrorBoundary from "../components/ErrorBoundary";
 import { ViewModeProvider } from "../lib/viewMode";
 import { useSpillState } from "../context/SpillContext";
@@ -82,10 +81,6 @@ export default function MaritimeMap() {
 
           <div className="pointer-events-none absolute left-4 top-4 z-10 flex flex-col gap-4">
             <LayerToggles layers={layers} onToggle={toggleLayer} />
-          </div>
-
-          <div className="pointer-events-none absolute right-4 top-4 z-10">
-            <AnalysisPanel />
           </div>
 
           {/* Compass Widget */}

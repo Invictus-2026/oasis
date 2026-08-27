@@ -23,8 +23,6 @@ const LAYER_GROUPS = [
     title: "VESSELS",
     items: [
       { key: "tracks", label: "AIS Tracks", swatch: C.vessel },
-      { key: "lookalikes", label: "Candidates (Ruled out)", swatch: C.reject, dashed: true },
-      // Gaps are implicit on selection in MapView, but we can list them here conceptually
     ],
   },
   {
@@ -56,12 +54,12 @@ export default function LayerToggles({
   };
 
   return (
-    <div className="pointer-events-auto rounded-md border border-ink-200 bg-white shadow-sm w-56 overflow-hidden">
-      <div className="bg-ink-50 px-3 py-2 border-b border-ink-200">
+    <div className="pointer-events-auto rounded-lg border border-ink-200 bg-white shadow-md w-56 overflow-hidden">
+      <div className="bg-ink-50 px-3 py-2.5 border-b border-ink-200">
         <h3 className="text-xs font-bold text-ink-700 tracking-wider">LAYERS</h3>
       </div>
       
-      <div className="max-h-96 overflow-y-auto">
+      <div>
         {LAYER_GROUPS.map((group) => (
           <div key={group.title} className="border-b border-ink-100 last:border-b-0">
             <button
