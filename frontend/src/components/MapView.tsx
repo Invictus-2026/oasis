@@ -53,6 +53,63 @@ function nearestVertex(coords: [number, number][], target: [number, number]): [n
   return best;
 }
 
+const easeOutCubic = (p: number) => 1 - Math.pow(1 - p, 3);
+
+/** Scale a polygon's rings toward their own centroid by `factor` (0 = a
+ *  point, 1 = full size). Used both for the fixed hindcast/forecast shrink
+ *  and for the origin-region grow-in animation, which just ramps the same
+ *  factor up over time instead of holding it constant. */
+function scalePoly(geom: GeoJSON.Geometry, factor: number): GeoJSON.Geometry {
+  if (geom.type !== "Polygon") return geom;
+  const coords = geom.coordinates.map(ring => {
+    const cx = ring.reduce((s, p) => s + p[0], 0) / ring.length;
+    const cy = ring.reduce((s, p) => s + p[1], 0) / ring.length;
+    return ring.map(p => [cx + (p[0] - cx) * factor, cy + (p[1] - cy) * factor]);
+  });
+  return { ...geom, coordinates: coords };
+}
+
+/** Trim a line to the leading `progress` fraction of its length, interpolating
+ *  the cut segment so the tip moves smoothly rather than jumping vertex to
+ *  vertex — this is what makes a track look like it's drawing itself in. */
+function sliceCoords(coords: [number, number][], progress: number): [number, number][] {
+  if (progress >= 1 || coords.length < 2) return coords;
+  if (progress <= 0) return [coords[0]];
+  const dists: number[] = [0];
+  for (let i = 1; i < coords.length; i++) {
+    const dx = coords[i][0] - coords[i - 1][0];
+    const dy = coords[i][1] - coords[i - 1][1];
+    dists.push(dists[i - 1] + Math.sqrt(dx * dx + dy * dy));
+  }
+  const total = dists[dists.length - 1];
+  if (total === 0) return coords;
+  const target = total * progress;
+  const out: [number, number][] = [coords[0]];
+  for (let i = 1; i < coords.length; i++) {
+    if (dists[i] <= target) {
+      out.push(coords[i]);
+    } else {
+      const segStart = dists[i - 1], segEnd = dists[i];
+      const t = segEnd > segStart ? (target - segStart) / (segEnd - segStart) : 0;
+      const p0 = coords[i - 1], p1 = coords[i];
+      out.push([p0[0] + (p1[0] - p0[0]) * t, p0[1] + (p1[1] - p0[1]) * t]);
+      break;
+    }
+  }
+  return out;
+}
+
+function sliceLine(geom: GeoJSON.Geometry, progress: number): GeoJSON.Geometry {
+  if (progress >= 1) return geom;
+  if (geom.type === "LineString") {
+    return { ...geom, coordinates: sliceCoords(geom.coordinates as [number, number][], progress) };
+  }
+  if (geom.type === "MultiLineString") {
+    return { ...geom, coordinates: geom.coordinates.map(line => sliceCoords(line as [number, number][], progress)) };
+  }
+  return geom;
+}
+
 /** A no-network raster style. Demo rule: nothing on screen may depend on the
  *  venue's wifi, so the basemap is a flat colour plus our own data. */
 const STYLE: maplibregl.StyleSpecification = {
@@ -83,12 +140,19 @@ export default function MapView({
 
   useEffect(() => {
     if (!ready || !map.current) return;
-    const mapBgColor = theme === "dark" ? "#1e293b" : "#e2e8f0";
+    // Dark theme on the map doubles as the SAR/satellite-radar look: a near-
+    // black navy base rather than the lighter dark-UI ink tone, so the grain
+    // and scanline overlay reads as radar imagery instead of just a dim map.
+    const mapBgColor = theme === "dark" ? "#04070d" : "#e2e8f0";
     map.current.setPaintProperty("bg", "background-color", mapBgColor);
   }, [theme, ready]);
 
   const onSelect = useRef(onSelectVessel);
   onSelect.current = onSelectVessel;
+
+  const tracksAnim = useRef<{ key: string; start: number | null; raf: number | null }>({ key: "", start: null, raf: null });
+  const originGrowAnim = useRef<{ key: string; start: number | null; raf: number | null }>({ key: "", start: null, raf: null });
+  const originMarkers = useRef<maplibregl.Marker[]>([]);
 
   // ---- init -------------------------------------------------------------
   useEffect(() => {
@@ -175,6 +239,10 @@ export default function MapView({
         paint: { "fill-color": "rgba(147, 51, 234, 0.13)" }
       });
       m.addLayer({
+        id: "forecastPath-glow", source: "forecastPath", type: "line",
+        paint: { "line-color": "#34d399", "line-width": 8, "line-blur": 5, "line-opacity": 0.3 }
+      });
+      m.addLayer({
         id: "forecastPath-line", source: "forecastPath", type: "line",
         paint: { "line-color": C.forecast, "line-width": 2.5, "line-dasharray": [2, 1.5] }
       });
@@ -206,6 +274,20 @@ export default function MapView({
       m.addLayer({
         id: "forecastParticles-circle", source: "forecastParticles", type: "circle",
         paint: { "circle-radius": 2, "circle-color": C.forecast, "circle-opacity": 0.55 }
+      });
+
+      // Neon glow halo, drawn beneath the real track/path lines: a wider,
+      // blurred duplicate in radar cyan/green. line-blur is MapLibre's native
+      // glow primitive — the canvas equivalent of a CSS drop-shadow, which
+      // can't be applied to a canvas-painted layer directly.
+      m.addLayer({
+        id: "tracks-glow", source: "tracks", type: "line",
+        paint: {
+          "line-color": "#22d3ee",
+          "line-width": ["case", ["get", "selected"], 10, 6],
+          "line-blur": ["case", ["get", "selected"], 6, 4],
+          "line-opacity": ["case", ["get", "dimmed"], 0.06, ["case", ["get", "selected"], 0.55, 0.22]],
+        }
       });
 
       // Selected vessel is drawn bright; everything else dims. Colour is
@@ -265,6 +347,8 @@ export default function MapView({
     return () => {
       resizeObs.current?.disconnect();
       resizeObs.current = null;
+      originMarkers.current.forEach((mk) => mk.remove());
+      originMarkers.current = [];
       m.remove();
       map.current = null;
       setReady(false);
@@ -440,16 +524,44 @@ export default function MapView({
     // The origin region and marker appear only once the run has settled.
     const atEnd = frames.length > 0 && hindcastIndex >= frames.length - 1;
     const minT = hindcast ? Math.min(...hindcast.cone.map(c => c.t_offset_hours)) : 0;
+
+    const originRings: Record<50 | 90, GeoJSON.Feature[]> = { 50: [], 90: [] };
     for (const p of [50, 90] as const) {
-      const rings = hindcast?.cone.filter(
+      originRings[p] = (hindcast?.cone.filter(
         (c) => c.percentile === p && c.t_offset_hours === minT,
-      ) ?? [];
-      setData(`originRegion${p}`, {
-        type: "FeatureCollection",
-        features: layers.cone && atEnd
-          ? rings.map(ring => ({ type: "Feature", geometry: shrinkPoly(ring.polygon), properties: { percentile: p } }))
-          : [],
-      });
+      ) ?? []).map(ring => ({ type: "Feature", geometry: ring.polygon, properties: { percentile: p } }));
+    }
+
+    // Grow the origin-region cones outward from a point rather than popping
+    // in fully formed, the first time a given hindcast run settles. Scrubbing
+    // back off the final frame and forward again does not replay it.
+    const TARGET_SHRINK = 0.45;
+    const growKey = atEnd ? `${hindcast?.origin_estimate?.point?.join(",")}-${minT}` : "";
+    if (originGrowAnim.current.raf) cancelAnimationFrame(originGrowAnim.current.raf);
+    const renderOriginRegions = (factor: number) => {
+      for (const p of [50, 90] as const) {
+        setData(`originRegion${p}`, {
+          type: "FeatureCollection",
+          features: layers.cone && atEnd
+            ? originRings[p].map(f => ({ ...f, geometry: scalePoly(f.geometry, factor) }))
+            : [],
+        });
+      }
+    };
+    if (growKey && growKey !== originGrowAnim.current.key) {
+      originGrowAnim.current.key = growKey;
+      originGrowAnim.current.start = null;
+      const DURATION = 1100;
+      const step = (ts: number) => {
+        if (originGrowAnim.current.start === null) originGrowAnim.current.start = ts;
+        const p = Math.min(1, (ts - originGrowAnim.current.start) / DURATION);
+        renderOriginRegions(TARGET_SHRINK * easeOutCubic(p));
+        originGrowAnim.current.raf = p < 1 ? requestAnimationFrame(step) : null;
+      };
+      originGrowAnim.current.raf = requestAnimationFrame(step);
+    } else {
+      if (!growKey) originGrowAnim.current.key = "";
+      renderOriginRegions(TARGET_SHRINK);
     }
 
     const originFeatures: GeoJSON.Feature[] = [];
@@ -462,6 +574,31 @@ export default function MapView({
       }
     }
     setData("origin", { type: "FeatureCollection", features: originFeatures });
+
+    // Sonar-ping rings are plain animated DOM markers (CSS keyframes handle
+    // the scale+fade), positioned on top of the canvas-rendered origin dots.
+    originMarkers.current.forEach((mk) => mk.remove());
+    originMarkers.current = [];
+    if (map.current) {
+      for (const f of originFeatures) {
+        if (f.geometry.type !== "Point") continue;
+        // A brighter cyan than the origin dot itself: the dot's own blue
+        // blends into the (also blue) origin-region fill it sits on top of,
+        // so the ping needs its own contrast to read against the map.
+        const el = document.createElement("div");
+        el.innerHTML =
+          `<span class="sonar-ping-ring" style="--sonar-color:#5eead4"></span>` +
+          `<span class="sonar-ping-ring delay-1" style="--sonar-color:#5eead4"></span>` +
+          `<span class="sonar-ping-ring delay-2" style="--sonar-color:#5eead4"></span>`;
+        originMarkers.current.push(
+          new maplibregl.Marker({ element: el, anchor: "center" })
+            .setLngLat(f.geometry.coordinates as [number, number])
+            .addTo(map.current),
+        );
+      }
+    }
+
+    return () => { if (originGrowAnim.current.raf) cancelAnimationFrame(originGrowAnim.current.raf); };
   }, [ready, hindcast, hindcastIndex, layers.cone, layers.particles]);
 
   // ---- forecast ---------------------------------------------------------
@@ -547,25 +684,53 @@ export default function MapView({
     setData("forecastParticles", { type: "FeatureCollection", features: particleFeatures });
   }, [ready, forecast, layers.forecast, layers.particles, forecastIndex]);
 
-  // ---- vessel tracks ----------------------------------------------------
+  // ---- vessel tracks ------------------------------------------------------
+  // Tracks draw themselves in (leading-edge reveal, like a radar trail sweep)
+  // the first time a given set of candidates appears. Re-runs of this effect
+  // for a selection change alone reuse the finished (progress=1) geometry —
+  // clicking a different vessel recolours it, it doesn't replay the draw-in.
   useEffect(() => {
     if (!ready) return;
-    setData("tracks", {
+    const candidates = layers.tracks && attribution ? attribution.candidates : [];
+    const sig = candidates.map((c) => {
+      const geom = c.track as any;
+      const len = geom?.type === "LineString" ? geom.coordinates.length : geom?.type === "MultiLineString"
+        ? geom.coordinates.reduce((n: number, l: any[]) => n + l.length, 0) : 0;
+      return `${c.mmsi}:${len}`;
+    }).join(",");
+    const isNew = sig !== tracksAnim.current.key;
+    if (tracksAnim.current.raf) cancelAnimationFrame(tracksAnim.current.raf);
+    tracksAnim.current.key = sig;
+    if (isNew) tracksAnim.current.start = null;
+
+    const render = (progress: number) => setData("tracks", {
       type: "FeatureCollection",
-      features: layers.tracks && attribution
-        ? attribution.candidates.map((c) => ({
-          type: "Feature",
-          geometry: c.track,
-          properties: {
-            mmsi: c.mmsi,
-            name: c.name,
-            suspect: c.flags.includes("DARK_VESSEL"),
-            selected: c.mmsi === selectedMmsi,
-            dimmed: selectedMmsi !== null && c.mmsi !== selectedMmsi,
-          },
-        }))
-        : [],
+      features: candidates.map((c) => ({
+        type: "Feature",
+        geometry: sliceLine(c.track, progress),
+        properties: {
+          mmsi: c.mmsi,
+          name: c.name,
+          suspect: c.flags.includes("DARK_VESSEL"),
+          selected: c.mmsi === selectedMmsi,
+          dimmed: selectedMmsi !== null && c.mmsi !== selectedMmsi,
+        },
+      })),
     });
+
+    if (isNew && candidates.length > 0) {
+      const DURATION = 900;
+      const step = (ts: number) => {
+        if (tracksAnim.current.start === null) tracksAnim.current.start = ts;
+        const p = Math.min(1, (ts - tracksAnim.current.start) / DURATION);
+        render(easeOutCubic(p));
+        tracksAnim.current.raf = p < 1 ? requestAnimationFrame(step) : null;
+      };
+      tracksAnim.current.raf = requestAnimationFrame(step);
+    } else {
+      render(1);
+    }
+    return () => { if (tracksAnim.current.raf) cancelAnimationFrame(tracksAnim.current.raf); };
   }, [ready, attribution, selectedMmsi, layers.tracks]);
 
   // ---- selected vessel: its AIS gap and its link to the origin ----------
@@ -688,5 +853,19 @@ export default function MapView({
     return () => { m.off("move", updateGridAndArrows); };
   }, [ready, mockWindDir]);
 
-  return <div ref={container} className="absolute inset-0 h-full w-full" />;
+  return (
+    <>
+      <div ref={container} className="absolute inset-0 h-full w-full" />
+      {/* SAR/satellite-radar skin: grain + scanlines + a slow diagonal sweep,
+       *  layered over the dark-theme map so it reads as radar imagery rather
+       *  than just a dimmed basemap. Cross-faded via opacity, not mounted
+       *  conditionally, so the transition itself animates. */}
+      <div className={`sar-noise-overlay${theme === "dark" ? " active" : ""}`}>
+        <div className="sar-grain" />
+        <div className="sar-scanlines" />
+        <div className="sar-sweep" />
+        <div className="sar-vignette" />
+      </div>
+    </>
+  );
 }
