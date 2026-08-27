@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useSpillState } from "../context/SpillContext";
 import { ViewModeProvider } from "../lib/viewMode";
+import SpillSelector from "../components/SpillSelector";
 import { km, hours } from "../lib/format";
 import {
   Database, Map as MapIcon, SlidersHorizontal, Search,
@@ -8,7 +9,17 @@ import {
 } from "lucide-react";
 
 export default function VesselIntelligence() {
-  const { attribution, hindcast, attributing, runAttribute, viewMode } = useSpillState();
+  const { attribution, hindcast, attributing, runAttribute, viewMode, activeSlickId, setActiveSlickId } = useSpillState();
+
+  if (!activeSlickId) {
+    return (
+      <SpillSelector
+        title="Vessel Intelligence"
+        description="Select an oil spill to cross-reference with historical AIS vessel traffic."
+      />
+    );
+  }
+
   const origin = hindcast?.origin_estimate;
 
   const [timeWindow, setTimeWindow] = useState(6);
@@ -21,6 +32,9 @@ export default function VesselIntelligence() {
         <header className="page-header flex flex-col md:flex-row md:items-start justify-between gap-4">
           <div>
             <div className="flex items-center gap-2 mb-1">
+              <button onClick={() => setActiveSlickId(null)} className="text-ink-400 hover:text-blue-600 transition-colors mr-1 text-sm font-bold">
+                ← Back
+              </button>
               <Database className="w-5 h-5 text-blue-600" />
               <h2 className="!mb-0">AIS Reconstruction</h2>
             </div>

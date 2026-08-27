@@ -7,6 +7,7 @@ import {
   Anchor, CheckCircle2, AlertTriangle, HelpCircle,
   Search, Eye, ShieldAlert, SlidersHorizontal, ChevronDown, ChevronRight
 } from "lucide-react";
+import SpillSelector from "../components/SpillSelector";
 
 // ── helpers ────────────────────────────────────────────────────
 function Badge({ children, color = "gray" }: { children: React.ReactNode; color?: string }) {
@@ -46,7 +47,17 @@ function SectionCard({ title, icon, children, defaultOpen = true }: {
 
 // ── main component ─────────────────────────────────────────────
 export default function Attribution() {
-  const { attribution, attributing, hindcast, selectedMmsi, runAttribute, setSelectedMmsi, viewMode } = useSpillState();
+  const { attribution, attributing, hindcast, selectedMmsi, runAttribute, setSelectedMmsi, viewMode, activeSlickId, setActiveSlickId } = useSpillState();
+
+  if (!activeSlickId) {
+    return (
+      <SpillSelector
+        title="Attribution Engine"
+        description="Select an oil spill to correlate its origin with historical vessel tracks and identify candidates."
+      />
+    );
+  }
+
   const selectedCandidate = attribution?.candidates.find((c) => c.mmsi === selectedMmsi) ?? null;
 
   return (
@@ -57,6 +68,9 @@ export default function Attribution() {
         <header className="page-header flex flex-col md:flex-row md:items-start justify-between gap-4">
           <div>
             <div className="flex items-center gap-2 mb-1">
+              <button onClick={() => setActiveSlickId(null)} className="text-ink-400 hover:text-blue-600 transition-colors mr-1 text-sm font-bold">
+                ← Back
+              </button>
               <Anchor className="w-5 h-5 text-blue-600" />
               <h2 className="!mb-0">Vessel Attribution</h2>
             </div>

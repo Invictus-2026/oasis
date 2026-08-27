@@ -34,6 +34,7 @@ interface Props {
   /** A new object (even with the same id) re-triggers the fly-to, so clicking
    *  "View on SAR" twice in a row still refocuses. */
   focusRequest: { id: string; nonce: number } | null;
+  activeSlickId?: string | null;
   mockWindDir?: number;
 }
 
@@ -62,11 +63,17 @@ const STYLE: maplibregl.StyleSpecification = {
 
 export default function MapView({
   caseMeta, detection, hindcast, forecast, attribution,
-  layers, hindcastIndex, forecastIndex, selectedMmsi, onSelectVessel, focusRequest, mockWindDir,
+  layers, hindcastIndex, forecastIndex, selectedMmsi, onSelectVessel, focusRequest, activeSlickId, mockWindDir,
 }: Props) {
   const container = useRef < HTMLDivElement > (null);
   const map = useRef < maplibregl.Map | null > (null);
   const resizeObs = useRef < ResizeObserver | null > (null);
+
+  // Filter slicks based on active selection
+  const targetSlicks = activeSlickId && activeSlickId !== "all" && detection?.slicks
+    ? detection.slicks.filter(s => s.id === activeSlickId)
+    : detection?.slicks || [];
+
   // State, not a ref: when the style finishes loading the data effects below
   // must re-run. A ref flips silently and they would never fire again.
   const [ready, setReady] = useState(false);
@@ -283,11 +290,13 @@ export default function MapView({
   useEffect(() => {
     if (!ready || !map.current) return;
     const count = detection?.slicks?.length || 0;
-    if (count > prevSlickCount.current && count > 1) {
+    if (count > prevSlickCount.current) {
       const lastSlick = detection!.slicks[count - 1];
       if (lastSlick.polygon.type === "Polygon") {
-        const coord = lastSlick.polygon.coordinates[0][0];
-        map.current.flyTo({ center: coord as [number, number], zoom: 9, duration: 1500 });
+        const pts = lastSlick.polygon.coordinates[0] as [number, number][];
+        const cx = pts.reduce((s, p) => s + p[0], 0) / pts.length;
+        const cy = pts.reduce((s, p) => s + p[1], 0) / pts.length;
+        map.current.flyTo({ center: [cx, cy], zoom: 9, duration: 1500 });
       }
     }
     prevSlickCount.current = count;
@@ -332,8 +341,8 @@ export default function MapView({
     if (!ready) return;
     setData("slick", {
       type: "FeatureCollection",
-      features: layers.slick && detection
-        ? detection.slicks.map((s) => ({
+      features: layers.slick
+        ? targetSlicks.map((s) => ({
           type: "Feature", geometry: s.polygon,
           properties: { id: s.id, confidence: s.confidence },
         }))
@@ -341,14 +350,24 @@ export default function MapView({
     });
     setData("lookalikes", {
       type: "FeatureCollection",
-      features: layers.lookalikes && detection
+      features: layers.lookalikes && detection && (!activeSlickId || activeSlickId === "all")
         ? detection.rejected_lookalikes.map((r) => ({
           type: "Feature", geometry: r.polygon,
           properties: { id: r.id, reason: r.reason },
         }))
         : [],
     });
-  }, [ready, detection, layers.slick, layers.lookalikes]);
+  }, [ready, targetSlicks, layers.slick, layers.lookalikes, detection, activeSlickId]);
+
+  // ---- fly to isolated slick --------------------------------------------
+  useEffect(() => {
+    if (!ready || !map.current || !activeSlickId || activeSlickId === "all" || !detection) return;
+    const active = detection.slicks.find(s => s.id === activeSlickId);
+    if (active && active.polygon.type === "Polygon") {
+      const coord = active.polygon.coordinates[0][0];
+      map.current.flyTo({ center: coord as [number, number], zoom: 9, duration: 1000 });
+    }
+  }, [ready, activeSlickId, detection]);
 
   // ---- hindcast cone, particles, origin ---------------------------------
   useEffect(() => {
@@ -386,7 +405,7 @@ export default function MapView({
     // Shrink particles toward their frame centroid PER slick
     let particleFeatures: GeoJSON.Feature[] = [];
     if (layers.particles && frame) {
-      const numSlicks = detection?.slicks?.length || 1;
+      const numSlicks = targetSlicks.length || 1;
       const pointsPerSlick = Math.floor(frame.points.length / numSlicks);
 
       for (let i = 0; i < numSlicks; i++) {
@@ -495,7 +514,7 @@ export default function MapView({
     // Also render forecast particles if they exist, chunked per slick
     let particleFeatures: GeoJSON.Feature[] = [];
     if (layers.particles && forecastFrame) {
-      const numSlicks = detection?.slicks?.length || 1;
+      const numSlicks = targetSlicks.length || 1;
       const pointsPerSlick = Math.floor(forecastFrame.points.length / numSlicks);
 
       for (let i = 0; i < numSlicks; i++) {

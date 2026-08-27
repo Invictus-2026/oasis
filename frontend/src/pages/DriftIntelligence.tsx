@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useSpillState } from "../context/SpillContext";
 import { ViewModeProvider, AnalystOnly } from "../lib/viewMode";
+import SpillSelector from "../components/SpillSelector";
 import { hours, km, lonLat, utc } from "../lib/format";
 import {
   Map, History, ArrowRight, Crosshair, HelpCircle,
@@ -61,10 +62,19 @@ export default function DriftIntelligence() {
     hindcastPlaying, hindcastIndex, frames,
     runHindcast, runForecast, randomizeWind,
     setHindcastIndex, setHindcastPlaying,
-    viewMode
+    viewMode, activeSlickId, setActiveSlickId
   } = useSpillState();
 
-  const isAdhoc = detection?.slicks?.some(s => s.id.startsWith("adhoc-")) ?? false;
+  if (!activeSlickId) {
+    return (
+      <SpillSelector
+        title="Drift Intelligence"
+        description="Select an oil spill region to reverse-simulate ocean currents or predict its future spread."
+      />
+    );
+  }
+
+  const isAdhoc = activeSlickId.startsWith("adhoc-");
 
   const o = hindcast?.origin_estimate;
   const t = hindcast?.particles_timeline[Math.min(hindcastIndex, frames - 1)]?.t_offset_hours ?? 0;
@@ -82,6 +92,9 @@ export default function DriftIntelligence() {
         <header className="page-header flex flex-col md:flex-row md:items-start justify-between gap-4">
           <div>
             <div className="flex items-center gap-2 mb-1">
+              <button onClick={() => setActiveSlickId(null)} className="text-ink-400 hover:text-blue-600 transition-colors mr-1 text-sm font-bold">
+                ← Back
+              </button>
               <Map className="w-5 h-5 text-blue-600" />
               <h2 className="!mb-0">Drift Intelligence</h2>
             </div>

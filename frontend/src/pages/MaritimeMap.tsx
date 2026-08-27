@@ -6,6 +6,7 @@ import ErrorBoundary from "../components/ErrorBoundary";
 import { ViewModeProvider } from "../lib/viewMode";
 import { useSpillState } from "../context/SpillContext";
 import { Navigation } from "lucide-react";
+import { useLocation } from "react-router-dom";
 
 export default function MaritimeMap() {
   const {
@@ -24,7 +25,14 @@ export default function MaritimeMap() {
     toggleLayer,
     focusRequest,
     mockWindDir,
+    activeSlickId,
   } = useSpillState();
+
+  const location = useLocation();
+  // On the standalone Maritime Map page (/map), always show ALL spills.
+  // On intelligence pages (drift/vessel/attribution), use the isolated activeSlickId.
+  const isMapPage = location.pathname === "/map";
+  const effectiveSlickId = isMapPage ? null : activeSlickId;
 
   return (
     <ViewModeProvider value={viewMode}>
@@ -64,6 +72,7 @@ export default function MaritimeMap() {
               selectedMmsi={selectedMmsi}
               onSelectVessel={setSelectedMmsi}
               focusRequest={focusRequest}
+              activeSlickId={effectiveSlickId}
               mockWindDir={mockWindDir}
             />
           </ErrorBoundary>
