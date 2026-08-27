@@ -200,22 +200,38 @@ export function SpillProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const runHindcast = useCallback(async (windDir?: number) => {
-    if (!detection?.slicks[0]) return;
+    if (!detection?.slicks?.length) return;
     setDrifting("hindcast");
     try {
-      const isAdhoc = detection.slicks[0].id.startsWith("adhoc-");
-      const raw = isAdhoc
-        ? (await import("../mock/hindcast.json")).default
-        : await api.hindcast(detection.slicks[0].id, 24);
-      let h = raw as HindcastResponse;
+      const isAdhoc = detection.slicks.some(s => s.id.startsWith("adhoc-"));
       if (isAdhoc) {
-        const poly = detection.slicks[0].polygon as GeoJSON.Polygon;
-        const pts = poly.coordinates[0];
-        const cLon = pts.reduce((s, p) => s + p[0], 0) / pts.length;
-        const cLat = pts.reduce((s, p) => s + p[1], 0) / pts.length;
-        h = shiftHindcast(h, cLon - (-90.016633), cLat - 28.472599, windDir ?? mockWindDir);
+        const raw = (await import("../mock/hindcast.json")).default;
+        let finalH: HindcastResponse | null = null;
+        for (const slick of detection.slicks) {
+          let h = JSON.parse(JSON.stringify(raw)) as HindcastResponse;
+          const poly = slick.polygon as GeoJSON.Polygon;
+          const pts = poly.coordinates[0];
+          const cLon = pts.reduce((s, p) => s + p[0], 0) / pts.length;
+          const cLat = pts.reduce((s, p) => s + p[1], 0) / pts.length;
+          h = shiftHindcast(h, cLon - (-90.016633), cLat - 28.472599, windDir ?? mockWindDir);
+          
+          if (!finalH) {
+             finalH = h;
+          } else {
+             finalH.cone.push(...h.cone);
+             for (let i = 0; i < finalH.particles_timeline.length; i++) {
+                if (h.particles_timeline[i]) {
+                   finalH.particles_timeline[i].points.push(...h.particles_timeline[i].points);
+                }
+             }
+          }
+        }
+        setHindcast(finalH!);
+      } else {
+        const h = await api.hindcast(detection.slicks[0].id, 24);
+        setHindcast(h);
       }
-      setHindcast(h);
+      
       setAttribution(null);
       setSelectedMmsi(null);
       setHindcastIndex(0);
@@ -226,35 +242,49 @@ export function SpillProvider({ children }: { children: ReactNode }) {
   }, [detection, mockWindDir]);
 
   const runForecast = useCallback(async (windDir?: number) => {
-    if (!detection?.slicks[0]) return;
+    if (!detection?.slicks?.length) return;
     setDrifting("forecast");
     try {
-      const isAdhoc = detection.slicks[0].id.startsWith("adhoc-");
-      const raw = isAdhoc
-        ? (await import("../mock/forecast.json")).default
-        : await api.forecast(detection.slicks[0].id, 72);
-      let f = raw as ForecastResponse;
+      const isAdhoc = detection.slicks.some(s => s.id.startsWith("adhoc-"));
+      let finalF: ForecastResponse | null = null;
       if (isAdhoc) {
-        const poly = detection.slicks[0].polygon as GeoJSON.Polygon;
-        const pts = poly.coordinates[0];
-        const cLon = pts.reduce((s, p) => s + p[0], 0) / pts.length;
-        const cLat = pts.reduce((s, p) => s + p[1], 0) / pts.length;
-        f = shiftForecast(f, cLon - (-90.016633), cLat - 28.472599, windDir ?? mockWindDir);
+        const raw = (await import("../mock/forecast.json")).default;
+        for (const slick of detection.slicks) {
+          let f = JSON.parse(JSON.stringify(raw)) as ForecastResponse;
+          const poly = slick.polygon as GeoJSON.Polygon;
+          const pts = poly.coordinates[0];
+          const cLon = pts.reduce((s, p) => s + p[0], 0) / pts.length;
+          const cLat = pts.reduce((s, p) => s + p[1], 0) / pts.length;
+          f = shiftForecast(f, cLon - (-90.016633), cLat - 28.472599, windDir ?? mockWindDir);
+          
+          if (!finalF) {
+             finalF = f;
+          } else {
+             finalF.cone.push(...f.cone);
+             for (let i = 0; i < finalF.particles_timeline.length; i++) {
+                if (f.particles_timeline[i]) {
+                   finalF.particles_timeline[i].points.push(...f.particles_timeline[i].points);
+                }
+             }
+          }
+        }
+      } else {
+         finalF = await api.forecast(detection.slicks[0].id, 72);
       }
-      
+
       // Limit to max 15 segments as requested
-      if (f.particles_timeline.length > 15) {
-        f.particles_timeline = f.particles_timeline.slice(0, 15);
-        const maxT = f.particles_timeline[f.particles_timeline.length - 1].t_offset_hours;
-        f.cone = f.cone.filter(c => c.t_offset_hours <= maxT);
+      if (finalF && finalF.particles_timeline.length > 15) {
+        finalF.particles_timeline = finalF.particles_timeline.slice(0, 15);
+        const maxT = finalF.particles_timeline[finalF.particles_timeline.length - 1].t_offset_hours;
+        finalF.cone = finalF.cone.filter(c => c.t_offset_hours <= maxT);
         
         // Also truncate the centroid path coordinates if possible (approximate by segment count)
-        if (f.centroid_path.type === "LineString") {
-           f.centroid_path.coordinates = f.centroid_path.coordinates.slice(0, 15);
+        if (finalF.centroid_path.type === "LineString") {
+           finalF.centroid_path.coordinates = finalF.centroid_path.coordinates.slice(0, 15);
         }
       }
       
-      setForecast(f);
+      setForecast(finalF);
       setForecastIndex(0);
       setForecastPlaying(true);
     } finally {
@@ -311,14 +341,36 @@ export function SpillProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const injectAdHocDetection = useCallback((det: DetectResponse) => {
-    setDetection(det);
-    setHindcast(null);
-    setForecast(null);
-    setAttribution(null);
-    setReport(null);
-    setSelectedMmsi(null);
-    setHindcastIndex(0);
-    setForecastIndex(0);
+    setDetection((prev) => {
+      if (!prev) return det;
+
+      // Shift the new slicks so they appear in a different region (spaced out)
+      const offsetLon = 1.5 * prev.slicks.length;
+      const offsetLat = 1.0 * prev.slicks.length;
+
+      const shiftedSlicks = det.slicks.map(s => {
+        if (s.polygon.type === "Polygon") {
+          return {
+            ...s,
+            polygon: {
+              ...s.polygon,
+              coordinates: s.polygon.coordinates.map(ring => 
+                ring.map(coord => [coord[0] + offsetLon, coord[1] + offsetLat])
+              )
+            }
+          };
+        }
+        return s;
+      });
+
+      return {
+        ...prev,
+        slicks: [...prev.slicks, ...shiftedSlicks],
+        rejected_lookalikes: [...prev.rejected_lookalikes, ...det.rejected_lookalikes],
+        processing: [...prev.processing, ...det.processing]
+      };
+    });
+    // We intentionally do not nullify hindcast/forecast so existing simulations remain visible
   }, []);
 
   const steps: ProcessingStep[] = [
