@@ -61,6 +61,8 @@ const STYLE: maplibregl.StyleSpecification = {
   layers: [{ id: "bg", type: "background", paint: { "background-color": "#e2e8f0" } }], // Light theme ocean color
 };
 
+import { useTheme } from "../context/ThemeContext";
+
 export default function MapView({
   caseMeta, detection, hindcast, forecast, attribution,
   layers, hindcastIndex, forecastIndex, selectedMmsi, onSelectVessel, focusRequest, activeSlickId, mockWindDir,
@@ -77,6 +79,14 @@ export default function MapView({
   // State, not a ref: when the style finishes loading the data effects below
   // must re-run. A ref flips silently and they would never fire again.
   const [ready, setReady] = useState(false);
+  const { theme } = useTheme();
+
+  useEffect(() => {
+    if (!ready || !map.current) return;
+    const mapBgColor = theme === "dark" ? "#1e293b" : "#e2e8f0";
+    map.current.setPaintProperty("bg", "background-color", mapBgColor);
+  }, [theme, ready]);
+
   const onSelect = useRef(onSelectVessel);
   onSelect.current = onSelectVessel;
 

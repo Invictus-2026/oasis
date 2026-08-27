@@ -1,6 +1,9 @@
-import { Search, Bell, Settings, User } from "lucide-react";
+import { Search, Bell, Settings, User, Moon, Sun } from "lucide-react";
+import { useTheme } from "../../context/ThemeContext";
 
 export default function Topbar() {
+  const { theme, toggleTheme } = useTheme();
+
   return (
     <header className="h-16 bg-white border-b border-ink-200 flex items-center justify-between px-6 shrink-0">
       <div className="flex items-center gap-4">
@@ -39,6 +42,9 @@ export default function Topbar() {
         </div>
         
         <div className="flex items-center gap-2 border-l border-ink-200 pl-4 ml-2">
+          <button onClick={toggleTheme} className="p-2 text-ink-500 hover:text-ink-900 rounded-full hover:bg-ink-100 transition-colors">
+            {theme === "dark" ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
+          </button>
           <button className="p-2 text-ink-500 hover:text-ink-900 rounded-full hover:bg-ink-100 transition-colors">
             <Bell className="w-5 h-5" />
           </button>
