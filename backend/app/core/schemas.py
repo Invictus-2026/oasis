@@ -272,6 +272,67 @@ class HindcastResponse(BaseModel):
     provenance: Provenance
 
 
+# --------------------------------------------------------------------------
+# POST /api/drift/origin-search  (Phase 5)
+# --------------------------------------------------------------------------
+
+
+class OriginSearchRequest(BaseModel):
+    slick_id: str
+    max_age_hours: float = Field(default=24.0, gt=0.0, le=24 * 14)
+    time_step_hours: float = Field(default=1.0, gt=0.0, le=24.0)
+    n_particles: int = Field(default=150, gt=0, le=5000)
+    wind_factor: float = Field(default=0.03, ge=0.0, le=0.2)
+    timestep_minutes: float = Field(default=15.0, gt=0.0, le=1440.0)
+    diffusion_m2s: float | None = Field(default=None, ge=0.0)
+    seed: int = 42
+
+
+class CandidateMetrics(BaseModel):
+    """The five required comparison metrics plus the documented composite,
+    for one candidate release location/time — auditable rather than a single
+    opaque rank."""
+
+    spatial_overlap: float = Field(ge=0.0, le=1.0)
+    centroid_distance_km: float
+    shape_similarity: float = Field(ge=0.0, le=1.0)
+    orientation_similarity: float = Field(ge=0.0, le=1.0)
+    density_similarity: float = Field(ge=0.0, le=1.0)
+    composite_score: float = Field(ge=0.0, le=1.0)
+
+
+class OriginCandidate(BaseModel):
+    release_time_utc: datetime
+    age_hours: float
+    origin: LonLat
+    metrics: CandidateMetrics
+    age_plausibility: float = Field(
+        ge=0.0, le=1.0,
+        description="how well this age matches the Okubo width-inversion bracket — an empirical "
+                    "constraint folded into ranking, never the sole age estimator",
+    )
+
+
+class OriginSearchResponse(BaseModel):
+    """Best estimated origin/time plus the full ranked candidate set, so the
+    result is auditable rather than a single number asserted without
+    evidence."""
+
+    best_origin: LonLat
+    region_50: GeoJSON | None
+    region_90: GeoJSON | None
+    estimated_release_time_utc: datetime
+    estimated_age_hours: float
+    age_uncertainty_hours: tuple[float, float]
+    confidence: Literal["low", "medium", "high"]
+    candidates: list[OriginCandidate] = Field(
+        description="every searched (release location, release time) pair, ranked best first"
+    )
+    geojson: GeoJSON = Field(description="origin regions + best-origin point, ready for MapLibre")
+    processing: list[ProcessingStep]
+    provenance: Provenance
+
+
 class ImpactFlag(BaseModel):
     kind: Literal["coastline", "protected_area", "infrastructure"]
     name: str

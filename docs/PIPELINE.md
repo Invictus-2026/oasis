@@ -482,6 +482,59 @@ Sensitivity check suggested (and demonstrated in the deck, per `plan.md`): re-ru
 2%/3%/4% wind-drift factor and show the cone widens — a cheap, concrete demonstration of
 genuine uncertainty awareness rather than a single unexamined run.
 
+### 5.6 Origin-time-and-location search (Phase 5)
+
+`POST /api/drift/origin-search` turns the fixed-age-window hindcast above into a real
+search. Rather than trusting a single Okubo-derived age bracket and pooling one backward
+run over it, it searches candidate release times across the previous 24 h (hourly by
+default) and, for each, runs a genuine simulate-and-compare cycle
+(`backend/app/drift/origin_search.py`):
+
+1. **Propose.** A real backward Lagrangian simulation (Phase 4's `drift/simulate.py`)
+   from the observed slick to candidate age `t` — its centroid is the candidate origin.
+2. **Verify.** A real *forward* simulation from that candidate origin at that candidate
+   time, back up to the detection time — this is what the candidate PREDICTS the slick
+   should look like.
+3. **Score.** The predicted cloud against the observed slick polygon on five documented
+   metrics (spatial overlap, centroid distance, shape similarity, orientation similarity,
+   particle-density similarity), combined into one weighted composite
+   (`SCORE_WEIGHTS`, sums to 1, no term above 0.6).
+4. **Rank.** All candidates sorted by composite score.
+
+**Line-source seeding.** An elongated observed slick (elongation > 3, this project's own
+threshold for "underway discharge, not a point release" — see `detection/age.py`) is
+verified against a short line-source release oriented along its own measured bearing,
+not a single point. A point release physically cannot reproduce a 26 km trail no matter
+how correct the origin and time are; this was caught by testing against the frozen case,
+where shape/density similarity were collapsing to ~0 for every candidate before the fix.
+
+**Okubo as constraint, not estimator.** `detection/age.py`'s width-inversion bracket
+(now correctly passed the trail's `length_km` — omitting it was a second bug caught the
+same way, and reproduces the documented order-of-magnitude overestimate) is folded in as
+`age_plausibility`, capped at a 15% adjustment to the composite score. It cannot override
+a genuinely poor geometry match, by design — the requirement is that Okubo constrain, not
+determine, the ranking.
+
+**Known limitation, disclosed rather than tuned away.** `spatial_overlap` and
+`density_similarity` are mechanically biased toward *shorter* candidate ages: less
+elapsed time means less diffusion spread, which produces a tighter, easier-to-match
+cloud independent of whether the release location is actually correct. Measured against
+the frozen case (true age 8.0 h), the search currently favours ages 1-2 h short of
+truth; `centroid_distance_km` stays roughly flat across candidate ages, confirming the
+bias sits in the spread-sensitive terms specifically. Re-weighting until this one case
+matched ground truth would be exactly the curve-fitting the "no hard-coded scientific
+result" requirement rules out, so it is stated in both the module docstring and the
+API's `provenance.notes` instead. A structural fix (normalising overlap/density by the
+candidate's own predicted spread) is a candidate for future work.
+
+**Output.** Best origin, 50%/90% containment regions (from the best candidate's own
+predicted cloud, via the same `cone.py` machinery §5.3 uses), estimated release time,
+age (`detection_time - release_time`) with an explicit `[min, max]` uncertainty window
+spanning every candidate scoring within 15% of the best, and a `low`/`medium`/`high`
+confidence that requires both a decisive score margin *and* a tight age window to earn
+`high`. Every candidate's full metric breakdown is returned, not just the winner, so the
+ranking is auditable rather than a single asserted answer.
+
 ---
 
 ## 6. Stage 3 — AIS attribution scoring: **not yet real**
