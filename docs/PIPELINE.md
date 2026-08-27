@@ -70,6 +70,28 @@ Lee speckle filter → land/bright-target mask → adaptive local threshold
    to 2px tolerance, with a 220px minimum area floor.
 6. **Per-region discrimination** (`classify()`) — the actual oil-vs-lookalike decision.
 
+### 2.1b Morphology extraction (per candidate region)
+
+Every retained *and* rejected region carries a full measurement record
+(`detection/geometry.py: describe()` / `backscatter()`), returned through the API on
+both `Slick.geometry`/`Slick.backscatter` and `RejectedLookalike`:
+
+| Measurement | How it is computed |
+|---|---|
+| `area_km2` | pixel count × pixel ground area (not the simplified polygon, which would bias low) |
+| `perimeter_km` | contour ring length under a local flat-earth approximation |
+| `length_km` / `width_km` | extents along the region's **own principal axes**, not an axis-aligned bounding box — a diagonal trail would otherwise report a width equal to its diagonal |
+| `aspect_ratio` | `length_km / width_km` |
+| `elongation` | second-moment eigenvalue ratio of the fitted ellipse (distinct from aspect ratio: mass distribution vs. bounding extent) |
+| `orientation_deg` | major-axis compass bearing, 0=N clockwise |
+| `compactness` | `4πA/P²` recomputed in real units |
+| `solidity` | area / convex-hull area; separates a solid trail from a ragged patch |
+| backscatter stats | `mean_db`, `std_db`, `background_db`, `contrast_db`, `variance_ratio`, `edge_gradient` — the radiometry behind the confidence score |
+
+Width is the quantity age estimation inverts through the Okubo diffusivity law (§4.1),
+so it is a physical input, not a display field. Measured on the frozen case study: a
+26.24 km × 0.94 km trail, aspect ratio 28.0, bearing 064.9°.
+
 ### 2.2 The discrimination formula
 
 Four physically-motivated 0–1 terms, weight-averaged into a confidence score:
@@ -112,6 +134,25 @@ string assembled from whichever terms were decisive — that's the text behind t
 
 `backend/tests/test_detection.py` asserts `detection_iou >= 0.80` as the regression
 floor. Re-measure with `cd backend && .venv/bin/python -m pytest tests/test_detection.py -q`.
+
+### 2.4 Ad-hoc upload path (`POST /api/detect/upload`)
+
+The same detector, run on a user-supplied image rather than the frozen bundle. Two
+things differ and are stated in the response's `notes` rather than hidden:
+
+- **No calibrated Sigma0.** An uploaded PNG/JPEG carries brightness, not backscatter, so
+  `classical.normalise()` applies a 1st/99th-percentile stretch onto a dB-like span. The
+  detector only ever reasons about *relative* local contrast, which is what makes this
+  sound; absolute dB values for uploaded imagery are not physically meaningful.
+- **No geotransform.** Ground sampling distance is a user-supplied assumption (default
+  10 m/px, Sentinel-1 IW GRD class), and lon/lat exist only if the caller anchors the
+  scene centre via `lon`/`lat` form fields. With an anchor the response includes a
+  GeoJSON `FeatureCollection` the MapLibre map renders directly; **without one, `geojson`
+  is `null`** rather than a polygon placed at an invented location.
+
+**No accuracy metric is reported on this path** — there is no ground-truth mask for an
+arbitrary upload, so IoU/recall/precision are absent by design, not omitted by oversight.
+`backend/tests/test_upload_geojson.py` asserts that absence.
 
 ---
 
@@ -295,6 +336,48 @@ weathered → older end) but never sets the bracket itself.
 
 ---
 
+## 4b. Environmental data abstraction (Phase 3)
+
+The drift ensemble needs currents and wind. Rather than let it import a specific
+data source, everything environmental goes through one seam in
+`backend/app/environment/`:
+
+| Piece | File | Role |
+|---|---|---|
+| `EnvironmentalData` | `base.py` | The normalised type: lon, lat, timestamp, u/v current, u/v wind, optional waves, plus provenance (`source`, `is_synthetic`, `is_steady`) |
+| `EnvironmentalDataProvider` | `base.py` | ABC. One required method, `at()`; `series()` and `surface_velocity()` derive from it |
+| `CaseBundleProvider` | `bundle.py` | Real path — adapts the existing `ForcingField` over `data/case/forcing.npz` |
+| `MockEnvironmentalProvider` | `mock.py` | Always-available synthetic fallback |
+| `get_provider()` | `resolver.py` | Picks the best available provider; falls back to mock. `ENV_DATA_MODE=mock` forces it |
+
+Served at `GET /api/environment` for a point, a time range, or an incident id, and
+`GET /api/environment/providers` to inspect what is available.
+
+**Direction convention**, stated because the alternative is equally common and differs
+by 180°: directions are the way a vector points **toward**, degrees clockwise from
+north. Due-east flow reads 90°.
+
+Three honesty properties worth noting:
+
+- **Steady ≠ time-varying.** The case bundle's forcing has no time axis, so
+  `CaseBundleProvider` returns the same field for any timestamp and sets
+  `is_steady=True`. The interface still takes a `time` so a real time-varying source
+  (CMEMS, ERA5, INCOIS) drops in with no caller changes.
+- **Synthetic ≠ fallback.** The frozen case's forcing is itself synthesised, so the
+  *real* provider legitimately reports `is_synthetic=True`. The response distinguishes
+  which provider served the request from whether its values are modelled.
+- **Absent ≠ zero.** The bundle ships no wave data, so wave fields are `None` rather
+  than 0.0.
+
+**Not yet wired into simulation.** `drift/lagrangian.py` still calls `ForcingField`
+directly, and the measured drift numbers in §5.5 are unchanged (origin error 7.7 km,
+re-verified). `CaseBundleProvider.surface_velocity()` is a vectorised passthrough to
+that same object and returns bit-identical velocities for a full 500-particle array —
+asserted by `test_provider_accepts_a_whole_particle_array_like_the_drift_engine_does`
+— so wiring the engine through the provider is a one-line swap, not a physics change.
+
+---
+
 ## 5. Stage 2 — Drift hindcast/forecast (Lagrangian ensemble)
 
 A stochastic particle simulation, not a neural model — included here because it's
@@ -334,6 +417,34 @@ dx = (u_current + wind_factor · u_wind) · dt  +  √(2·K·dt) · N(0,1)
   collapse the origin uncertainty the slick's own extent implies.
 - Defaults: 500 particles, 15-minute timestep.
 
+### 5.1b Configurable simulation + the mock path (Phase 4)
+
+`/api/drift/hindcast` and `/api/drift/forecast` now accept `timestep_minutes` and
+`diffusion_m2s` alongside the existing `hours` (duration), `n_particles` and
+`wind_factor` (windage) — every knob Phase 4 requires is a per-request parameter, not a
+fixed constant, with defaults matching the values that were previously hardcoded so an
+old client sees no change.
+
+**`drift/simulate.py`** is a second, parallel implementation of the same physics,
+written to depend on `EnvironmentalDataProvider` (§4b) instead of `ForcingField`
+directly. It exists so a mock run can execute the *real* simulation equations —
+advection + Okubo diffusion + the same timestep loop — against synthetic environmental
+data, rather than faking particle motion. It does not replace `drift/lagrangian.py`,
+which still backs the real case-bundle path unchanged (§5.5's numbers are the
+regression floor); `CaseBundleProvider.surface_velocity()` was already proven
+bit-identical to `ForcingField` in Phase 3, so both implementations agree on the real
+path's physics.
+
+**What mock mode used to do:** `core/fixtures.py`'s `_drift()` faked particle motion
+with `random.gauss()` jitter around a fixed straight-line velocity (1.20, 0.88 km/h)
+and never read wind or current at all — the pre-generated/translated pattern Phase 4
+rules out. **What it does now:** `drift/mock_engine.py` runs `drift/simulate.py`
+against `MockEnvironmentalProvider` (§4b), with the same cone-extraction and
+origin-estimate logic `engine.py` uses on the real path. `fixtures.hindcast_response()`/
+`forecast_response()` still exist and still back `/api/pipeline/run`, an unconditional
+all-fixture demo warm-start endpoint outside this phase's scope — they are simply no
+longer reachable from `/api/drift/*`.
+
 ### 5.3 From particle cloud to an answer
 
 A scatter of 500 dots isn't something a judge can read. `drift/cone.py` kernel-densities
@@ -371,18 +482,93 @@ Sensitivity check suggested (and demonstrated in the deck, per `plan.md`): re-ru
 2%/3%/4% wind-drift factor and show the cone widens — a cheap, concrete demonstration of
 genuine uncertainty awareness rather than a single unexamined run.
 
+### 5.6 Origin-time-and-location search (Phase 5)
+
+`POST /api/drift/origin-search` turns the fixed-age-window hindcast above into a real
+search. Rather than trusting a single Okubo-derived age bracket and pooling one backward
+run over it, it searches candidate release times across the previous 24 h (hourly by
+default) and, for each, runs a genuine simulate-and-compare cycle
+(`backend/app/drift/origin_search.py`):
+
+1. **Propose.** A real backward Lagrangian simulation (Phase 4's `drift/simulate.py`)
+   from the observed slick to candidate age `t` — its centroid is the candidate origin.
+2. **Verify.** A real *forward* simulation from that candidate origin at that candidate
+   time, back up to the detection time — this is what the candidate PREDICTS the slick
+   should look like.
+3. **Score.** The predicted cloud against the observed slick polygon on five documented
+   metrics (spatial overlap, centroid distance, shape similarity, orientation similarity,
+   particle-density similarity), combined into one weighted composite
+   (`SCORE_WEIGHTS`, sums to 1, no term above 0.6).
+4. **Rank.** All candidates sorted by composite score.
+
+**Line-source seeding.** An elongated observed slick (elongation > 3, this project's own
+threshold for "underway discharge, not a point release" — see `detection/age.py`) is
+verified against a short line-source release oriented along its own measured bearing,
+not a single point. A point release physically cannot reproduce a 26 km trail no matter
+how correct the origin and time are; this was caught by testing against the frozen case,
+where shape/density similarity were collapsing to ~0 for every candidate before the fix.
+
+**Okubo as constraint, not estimator.** `detection/age.py`'s width-inversion bracket
+(now correctly passed the trail's `length_km` — omitting it was a second bug caught the
+same way, and reproduces the documented order-of-magnitude overestimate) is folded in as
+`age_plausibility`, capped at a 15% adjustment to the composite score. It cannot override
+a genuinely poor geometry match, by design — the requirement is that Okubo constrain, not
+determine, the ranking.
+
+**Known limitation, disclosed rather than tuned away.** `spatial_overlap` and
+`density_similarity` are mechanically biased toward *shorter* candidate ages: less
+elapsed time means less diffusion spread, which produces a tighter, easier-to-match
+cloud independent of whether the release location is actually correct. Measured against
+the frozen case (true age 8.0 h), the search currently favours ages 1-2 h short of
+truth; `centroid_distance_km` stays roughly flat across candidate ages, confirming the
+bias sits in the spread-sensitive terms specifically. Re-weighting until this one case
+matched ground truth would be exactly the curve-fitting the "no hard-coded scientific
+result" requirement rules out, so it is stated in both the module docstring and the
+API's `provenance.notes` instead. A structural fix (normalising overlap/density by the
+candidate's own predicted spread) is a candidate for future work.
+
+**Output.** Best origin, 50%/90% containment regions (from the best candidate's own
+predicted cloud, via the same `cone.py` machinery §5.3 uses), estimated release time,
+age (`detection_time - release_time`) with an explicit `[min, max]` uncertainty window
+spanning every candidate scoring within 15% of the best, and a `low`/`medium`/`high`
+confidence that requires both a decisive score margin *and* a tight age window to earn
+`high`. Every candidate's full metric breakdown is returned, not just the winner, so the
+ranking is auditable rather than a single asserted answer.
+
 ---
 
-## 6. Stage 3 — AIS attribution scoring: **not yet real**
+## 6. Stage 3 — AIS attribution scoring: **ingestion is real, scoring is not**
 
-Be precise about this with judges: **`POST /api/attribute` returns fixture data
-unconditionally** (`backend/app/api/attribution.py` calls
-`fixtures.attribute_response()` regardless of input). There is no code in
-`backend/app/attribution/` — the directory contains only an empty `__init__.py`. This is
-the one stage where the UI's explainability (the 5-factor score breakdown, the
-narrative sentences, the DARK_VESSEL flag) is real *presentation* of a *designed but
-unimplemented* computation. The dashboard now surfaces a "· fixture" honesty tag on this
-panel precisely so this distinction is never silently lost in a demo.
+Be precise about this with judges: **`POST /api/attribute` (the scoring endpoint) still
+calls `engine.reconstruct_and_score()` against a hardcoded `MOCK_VESSELS` Python list**,
+regardless of input — it does not read `data/case/ais.parquet` at all. This is the one
+stage where the UI's explainability (the 5-factor score breakdown, the narrative
+sentences, the DARK_VESSEL flag) is real *presentation* of a *designed but unimplemented*
+computation. The dashboard's "· fixture" honesty tag on this panel is accurate.
+
+**What changed (Phase 6):** real AIS ingestion now exists and runs against the real
+data, at `GET /api/ais/tracks` — a separate, additive endpoint, not a change to
+`/api/attribute`. `backend/app/attribution/ais_ingest.py` parses the actual parquet
+(MMSI, BaseDateTime, LAT, LON, SOG, COG, VesselName, VesselType — the columns the real
+NOAA AccessAIS-derived source ships, no IMO or true-heading column, so those two output
+fields are honestly `null` rather than fabricated), groups by vessel, sorts
+chronologically, reconstructs a GeoJSON LineString track per vessel, plausibility-gates
+straight-line interpolation across short gaps, and detects genuine reporting gaps. Live
+against the frozen case: **the injected polluter (MV KESTREL TRADER, MMSI 367301820)
+shows a real 96-minute AIS gap that overlaps the origin time window** — the actual
+dark-vessel signal, surfaced by real ingestion instead of the `has_gap: True` flag
+hand-set in `MOCK_VESSELS`. `ais_ingest.py` computes no score and labels a gap only as
+"AIS reporting gap — investigation signal, not a finding of wrongdoing," never a
+suspicion verdict — attribution scoring (§6.2 below) is a separate, later step that
+would consume this module's output.
+
+One current limitation, not a Phase 6 bug: the case bundle's `ais.parquet` today
+contains only the single injected vessel (314 real positions, one real vessel) — the
+broader background traffic `test_case_bundle.py`'s (already-failing, pre-existing)
+`test_ais_contains_real_traffic_not_only_the_injected_vessel` expects has not actually
+been built into the bundle yet. The ingestion pipeline itself handles an arbitrary
+number of vessels (`tests/test_ais_ingest.py` exercises multi-vessel grouping directly);
+it is the data file that is currently sparse.
 
 ### 6.1 What's already designed (schema, not code)
 
@@ -407,22 +593,31 @@ Weights are request-configurable and returned in the response (`AttributeRespons
 specifically so the composite is auditable rather than magic — that part of the design
 is sound and doesn't need to change when real code lands.
 
-### 6.2 What real implementation needs
+### 6.2 What real implementation still needs
 
-Per `plan.md`'s Phase 4 spec, in order:
+Per `plan.md`'s Phase 4 spec:
 
-1. `ais_ingest.py` — parse the AccessAIS extract, group by MMSI, sort by time,
-   reconstruct tracks, interpolate to a common time grid, drop implausible jumps.
-2. `gaps.py` — detect reporting gaps above threshold, record start/end/duration and the
-   interpolated position across the gap (already has a schema slot: `AISGap.interpolated_path`).
+1. ~~`ais_ingest.py` — parse the AccessAIS extract, group by MMSI, sort by time,
+   reconstruct tracks, interpolate to a common time grid, drop implausible jumps.~~
+   **Done (Phase 6)** — `backend/app/attribution/ais_ingest.py`, exposed at
+   `GET /api/ais/tracks`. Interpolation is plausibility-gated (max 60 min gap, implied
+   speed under 40 kn) rather than forced onto a fixed time grid — a long or physically
+   implausible gap is left un-bridged and reported as an `AISGap` instead.
+2. ~~`gaps.py` — detect reporting gaps above threshold...~~ **Done (Phase 6)**, folded
+   into `ais_ingest.detect_gaps()` rather than a separate module; already has the schema
+   slot `AISGap.interpolated_path` plus a new `AISGap.label` field stating the gap is an
+   investigation signal, not a verdict.
 3. `filters.py` — prune to vessels whose track comes within `search_radius_km` of the
    origin estimate during the origin time window; report `total_vessels_in_region` vs.
-   `after_filter` (already real numbers in the schema, currently fixture-sourced).
+   `after_filter` (already real numbers in the schema, currently fixture-sourced). **Not
+   yet built** — `/api/attribute` still uses `MOCK_VESSELS`, not
+   `ais_ingest.ingest()`'s output.
 4. `scoring.py` — the weighted composite above, computed from real track geometry
-   instead of a `rng.gauss`-jittered straight line.
+   instead of a `rng.gauss`-jittered straight line. **Not yet built.**
 5. Validate against `data/case/case.json`'s ground truth: the injected polluter (MV
    KESTREL TRADER, MMSI in the case bundle) must rank #1, with a recorded score margin
-   over #2 — a concrete number worth putting in the deck.
+   over #2 — a concrete number worth putting in the deck. **Not yet possible** until 3-4
+   land; ingestion alone has no ranking to validate.
 
 The real AIS data needed for this already exists in the case bundle
 (`data/case/ais.parquet`, built from synthesized/NOAA AccessAIS traffic per

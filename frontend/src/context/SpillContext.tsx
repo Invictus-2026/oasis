@@ -171,7 +171,11 @@ export function SpillProvider({ children }: { children: ReactNode }) {
         setHindcast(h);
         setHindcastIndex(h.particles_timeline.length - 1);
         setForecast(await api.forecast(id, 12));
-        const a = await api.attribute(h.origin_estimate.point, h.origin_estimate.time_utc);
+        const a = await api.attribute(h.origin_estimate.point, h.origin_estimate.time_utc, {
+          uncertaintyRadiusKm: h.origin_estimate.uncertainty_radius_km,
+          timeWindowHours: h.origin_estimate.time_window_hours,
+          driftBearingDeg: det.slicks[0].geometry.orientation_deg,
+        });
         setAttribution(a);
         setSelectedMmsi(a.candidates[0]?.mmsi ?? null);
       })
@@ -370,7 +374,11 @@ export function SpillProvider({ children }: { children: ReactNode }) {
       const isAdhoc = firstSlick?.id.startsWith("adhoc-");
       const raw = isAdhoc
         ? (await import("../mock/attribution.json")).default
-        : await api.attribute(o.point, o.time_utc);
+        : await api.attribute(o.point, o.time_utc, {
+            uncertaintyRadiusKm: o.uncertainty_radius_km,
+            timeWindowHours: o.time_window_hours,
+            driftBearingDeg: firstSlick?.geometry.orientation_deg,
+          });
       let a = raw as AttributeResponse;
       if (isAdhoc && firstSlick) {
         const poly = firstSlick.polygon as GeoJSON.Polygon;

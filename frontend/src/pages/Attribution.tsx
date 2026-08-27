@@ -243,7 +243,10 @@ export default function Attribution() {
                           const val = selectedCandidate.breakdown[key];
                           const w = attribution.weights[key];
                           if (w === 0) return null;
-                          const isAlert = key === "ais_gap" && val > 0;
+                          // counterfactual_similarity is null for a candidate outside
+                          // the top-N that received the simulation step.
+                          const notComputed = val === null;
+                          const isAlert = key === "ais_gap" && (val ?? 0) > 0;
 
                           return (
                             <div key={key}>
@@ -252,12 +255,14 @@ export default function Attribution() {
                                   <span className="text-[11px] font-bold uppercase tracking-wider text-ink-700">{label}</span>
                                   {isAlert && <AlertTriangle className="w-3 h-3 text-red-500" />}
                                 </div>
-                                <span className="text-[11px] font-mono font-bold text-blue-600">{(val * 100).toFixed(0)}%</span>
+                                <span className="text-[11px] font-mono font-bold text-blue-600">
+                                  {notComputed ? "not computed" : `${(val * 100).toFixed(0)}%`}
+                                </span>
                               </div>
                               <div className="h-1.5 bg-ink-100 rounded-full overflow-hidden mb-1">
                                 <div
                                   className={`h-full rounded-full ${isAlert ? "bg-red-500" : "bg-blue-500"}`}
-                                  style={{ width: `${val * 100}%` }}
+                                  style={{ width: notComputed ? "0%" : `${val * 100}%` }}
                                 />
                               </div>
                               <div className="flex justify-between items-start">

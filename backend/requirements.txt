@@ -25,6 +25,12 @@ pyarrow>=17.0
 # Phase 6 — report
 reportlab>=4.2
 
+# Vessel attribution — optional Isolation Forest secondary anomaly detector
+# (app/attribution/filters.py). Rule-based behaviour analysis is the primary,
+# always-on path and needs none of this; only used when a caller explicitly
+# passes use_isolation_forest=True.
+scikit-learn>=1.5
+
 # Phase 7 — optional U-Net detector (CPU inference; skip if you never trained one).
 # torch/torchvision are pinned to a matched pair (letting them resolve
 # independently can pull mismatched builds -- "torchvision::nms does not
