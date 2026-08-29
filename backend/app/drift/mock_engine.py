@@ -69,12 +69,17 @@ def _frames_to_api(result: simulate.SimulationResult, rng: np.random.Generator) 
     return out
 
 
-def hindcast(*, hours: float, n_particles: int, wind_factor: float, seed: int,
+def hindcast(*, ring: list[list[float]] = MOCK_SLICK_RING, hours: float, n_particles: int, wind_factor: float, seed: int,
              timestep_minutes: float = config.DRIFT_TIMESTEP_MINUTES,
-             diffusion_m2s: float | None = None) -> HindcastResponse:
+             diffusion_m2s: float | None = None,
+             wind_dir_deg: float | None = None) -> HindcastResponse:
     """Same shape as engine.hindcast(), driven by simulate.run() + the mock
     provider instead of a case bundle."""
     provider = MockEnvironmentalProvider()
+    if wind_dir_deg is not None:
+        from app.environment.base import OverrideWindProvider
+        provider = OverrideWindProvider(provider, wind_dir_deg)
+    
     draw_rng = np.random.default_rng(seed)
 
     age_min, age_max = MOCK_AGE_WINDOW
@@ -84,7 +89,7 @@ def hindcast(*, hours: float, n_particles: int, wind_factor: float, seed: int,
         diffusion_coefficient_m2s=diffusion_m2s,
     )
     result = simulate.run(
-        MOCK_SLICK_RING, provider=provider, start_time=MOCK_ACQUIRED_AT,
+        ring, provider=provider, start_time=MOCK_ACQUIRED_AT,
         direction=-1, config=cfg, seed=seed,
     )
 
@@ -148,10 +153,15 @@ def hindcast(*, hours: float, n_particles: int, wind_factor: float, seed: int,
     )
 
 
-def forecast(*, hours: float, n_particles: int, wind_factor: float, seed: int,
+def forecast(*, ring: list[list[float]] = MOCK_SLICK_RING, hours: float, n_particles: int, wind_factor: float, seed: int,
              timestep_minutes: float = config.DRIFT_TIMESTEP_MINUTES,
-             diffusion_m2s: float | None = None) -> ForecastResponse:
+             diffusion_m2s: float | None = None,
+             wind_dir_deg: float | None = None) -> ForecastResponse:
     provider = MockEnvironmentalProvider()
+    if wind_dir_deg is not None:
+        from app.environment.base import OverrideWindProvider
+        provider = OverrideWindProvider(provider, wind_dir_deg)
+
     draw_rng = np.random.default_rng(seed + 1)
 
     cfg = simulate.SimulationConfig(
@@ -160,7 +170,7 @@ def forecast(*, hours: float, n_particles: int, wind_factor: float, seed: int,
         diffusion_coefficient_m2s=diffusion_m2s,
     )
     result = simulate.run(
-        MOCK_SLICK_RING, provider=provider, start_time=MOCK_ACQUIRED_AT,
+        ring, provider=provider, start_time=MOCK_ACQUIRED_AT,
         direction=+1, config=cfg, seed=seed + 1,
     )
 
@@ -176,7 +186,7 @@ def forecast(*, hours: float, n_particles: int, wind_factor: float, seed: int,
     path = [[round(float(f.positions[:, 0].mean()), 5), round(float(f.positions[:, 1].mean()), 5)]
             for f in result.frames]
 
-    seed_ring = np.asarray(MOCK_SLICK_RING)
+    seed_ring = np.asarray(ring)
     final = result.frames[-1].positions
     north = 29.00  # matches the frozen case bbox's northern edge
     lat_end = final[:, 1].mean()

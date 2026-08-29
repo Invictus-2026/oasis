@@ -45,7 +45,9 @@ def _detected_slick(slick_id: str):
     return slick
 
 
-def _slick_context(slick_id: str):
+def _slick_context(slick_id: str, custom_polygon: dict | None = None):
+    if custom_polygon:
+        return custom_polygon["coordinates"][0], DEFAULT_AGE_WINDOW
     slick = _detected_slick(slick_id)
     ring = slick.polygon["coordinates"][0]
     age = (slick.age.min_hours, slick.age.max_hours) if slick.age else DEFAULT_AGE_WINDOW
@@ -59,18 +61,24 @@ def _detection_time() -> datetime:
 
 @lru_cache(maxsize=8)
 def _hindcast(slick_id: str, n: int, wf: float, seed: int,
-              ts: float = config.DRIFT_TIMESTEP_MINUTES, k: float | None = None) -> HindcastResponse:
-    ring, age = _slick_context(slick_id)
+              ts: float = config.DRIFT_TIMESTEP_MINUTES, k: float | None = None,
+              wind_dir_deg: float | None = None, custom_polygon_str: str | None = None) -> HindcastResponse:
+    import json
+    custom_polygon = json.loads(custom_polygon_str) if custom_polygon_str else None
+    ring, age = _slick_context(slick_id, custom_polygon)
     return engine.hindcast(load_case(), ring, age, n_particles=n, wind_factor=wf, seed=seed,
-                            timestep_minutes=ts, diffusion_m2s=k)
+                            timestep_minutes=ts, diffusion_m2s=k, wind_dir_deg=wind_dir_deg)
 
 
 @lru_cache(maxsize=8)
 def _forecast(slick_id: str, hours: float, n: int, wf: float, seed: int,
-              ts: float = config.DRIFT_TIMESTEP_MINUTES, k: float | None = None) -> ForecastResponse:
-    ring, _ = _slick_context(slick_id)
+              ts: float = config.DRIFT_TIMESTEP_MINUTES, k: float | None = None,
+              wind_dir_deg: float | None = None, custom_polygon_str: str | None = None) -> ForecastResponse:
+    import json
+    custom_polygon = json.loads(custom_polygon_str) if custom_polygon_str else None
+    ring, _ = _slick_context(slick_id, custom_polygon)
     return engine.forecast(load_case(), ring, hours, n_particles=n, wind_factor=wf, seed=seed,
-                            timestep_minutes=ts, diffusion_m2s=k)
+                            timestep_minutes=ts, diffusion_m2s=k, wind_dir_deg=wind_dir_deg)
 
 
 @router.post("/hindcast", response_model=HindcastResponse)
@@ -84,11 +92,15 @@ def hindcast(req: DriftRequest) -> HindcastResponse:
     """
     if not data_files_ready():
         return mock_engine.hindcast(
+            ring=_slick_context(req.slick_id, req.custom_polygon)[0],
             hours=req.hours, n_particles=req.n_particles, wind_factor=req.wind_factor,
             seed=req.seed, timestep_minutes=req.timestep_minutes, diffusion_m2s=req.diffusion_m2s,
+            wind_dir_deg=req.mock_wind_dir_deg,
         )
+    import json
+    cpoly = json.dumps(req.custom_polygon) if req.custom_polygon else None
     return _hindcast(req.slick_id, req.n_particles, req.wind_factor, req.seed,
-                      req.timestep_minutes, req.diffusion_m2s)
+                      req.timestep_minutes, req.diffusion_m2s, req.mock_wind_dir_deg, cpoly)
 
 
 @router.post("/forecast", response_model=ForecastResponse)
@@ -96,11 +108,15 @@ def forecast(req: DriftRequest) -> ForecastResponse:
     """Stage 2b — the same engine forward, for response planning."""
     if not data_files_ready():
         return mock_engine.forecast(
+            ring=_slick_context(req.slick_id, req.custom_polygon)[0],
             hours=req.hours, n_particles=req.n_particles, wind_factor=req.wind_factor,
             seed=req.seed, timestep_minutes=req.timestep_minutes, diffusion_m2s=req.diffusion_m2s,
+            wind_dir_deg=req.mock_wind_dir_deg,
         )
+    import json
+    cpoly = json.dumps(req.custom_polygon) if req.custom_polygon else None
     return _forecast(req.slick_id, req.hours, req.n_particles, req.wind_factor, req.seed,
-                      req.timestep_minutes, req.diffusion_m2s)
+                      req.timestep_minutes, req.diffusion_m2s, req.mock_wind_dir_deg, cpoly)
 
 
 @router.post("/origin-search", response_model=OriginSearchResponse)
@@ -116,18 +132,25 @@ def origin_search_route(req: OriginSearchRequest) -> OriginSearchResponse:
     single deterministic backtrack.
     """
     t0 = time.perf_counter()
-    slick = _detected_slick(req.slick_id)
     detected_at = _detection_time()
-
-    observed = origin_search.ObservedSlick(
-        polygon=slick.polygon["coordinates"][0],
-        detected_at=detected_at,
-        area_km2=slick.geometry.area_km2,
-        orientation_deg=slick.geometry.orientation_deg,
-        elongation=slick.geometry.elongation,
-        compactness=slick.geometry.compactness,
-        length_km=slick.geometry.length_km,
-    )
+    
+    if req.custom_polygon:
+        ring = req.custom_polygon["coordinates"][0]
+        observed = origin_search.ObservedSlick(
+            polygon=ring, detected_at=detected_at,
+            area_km2=0.0, orientation_deg=0.0, elongation=1.0, compactness=1.0, length_km=0.0
+        )
+    else:
+        slick = _detected_slick(req.slick_id)
+        observed = origin_search.ObservedSlick(
+            polygon=slick.polygon["coordinates"][0],
+            detected_at=detected_at,
+            area_km2=slick.geometry.area_km2,
+            orientation_deg=slick.geometry.orientation_deg,
+            elongation=slick.geometry.elongation,
+            compactness=slick.geometry.compactness,
+            length_km=slick.geometry.length_km,
+        )
 
     bundle = load_case()
     provider = get_provider(bundle) if data_files_ready() else get_provider(None)

@@ -63,10 +63,18 @@ def _frames_to_api(frames, rng) -> list[ParticleFrame]:
 def hindcast(bundle, slick_ring, age_hours: tuple[float, float], *,
              n_particles: int, wind_factor: float, seed: int,
              timestep_minutes: float = config.DRIFT_TIMESTEP_MINUTES,
-             diffusion_m2s: float | None = None) -> HindcastResponse:
+             diffusion_m2s: float | None = None,
+             wind_dir_deg: float | None = None) -> HindcastResponse:
     field = ForcingField.from_bundle(bundle)
     if field is None:
         raise RuntimeError("case bundle has no forcing field")
+
+    if wind_dir_deg is not None:
+        import math
+        rad = math.radians(wind_dir_deg)
+        speed = np.hypot(field.u_wind, field.v_wind)
+        field.u_wind = speed * math.sin(rad)
+        field.v_wind = speed * math.cos(rad)
 
     steps: list[ProcessingStep] = []
     rng = np.random.default_rng(seed)
@@ -168,10 +176,18 @@ def hindcast(bundle, slick_ring, age_hours: tuple[float, float], *,
 def forecast(bundle, slick_ring, hours: float, *,
              n_particles: int, wind_factor: float, seed: int,
              timestep_minutes: float = config.DRIFT_TIMESTEP_MINUTES,
-             diffusion_m2s: float | None = None) -> ForecastResponse:
+             diffusion_m2s: float | None = None,
+             wind_dir_deg: float | None = None) -> ForecastResponse:
     field = ForcingField.from_bundle(bundle)
     if field is None:
         raise RuntimeError("case bundle has no forcing field")
+
+    if wind_dir_deg is not None:
+        import math
+        rad = math.radians(wind_dir_deg)
+        speed = np.hypot(field.u_wind, field.v_wind)
+        field.u_wind = speed * math.sin(rad)
+        field.v_wind = speed * math.cos(rad)
 
     steps: list[ProcessingStep] = []
     rng = np.random.default_rng(seed)

@@ -178,3 +178,35 @@ class EnvironmentalDataProvider(ABC):
         if np.isscalar(lon) or (hasattr(lon, "ndim") and lon.ndim == 0):
             return float(u[0]), float(v[0])
         return u, v
+
+
+class OverrideWindProvider(EnvironmentalDataProvider):
+    """Wraps an existing provider, replacing the wind direction while preserving speed."""
+
+    def __init__(self, base_provider: EnvironmentalDataProvider, wind_dir_deg: float):
+        self._base = base_provider
+        self._wind_dir_rad = math.radians(wind_dir_deg)
+        self.name = f"{self._base.name} (wind overridden to {wind_dir_deg}°)"
+
+    def available(self) -> bool:
+        return self._base.available()
+
+    def at(self, lon: float, lat: float, time: datetime) -> EnvironmentalData:
+        d = self._base.at(lon, lat, time)
+        speed = math.hypot(d.u_wind_ms, d.v_wind_ms)
+        u_new = speed * math.sin(self._wind_dir_rad)
+        v_new = speed * math.cos(self._wind_dir_rad)
+        
+        # We must use model_copy since EnvironmentalData is frozen
+        return d.model_copy(update={
+            "u_wind_ms": round(u_new, 4),
+            "v_wind_ms": round(v_new, 4),
+            "source": self.name
+        })
+
+    def surface_velocity(self, lon, lat, wind_factor: float, time: datetime):
+        """Cannot simply delegate to base because we must intercept the wind."""
+        # For simplicity we fall back to the per-particle loop. Vectorized
+        # overriding is possible but this decorator is only for small manual tests.
+        return EnvironmentalDataProvider.surface_velocity(self, lon, lat, wind_factor, time)
+
