@@ -41,8 +41,8 @@ DRAW_PARTICLES = 220
 # arbitrary point, so the ensemble's spread is still geometry-driven rather
 # than a single dot growing in place.
 MOCK_SLICK_RING = [
-    [-90.14, 28.39], [-90.06, 28.40], [-89.99, 28.43],
-    [-89.99, 28.45], [-90.10, 28.44], [-90.14, 28.39],
+    [-90.14, 26.89], [-90.06, 26.90], [-89.99, 26.93],
+    [-89.99, 26.95], [-90.10, 26.94], [-90.14, 26.89],
 ]
 MOCK_AGE_WINDOW = (6.0, 14.0)
 MOCK_ACQUIRED_AT = datetime(2023, 6, 15, 12, 0, 0, tzinfo=timezone.utc)

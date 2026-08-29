@@ -3,13 +3,13 @@
  "name": "Gulf of Mexico \u2014 offshore Louisiana",
  "bbox": {
   "west": -90.36,
-  "south": 28.345,
+  "south": 26.845,
   "east": -89.64,
-  "north": 28.75
+  "north": 27.25
  },
  "center": [
   -89.983125,
-  28.591429
+  27.091429
  ],
  "scene_id": "S1A_IW_GRDH_1SDV_20230615T120000",
  "acquired_at": "2023-06-15T12:00:00Z",

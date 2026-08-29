@@ -469,7 +469,8 @@ function AdHocUpload() {
             </div>
 
             <SectionCard title="Detection Metrics" icon={<Layers className="w-4 h-4" />}>
-               <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mb-4">
+               <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
+                  <StatBox label="Target Region" value="Gulf of Mexico (LA)" />
                   <StatBox label="Dimensions" value={`${result.width}×${result.height}`} />
                   <StatBox label="Volume (Liters)" value={result.total_volume_liters.toLocaleString()} />
                   <StatBox label="Volume (Barrels)" value={result.total_volume_barrels.toFixed(1)} />

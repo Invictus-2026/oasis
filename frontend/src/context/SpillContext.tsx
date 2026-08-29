@@ -16,7 +16,7 @@ import type {
 import { type LayerVisibility } from "../components/MapView";
 import { type ViewMode } from "../lib/viewMode";
 
-const FRAME_MS = 150; // Slower playback for smoother analysis
+const FRAME_MS = 60; // Faster playback for smoother analysis
 
 const DEFAULT_WIND_DIR = 306;
 

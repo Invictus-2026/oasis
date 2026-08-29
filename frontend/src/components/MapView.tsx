@@ -38,6 +38,7 @@ interface Props {
   activeSlickId?: string | null;
   mockWindDir?: number;
   customOverlays?: CustomImageOverlay[];
+  offlineMap?: boolean;
 }
 
 const EMPTY: GeoJSON.FeatureCollection = { type: "FeatureCollection", features: [] };
@@ -143,12 +144,13 @@ export default function MapView({
 
   useEffect(() => {
     if (!ready || !map.current) return;
-    // Dark theme on the map doubles as the SAR/satellite-radar look: a near-
-    // black navy base rather than the lighter dark-UI ink tone, so the grain
-    // and scanline overlay reads as radar imagery instead of just a dim map.
-    const mapBgColor = theme === "dark" ? "#04070d" : "#e2e8f0";
+    // Rich oceanic colors for offline map
+    const mapBgColor = theme === "dark" ? "#06132b" : "#e0f2fe";
     map.current.setPaintProperty("bg", "background-color", mapBgColor);
+    map.current.setPaintProperty("graticule-line", "line-color", theme === "dark" ? "#1e3a8a" : "#93c5fd");
+    map.current.setPaintProperty("graticule-line", "line-opacity", theme === "dark" ? 0.6 : 0.5);
   }, [theme, ready]);
+
 
   const onSelect = useRef(onSelectVessel);
   onSelect.current = onSelectVessel;
@@ -163,7 +165,7 @@ export default function MapView({
     const m = new maplibregl.Map({
       container: container.current,
       style: STYLE,
-      center: [-90.0, 28.55],
+      center: [-90.0, 27.05],
       zoom: 8.2,
       attributionControl: false,
     });
@@ -187,20 +189,26 @@ export default function MapView({
       for (const id of ["graticule", "frame", "cone90", "cone50", "originRegion90",
         "originRegion50", "lookalikes", "slick",
         "particles", "forecastCone", "forecastPath", "tracks", "origin",
-        "gap", "connector", "windField"]) {
+        "gap", "connector", "windField", "currentField"]) {
         m.addSource(id, { type: "geojson", data: EMPTY });
       }
 
-      // With no network basemap the ocean is a flat colour.
-      // Light theme graticules
+
+
+      // Graticules
       m.addLayer({
         id: "graticule-line", source: "graticule", type: "line",
-        paint: { "line-color": "#94a3b8", "line-width": 1, "line-opacity": 0.4 }
+        paint: { "line-color": "#93c5fd", "line-width": 1, "line-opacity": 0.5 }
       });
 
       m.addLayer({
         id: "windField-line", source: "windField", type: "line",
-        paint: { "line-color": "#9ca3af", "line-width": 1.5, "line-opacity": 0.3 }
+        paint: { "line-color": "#10b981", "line-width": 1.5, "line-opacity": 0.4 } // Emerald wind
+      });
+
+      m.addLayer({
+        id: "currentField-line", source: "currentField", type: "line",
+        paint: { "line-color": "#3b82f6", "line-width": 1.5, "line-opacity": 0.4 } // Blue currents
       });
 
       // Draw order matters: cones sit under everything, the slick sits above
@@ -412,9 +420,7 @@ export default function MapView({
     const m = map.current;
     if (!ready || !m || !caseMeta?.sar_overlay_url) return;
 
-    const url = theme === "dark"
-      ? caseMeta.sar_overlay_url
-      : caseMeta.sar_overlay_url.replace(/\.png$/, "-inverted.png");
+    const url = caseMeta.sar_overlay_url;
 
     const existing = m.getSource("sar") as maplibregl.ImageSource | undefined;
     if (existing) {
@@ -868,6 +874,36 @@ export default function MapView({
         }
       }
       setData("windField", { type: "FeatureCollection", features: arrows });
+
+      // Currents (blue arrows), let's offset the angle slightly (e.g. Ekman transport 45deg right of wind)
+      const currentArrows: GeoJSON.Feature[] = [];
+      const currentRad = (90 - mockWindDir + 45) * (Math.PI / 180);
+      const cdx = Math.cos(currentRad) * arrowLen * 0.8;
+      const cdy = Math.sin(currentRad) * arrowLen * 0.8;
+      const chx1 = Math.cos(currentRad + Math.PI - headAngle) * headLen;
+      const chy1 = Math.sin(currentRad + Math.PI - headAngle) * headLen;
+      const chx2 = Math.cos(currentRad + Math.PI + headAngle) * headLen;
+      const chy2 = Math.sin(currentRad + Math.PI + headAngle) * headLen;
+
+      // Shift the grid slightly for currents so they don't overlap wind perfectly
+      for (let lon = from(west) + step * 0.25; lon < east; lon += step) {
+        for (let lat = from(south) + step * 0.25; lat < north; lat += step) {
+          const endLon = lon + cdx;
+          const endLat = lat + cdy;
+          currentArrows.push({
+            type: "Feature", properties: {},
+            geometry: {
+              type: "MultiLineString",
+              coordinates: [
+                [[lon, lat], [endLon, endLat]],
+                [[endLon, endLat], [endLon + chx1, endLat + chy1]],
+                [[endLon, endLat], [endLon + chx2, endLat + chy2]]
+              ]
+            }
+          });
+        }
+      }
+      setData("currentField", { type: "FeatureCollection", features: currentArrows });
     };
 
     updateGridAndArrows();
@@ -882,11 +918,11 @@ export default function MapView({
        *  layered over the dark-theme map so it reads as radar imagery rather
        *  than just a dimmed basemap. Cross-faded via opacity, not mounted
        *  conditionally, so the transition itself animates. */}
-      <div className={`sar-noise-overlay${theme === "dark" ? " active" : ""}`}>
-        <div className="sar-grain" />
+      <div className={`sar-noise-overlay active ${theme}`}>
+        <div className="sar-vignette" />
         <div className="sar-scanlines" />
         <div className="sar-sweep" />
-        <div className="sar-vignette" />
+        {theme === "dark" && <div className="sar-grain" />}
       </div>
     </>
   );

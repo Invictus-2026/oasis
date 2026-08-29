@@ -1,5 +1,6 @@
 import { Search, Bell, Settings, Moon, Sun } from "lucide-react";
 import { useTheme } from "../../context/ThemeContext";
+import { useSpillState } from "../../context/SpillContext";
 
 export default function Topbar() {
   const { theme, toggleTheme } = useTheme();
