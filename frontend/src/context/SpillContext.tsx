@@ -77,6 +77,8 @@ interface SpillContextType {
   // Legacy compatibility, though components will migrate off this
   frameIndex: number;
   frames: number;
+  hindcastFrames: number;
+  forecastFrames: number;
   playing: boolean;
   setFrameIndex: React.Dispatch<React.SetStateAction<number>>;
   setPlaying: React.Dispatch<React.SetStateAction<boolean>>;
@@ -320,18 +322,6 @@ export function SpillProvider({ children }: { children: ReactNode }) {
         windDir ?? mockWindDir
       );
 
-      // Limit to max 15 segments as requested
-      if (finalF && finalF.particles_timeline.length > 15) {
-        finalF.particles_timeline = finalF.particles_timeline.slice(0, 15);
-        const maxT = finalF.particles_timeline[finalF.particles_timeline.length - 1].t_offset_hours;
-        finalF.cone = finalF.cone.filter(c => c.t_offset_hours <= maxT);
-
-        // Also truncate the centroid path coordinates if possible (approximate by segment count)
-        if (finalF.centroid_path.type === "LineString") {
-          finalF.centroid_path.coordinates = finalF.centroid_path.coordinates.slice(0, 15);
-        }
-      }
-
       setForecast(finalF);
       setForecastIndex(0);
       setForecastPlaying(true);
@@ -554,6 +544,8 @@ export function SpillProvider({ children }: { children: ReactNode }) {
 
         hindcastIndex,
         forecastIndex,
+        hindcastFrames,
+        forecastFrames,
         hindcastPlaying,
         forecastPlaying,
 
