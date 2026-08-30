@@ -132,10 +132,7 @@ export default function MapView({
   const map = useRef < maplibregl.Map | null > (null);
   const resizeObs = useRef < ResizeObserver | null > (null);
 
-  // Filter slicks based on active selection
-  const targetSlicks = activeSlickId && activeSlickId !== "all" && detection?.slicks
-    ? detection.slicks.filter(s => s.id === activeSlickId)
-    : detection?.slicks || [];
+  const targetSlicks = detection?.slicks || [];
 
   // State, not a ref: when the style finishes loading the data effects below
   // must re-run. A ref flips silently and they would never fire again.
@@ -390,22 +387,7 @@ export default function MapView({
     });
   }, [caseMeta, ready]);
 
-  // ---- pan to new custom uploads ----------------------------------------
-  const prevSlickCount = useRef(0);
-  useEffect(() => {
-    if (!ready || !map.current) return;
-    const count = detection?.slicks?.length || 0;
-    if (count > prevSlickCount.current) {
-      const lastSlick = detection!.slicks[count - 1];
-      if (lastSlick.polygon.type === "Polygon") {
-        const pts = lastSlick.polygon.coordinates[0] as [number, number][];
-        const cx = pts.reduce((s, p) => s + p[0], 0) / pts.length;
-        const cy = pts.reduce((s, p) => s + p[1], 0) / pts.length;
-        map.current.flyTo({ center: [cx, cy], zoom: 9, duration: 1500 });
-      }
-    }
-    prevSlickCount.current = count;
-  }, [ready, detection]);
+
 
   // ---- SAR overlay ------------------------------------------------------
   // Added in its own effect rather than in the style-load handler: the case is
@@ -525,10 +507,16 @@ export default function MapView({
     setData("slick", {
       type: "FeatureCollection",
       features: layers.slick
-        ? targetSlicks.map((s) => ({
-          type: "Feature", geometry: s.polygon,
-          properties: { id: s.id, confidence: s.confidence },
-        }))
+        ? detection?.slicks?.map(s => ({
+          type: "Feature",
+          geometry: s.polygon,
+          properties: {
+            id: s.id,
+            confidence: s.confidence,
+            selected: s.id === activeSlickId,
+            class: "oil",
+          }
+        })) || []
         : [],
     });
     setData("lookalikes", {
@@ -795,11 +783,18 @@ export default function MapView({
     });
   }, [ready, attribution, selectedMmsi, hindcast, layers.tracks]);
 
+  const handledFocusNonce = useRef<number | null>(null);
+
   // ---- "View on SAR": fly to a ruled-out candidate ------------------------
   useEffect(() => {
     const m = map.current;
     if (!ready || !m || !focusRequest || !detection) return;
-    const target = detection.rejected_lookalikes.find((r) => r.id === focusRequest.id);
+    
+    if (handledFocusNonce.current === focusRequest.nonce) return;
+    handledFocusNonce.current = focusRequest.nonce;
+
+    const target = detection.rejected_lookalikes.find((r) => r.id === focusRequest.id) ||
+                   detection.slicks.find((s) => s.id === focusRequest.id);
     if (!target || target.polygon.type !== "Polygon") return;
     const ring = target.polygon.coordinates[0] as [number, number][];
     const lons = ring.map((p) => p[0]);

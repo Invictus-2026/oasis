@@ -1,15 +1,20 @@
-import { useState, useRef, useEffect } from "react";
+import re
+
+with open("frontend/src/pages/SatelliteIntelligence.tsx", "r") as f:
+    content = f.read()
+
+new_content = """import { useState, useRef, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useSpillState } from "../context/SpillContext";
 import { ViewModeProvider } from "../lib/viewMode";
-import { bearingLabel, deg, hours, km, ratio } from "../lib/format";
-import { generateMockUploadDetection } from "../lib/mockDetector";
+import { bearingLabel, deg, hours, km, pct, ratio } from "../lib/format";
 import {
   Satellite, Search, Layers, Zap, BrainCircuit, Maximize,
-  Clock, EyeOff, AlertTriangle, ChevronDown, ChevronRight,
-  UploadCloud, FileImage, MapPin, CheckCircle2, ArrowRight, Activity, Crosshair
+  Clock, EyeOff, AlertTriangle, Eye, ChevronDown, ChevronRight,
+  UploadCloud, FileImage, Image as ImageIcon, MapPin, CheckCircle2, ArrowRight, Activity, Crosshair
 } from "lucide-react";
-import type { DetectionMethod, UploadResponse, UploadRegion, CustomImageOverlay, SlickGeometry, AgeEstimate, DetectionEvidence, BackscatterStats } from "../api/types";
+import type { DetectionMethod, UploadResponse, UploadRegion, CustomImageOverlay, Slick, RejectedLookalike, SlickGeometry, AgeEstimate, DetectionEvidence, BackscatterStats } from "../api/types";
+import { motion, AnimatePresence } from "framer-motion";
 
 function Badge({ children, color = "gray" }: { children: React.ReactNode; color?: string }) {
   const map: Record<string, string> = {
@@ -41,13 +46,13 @@ function SectionCard({ title, icon, children, defaultOpen = true }: {
         <span className="flex-1 text-sm font-bold text-ink-800 tracking-tight">{title}</span>
         {open ? <ChevronDown className="w-4 h-4 text-ink-400" /> : <ChevronRight className="w-4 h-4 text-ink-400" />}
       </button>
-      {open && (
-         <div className="overflow-hidden transition-all duration-300">
-           <div className="px-5 py-4">
+      <AnimatePresence>
+         {open && (
+           <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: "auto", opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="px-5 py-4 overflow-hidden">
              {children}
-           </div>
-         </div>
-       )}
+           </motion.div>
+         )}
+      </AnimatePresence>
     </div>
   );
 }
@@ -87,7 +92,12 @@ interface UnifiedSlick {
 
 function SlickDetailsPanel({ item, onMapProject }: { item: UnifiedSlick; onMapProject?: () => void }) {
   return (
-    <div key={item.id} className="flex flex-col gap-4 animate-in fade-in slide-in-from-bottom-2 duration-500">
+    <motion.div 
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      key={item.id}
+      className="flex flex-col gap-4"
+    >
       {/* Primary Banner */}
       <div className={`rounded-xl p-5 flex flex-col md:flex-row items-center justify-between gap-6 ${item.isLookalike ? "bg-ink-50 border border-ink-200" : "bg-amber-50 border border-amber-200"}`}>
         <div>
@@ -204,7 +214,7 @@ function SlickDetailsPanel({ item, onMapProject }: { item: UnifiedSlick; onMapPr
             </div>
          </SectionCard>
       )}
-    </div>
+    </motion.div>
   );
 }
 
@@ -259,7 +269,7 @@ function SidebarList({ items, selectedId, onSelect }: { items: UnifiedSlick[]; s
                 <span className="font-bold text-ink-900 text-sm">Look-alike #{i + 1}</span>
                 <span className="text-xs text-ink-400 font-mono">{(s.confidence * 100).toFixed(0)}% CONF</span>
               </div>
-              <div className="text-[10px] text-ink-500 line-clamp-1 mt-1">{s.reason}</div>
+              <div className="text-[10px] text-ink-500 line-clamp-1">{s.reason}</div>
             </button>
           ))}
           {lookalikes.length === 0 && <div className="text-sm text-ink-400 italic px-2">No look-alikes found.</div>}
@@ -337,13 +347,16 @@ function AdHocUpload() {
       }
 
       if (!data) {
-        if (!imgRef.current) throw new Error("Image element not loaded.");
-        data = await generateMockUploadDetection(
-          imgRef.current!,
-          gsd,
-          caseMeta ? [caseMeta.center[0], caseMeta.center[1]] : [-89.85125, 28.47625],
-          method
-        );
+        if (!imgRef.current && !canvasRef.current) throw new Error("Image element not loaded.");
+        const canvas = canvasRef.current || document.createElement("canvas");
+        const ctx = canvas.getContext("2d")!;
+        const w = imgRef.current?.naturalWidth || 800;
+        const h = imgRef.current?.naturalHeight || 600;
+        if (!canvasRef.current) {
+          canvas.width = w; canvas.height = h;
+          ctx.drawImage(imgRef.current!, 0, 0);
+        }
+        data = await generateMockUploadDetection(ctx, w, h, gsd, method);
       }
 
       setResult(data);
@@ -484,20 +497,17 @@ function AdHocUpload() {
             <UploadCloud className="w-4 h-4 text-blue-600" /> Image Upload
           </h3>
           <div className="flex flex-col gap-4">
-            <label className="relative flex flex-col items-center justify-center w-full h-40 border-2 border-dashed border-ink-300 rounded-xl bg-ink-50 hover:bg-ink-100 hover:border-blue-400 transition-colors cursor-pointer group">
-              <div className="flex flex-col items-center justify-center pt-5 pb-6">
-                <UploadCloud className="w-10 h-10 text-ink-400 group-hover:text-blue-500 mb-3 transition-colors" />
-                <p className="mb-2 text-sm text-ink-700 font-bold"><span className="text-blue-600 group-hover:underline">Click to upload</span> or drag and drop</p>
-                <p className="text-xs text-ink-500">SAR imagery (PNG, JPEG, TIFF)</p>
-              </div>
-              <input type="file" className="hidden" accept="image/*" onChange={(e) => { if (e.target.files?.[0]) setFile(e.target.files[0]); }} />
-            </label>
-            {file && <div className="text-sm font-semibold text-blue-700 bg-blue-50 p-3 rounded-lg border border-blue-200 flex items-center justify-center gap-2"><FileImage className="w-4 h-4"/> {file.name}</div>}
+            <div className="flex items-center gap-4">
+              <label className="cursor-pointer bg-ink-50 hover:bg-ink-100 border border-ink-200 text-ink-700 px-4 py-2 rounded-lg text-sm font-semibold transition-colors flex items-center gap-2 shrink-0">
+                <FileImage className="w-4 h-4" /> Choose File
+                <input type="file" className="hidden" accept="image/*" onChange={(e) => { if (e.target.files?.[0]) setFile(e.target.files[0]); }} />
+              </label>
+              <div className="text-sm text-ink-500 truncate max-w-xs">{file ? file.name : "No file selected"}</div>
+            </div>
             
-            <div className="flex gap-2 flex-wrap items-center mt-2">
-              <span className="text-xs font-bold text-ink-400 uppercase tracking-widest mr-2">Or try a sample:</span>
+            <div className="flex gap-2 flex-wrap">
               {SAMPLE_IMAGES.map((s, i) => (
-                <button key={i} onClick={() => loadSample(s)} className="text-xs font-semibold bg-ink-100 hover:bg-blue-100 hover:text-blue-700 text-ink-700 px-3 py-1.5 rounded-md transition-colors border border-ink-200 hover:border-blue-200">{s.name}</button>
+                <button key={i} onClick={() => loadSample(s)} className="text-xs bg-ink-100 hover:bg-ink-200 text-ink-700 px-3 py-1.5 rounded-md transition-colors">{s.name}</button>
               ))}
             </div>
           </div>
@@ -537,47 +547,47 @@ function AdHocUpload() {
       )}
 
       {(imgUrl || result) && (
-        <div className="flex flex-col gap-6 mb-6">
-           <div className="bg-ink-100 rounded-xl overflow-hidden border border-ink-200 relative flex justify-center w-full max-h-[600px]">
-             <canvas ref={canvasRef} className="max-w-full max-h-[600px] object-contain shadow-sm bg-ink-900" />
-           </div>
-           
+        <div className="grid grid-cols-1 xl:grid-cols-12 gap-6 mb-6">
            {result && unifiedItems.length > 0 && (
-             <div className="flex flex-col gap-6">
-               {projected ? (
-                 <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-6 text-center shadow-sm">
-                   <div className="flex justify-center mb-3"><CheckCircle2 className="w-12 h-12 text-emerald-500" /></div>
-                   <h3 className="text-xl font-black text-emerald-900 mb-2">Successfully Projected</h3>
-                   <p className="text-emerald-700 mb-6">Custom scene injected into operational intelligence.</p>
-                   <div className="flex justify-center gap-4">
-                     <button onClick={() => navigate("/map")} className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-sm font-bold flex items-center gap-2 shadow-sm transition-all">
-                       View on Map <MapPin className="w-4 h-4" />
-                     </button>
-                     <button onClick={() => navigate("/drift")} className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-bold flex items-center gap-2 shadow-sm transition-all">
-                       Drift Intelligence <ArrowRight className="w-4 h-4" />
-                     </button>
-                   </div>
-                 </div>
-               ) : !activeItem ? (
-                 <>
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                       <StatBox label="Image Dimensions" value={`${result?.width || 0}×${result?.height || 0}`} />
-                       <StatBox label="Detected Regions" value={unifiedItems.length} />
-                       <StatBox label="Total Area" value={`${result?.total_area_km2.toFixed(1) || "0.0"} km²`} />
-                       <StatBox label="Estimated Volume" value={`${result?.total_volume_barrels.toFixed(0) || "0"} bbls`} />
-                    </div>
-                    <SidebarList items={unifiedItems} selectedId={selectedId} onSelect={setSelectedId} />
-                 </>
-               ) : (
-                  <div className="flex flex-col gap-6 animate-in fade-in slide-in-from-right-4 duration-500">
-                     <button onClick={() => setSelectedId(null)} className="self-start flex items-center gap-2 text-sm font-bold text-ink-500 hover:text-ink-800 transition-colors bg-ink-50 hover:bg-ink-100 px-4 py-2 rounded-lg border border-ink-200">
-                       <ChevronRight className="w-4 h-4 rotate-180" /> Back to Analysis List
-                     </button>
-                     <SlickDetailsPanel item={activeItem} onMapProject={!activeItem.isLookalike ? handleProjectToMap : undefined} />
-                  </div>
-               )}
+             <div className="xl:col-span-4">
+               <SidebarList items={unifiedItems} selectedId={selectedId} onSelect={setSelectedId} />
              </div>
            )}
+           
+           <div className={`flex flex-col gap-6 ${result && unifiedItems.length > 0 ? "xl:col-span-8" : "xl:col-span-12"}`}>
+             <div className="bg-ink-100 rounded-xl overflow-hidden border border-ink-200 relative flex justify-center w-full max-h-[600px]">
+               <canvas ref={canvasRef} className="max-w-full max-h-[600px] object-contain shadow-sm bg-ink-900" />
+             </div>
+             
+             {projected ? (
+               <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-6 text-center shadow-sm">
+                 <div className="flex justify-center mb-3"><CheckCircle2 className="w-12 h-12 text-emerald-500" /></div>
+                 <h3 className="text-xl font-black text-emerald-900 mb-2">Successfully Projected</h3>
+                 <p className="text-emerald-700 mb-6">Custom scene injected into operational intelligence.</p>
+                 <div className="flex justify-center gap-4">
+                   <button onClick={() => navigate("/map")} className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-sm font-bold flex items-center gap-2 shadow-sm transition-all">
+                     View on Map <MapPin className="w-4 h-4" />
+                   </button>
+                   <button onClick={() => navigate("/drift")} className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-bold flex items-center gap-2 shadow-sm transition-all">
+                     Drift Intelligence <ArrowRight className="w-4 h-4" />
+                   </button>
+                 </div>
+               </div>
+             ) : (
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                   <StatBox label="Image Dimensions" value={`${result?.width || 0}×${result?.height || 0}`} />
+                   <StatBox label="Detected Regions" value={unifiedItems.length} />
+                   <StatBox label="Total Area" value={`${result?.total_area_km2.toFixed(1) || "0.0"} km²`} />
+                   <StatBox label="Estimated Volume" value={`${result?.total_volume_barrels.toFixed(0) || "0"} bbls`} />
+                </div>
+             )}
+
+             {activeItem && !projected && (
+                <div className="mt-2">
+                   <SlickDetailsPanel item={activeItem} onMapProject={!activeItem.isLookalike ? handleProjectToMap : undefined} />
+                </div>
+             )}
+           </div>
         </div>
       )}
     </div>
@@ -586,7 +596,7 @@ function AdHocUpload() {
 
 // ── main component ─────────────────────────────────────────────
 export default function SatelliteIntelligence() {
-  const { detection, detecting, method, runDetect, viewMode, onFocusLookalike, setActiveSlickId } = useSpillState();
+  const { detection, detecting, method, runDetect, onFocusLookalike, viewMode } = useSpillState();
   const [mode, setMode] = useState<"case" | "upload">("case");
   const [selectedId, setSelectedId] = useState<string | null>(null);
 
@@ -597,35 +607,14 @@ export default function SatelliteIntelligence() {
   };
 
   useEffect(() => {
-    // Keep the current selection if it still exists in the updated detection
-    const selectionStillValid = selectedId && (
-      detection?.slicks?.some(s => s.id === selectedId) ||
-      detection?.rejected_lookalikes?.some(r => r.id === selectedId)
-    );
-    
-    if (!selectionStillValid) {
-      if (detection?.slicks?.length) {
-        const id = detection.slicks[0].id;
-        setSelectedId(id);
-        onFocusLookalike(id);
-        setActiveSlickId(id);
-      } else if (detection?.rejected_lookalikes?.length) {
-        const id = detection.rejected_lookalikes[0].id;
-        setSelectedId(id);
-        onFocusLookalike(id);
-      } else {
-        setSelectedId(null);
-      }
+    if (detection?.slicks?.length) {
+      setSelectedId(detection.slicks[0].id);
+    } else if (detection?.rejected_lookalikes?.length) {
+      setSelectedId(detection.rejected_lookalikes[0].id);
+    } else {
+      setSelectedId(null);
     }
   }, [detection]);
-
-  const handleSelect = (id: string) => {
-    setSelectedId(id);
-    onFocusLookalike(id);
-    if (detection?.slicks?.some(s => s.id === id)) {
-      setActiveSlickId(id);
-    }
-  };
 
   // Convert `case` mode data into the unified model
   const unifiedItems: UnifiedSlick[] = detection ? [
@@ -730,19 +719,20 @@ export default function SatelliteIntelligence() {
               )}
 
               {detection && unifiedItems.length > 0 && (
-                <div className="flex flex-col gap-6">
-                   {!activeItem ? (
-                     <div className="animate-in fade-in slide-in-from-left-4 duration-500">
-                       <SidebarList items={unifiedItems} selectedId={selectedId} onSelect={handleSelect} />
-                     </div>
-                   ) : (
-                     <div className="flex flex-col gap-6 animate-in fade-in slide-in-from-right-4 duration-500">
-                       <button onClick={() => setSelectedId(null)} className="self-start flex items-center gap-2 text-sm font-bold text-ink-500 hover:text-ink-800 transition-colors bg-ink-50 hover:bg-ink-100 px-4 py-2 rounded-lg border border-ink-200">
-                         <ChevronRight className="w-4 h-4 rotate-180" /> Back to Analysis List
-                       </button>
+                <div className="grid grid-cols-1 xl:grid-cols-12 gap-6">
+                   <div className="xl:col-span-4">
+                     <SidebarList items={unifiedItems} selectedId={selectedId} onSelect={setSelectedId} />
+                   </div>
+                   
+                   <div className="xl:col-span-8 flex flex-col gap-6">
+                     {activeItem ? (
                        <SlickDetailsPanel item={activeItem} />
-                     </div>
-                   )}
+                     ) : (
+                       <div className="flex items-center justify-center h-64 bg-ink-50 rounded-xl border border-ink-200 text-ink-500 text-sm">
+                         Select a slick to view deep analysis.
+                       </div>
+                     )}
+                   </div>
                 </div>
               )}
            </div>
