@@ -2,10 +2,10 @@ import { useState } from "react";
 import { useSpillState } from "../context/SpillContext";
 import { ViewModeProvider, AnalystOnly } from "../lib/viewMode";
 import SpillSelector from "../components/SpillSelector";
-import { hours, km, lonLat, utc } from "../lib/format";
+import { hours, km, lonLat } from "../lib/format";
 import {
   Map, History, ArrowRight, Crosshair, HelpCircle,
-  Navigation, AlertTriangle, ShieldCheck, Play, Pause, ChevronDown, ChevronRight, Wind, Activity, Database, Waves, Calculator, CheckCircle
+  AlertTriangle, ShieldCheck, Play, Pause, ChevronDown, ChevronRight, Wind, Activity, Waves, Calculator, CheckCircle
 } from "lucide-react";
 
 // ── helpers ────────────────────────────────────────────────────
@@ -74,8 +74,30 @@ export default function DriftIntelligence() {
     runHindcast, runForecast, randomizeWind,
     setHindcastIndex, setHindcastPlaying,
     setForecastIndex, setForecastPlaying,
-    viewMode, activeSlickId, setActiveSlickId, mockWindDir
+    viewMode, activeSlickId, setActiveSlickId, mockWindDir, detection, caseMeta
   } = useSpillState();
+
+  const renderTime = (tOffsetHours: number | undefined) => {
+    if (tOffsetHours === undefined) return "--";
+    if (!detection?.provenance?.generated_at) return `${tOffsetHours > 0 ? "+" : ""}${tOffsetHours.toFixed(0)} HOURS`;
+    
+    const d = new Date(detection.provenance.generated_at);
+    d.setMinutes(d.getMinutes() + tOffsetHours * 60);
+    
+    const timeStr = d.toLocaleString(undefined, { 
+      month: "short", day: "numeric", hour: "2-digit", minute: "2-digit", timeZoneName: "short" 
+    });
+    return `${timeStr} (${tOffsetHours > 0 ? "+" : ""}${tOffsetHours.toFixed(1)}h)`;
+  };
+
+  const getOriginOffsetHours = () => {
+    if (!hindcast?.origin_estimate?.time_utc) return 0;
+    const backendOriginTime = new Date(hindcast.origin_estimate.time_utc).getTime();
+    const backendBaseTime = caseMeta?.acquired_at 
+      ? new Date(caseMeta.acquired_at).getTime() 
+      : new Date(detection?.provenance?.generated_at || Date.now()).getTime();
+    return (backendOriginTime - backendBaseTime) / (1000 * 60 * 60);
+  };
 
   const [activeTab, setActiveTab] = useState<"hindcast" | "forecast">("hindcast");
 
@@ -119,8 +141,8 @@ export default function DriftIntelligence() {
       // If the forecast doesn't cover this horizon yet, skip it
       if (minDiff > 2) return null;
       
-      const p0 = forecast.centroid_path.coordinates[0];
-      const p1 = forecast.centroid_path.coordinates[closestIdx];
+      const p0 = (forecast.centroid_path as any).coordinates[0];
+      const p1 = (forecast.centroid_path as any).coordinates[closestIdx];
       const distance = p0 && p1 ? calcDistance(p0 as [number, number], p1 as [number, number]) : 0;
       
       const targetT = forecast.particles_timeline[closestIdx].t_offset_hours;
@@ -128,9 +150,9 @@ export default function DriftIntelligence() {
       
       let spreadRadius = 0;
       if (coneAtT && p1) {
-        const pts = coneAtT.polygon.coordinates[0] || [];
+        const pts = (coneAtT.polygon as any).coordinates[0] || [];
         let maxD = 0;
-        pts.forEach(pt => {
+        pts.forEach((pt: any) => {
           const d = calcDistance(p1 as [number, number], pt as [number, number]);
           if (d > maxD) maxD = d;
         });
@@ -243,7 +265,7 @@ export default function DriftIntelligence() {
                     <div className="flex justify-between items-end mb-2">
                       <span className="text-xs font-bold text-ink-600 uppercase tracking-wider">Hindcast Scrub</span>
                       <span className="text-lg font-black text-blue-600 tabular-nums">
-                        {hindcast?.particles_timeline[Math.min(hindcastIndex, hindcastFrames - 1)]?.t_offset_hours.toFixed(0)} <span className="text-xs text-blue-400">HOURS</span>
+                        {renderTime(hindcast?.particles_timeline[Math.min(hindcastIndex, hindcastFrames - 1)]?.t_offset_hours)}
                       </span>
                     </div>
                     <input
@@ -268,7 +290,7 @@ export default function DriftIntelligence() {
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                       <StatBox label="Most Likely Point" value={lonLat(hindcast.origin_estimate.point)} />
                       <StatBox label="Uncertainty Radius" value={km(hindcast.origin_estimate.uncertainty_radius_km)} />
-                      <StatBox label="Release Time" value={utc(hindcast.origin_estimate.time_utc)} />
+                      <StatBox label="Release Time" value={renderTime(getOriginOffsetHours())} />
                       <StatBox
                         label="Release Window"
                         value={`${hours(hindcast.origin_estimate.time_window_hours[0])} – ${hours(hindcast.origin_estimate.time_window_hours[1])}`}
@@ -336,11 +358,13 @@ export default function DriftIntelligence() {
                         </div>
                         <div>
                           <span className="text-blue-500 block text-[9px] uppercase tracking-wider mb-0.5">Particles</span>
-                          {hindcast.provenance.params.n_particles || 500}
+                          {String(hindcast.provenance.params.n_particles || 500)}
                         </div>
                         <div>
                           <span className="text-blue-500 block text-[9px] uppercase tracking-wider mb-0.5">Wind Factor</span>
-                          {(hindcast.provenance.params.wind_factor as number) * 100 || "3.0"}%
+                          <span className="font-bold text-ink-900 truncate">
+                            {Number(hindcast.provenance.params.wind_factor || 0.03) * 100}%
+                          </span>
                         </div>
                         <div>
                           <span className="text-blue-500 block text-[9px] uppercase tracking-wider mb-0.5">Timestamp</span>
@@ -395,7 +419,7 @@ export default function DriftIntelligence() {
                     <div className="flex justify-between items-end mb-2">
                       <span className="text-xs font-bold text-ink-600 uppercase tracking-wider">Forecast Scrub</span>
                       <span className="text-lg font-black text-purple-600 tabular-nums">
-                        +{forecast?.particles_timeline[Math.min(forecastIndex, forecastFrames - 1)]?.t_offset_hours.toFixed(0)} <span className="text-xs text-purple-400">HOURS</span>
+                        {renderTime(forecast?.particles_timeline[Math.min(forecastIndex, forecastFrames - 1)]?.t_offset_hours)}
                       </span>
                     </div>
                     <input

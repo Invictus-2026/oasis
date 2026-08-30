@@ -26,7 +26,6 @@ import type {
   HindcastResponse,
   LonLat,
   ReportContent,
-  Slick,
 } from "./types";
 
 const FORCE_MOCK =
@@ -83,9 +82,9 @@ export const detect = (method: DetectionMethod = "classical") =>
 export const hindcast = (slickId: string, hours = 24, nParticles = 500, customPolygon?: GeoJSON.Polygon, mockWindDir?: number) =>
   call<HindcastResponse>(
     "/api/drift/hindcast",
-    { 
-      slick_id: slickId, 
-      hours, 
+    {
+      slick_id: slickId,
+      hours,
       n_particles: nParticles,
       custom_polygon: customPolygon,
       mock_wind_dir_deg: mockWindDir,
@@ -96,9 +95,9 @@ export const hindcast = (slickId: string, hours = 24, nParticles = 500, customPo
 export const forecast = (slickId: string, hours = 12, nParticles = 500, customPolygon?: GeoJSON.Polygon, mockWindDir?: number) =>
   call<ForecastResponse>(
     "/api/drift/forecast",
-    { 
-      slick_id: slickId, 
-      hours, 
+    {
+      slick_id: slickId,
+      hours,
       n_particles: nParticles,
       custom_polygon: customPolygon,
       mock_wind_dir_deg: mockWindDir,

@@ -129,7 +129,7 @@ export function SpillProvider({ children }: { children: ReactNode }) {
   const [mockWindDir, setMockWindDir] = useState(DEFAULT_WIND_DIR);
 
   // Clear simulation data when switching between spills
-  const prevActiveSlick = useRef<string | null>(null);
+  const prevActiveSlick = useRef < string | null > (null);
   useEffect(() => {
     if (prevActiveSlick.current !== null && activeSlickId !== prevActiveSlick.current) {
       // User switched spills — wipe old hindcast/forecast/attribution so
@@ -330,7 +330,7 @@ export function SpillProvider({ children }: { children: ReactNode }) {
     }
   }, [detection, mockWindDir, activeSlickId]);
 
-  const runAttribute = useCallback(async (windDir?: number, hindcastOverride?: HindcastResponse) => {
+  const runAttribute = useCallback(async (_windDir?: number, hindcastOverride?: HindcastResponse) => {
     const h = hindcastOverride ?? hindcast;
     const o = h?.origin_estimate;
     if (!o) return;
@@ -362,7 +362,7 @@ export function SpillProvider({ children }: { children: ReactNode }) {
       const activeSlick = (activeSlickId && activeSlickId !== "all"
         ? detection.slicks.find(s => s.id === activeSlickId)
         : null) || detection.slicks[0];
-      
+
       const rep = await api.report(caseMeta.id, activeSlick.id);
       if (rep) {
         setReport(rep);
