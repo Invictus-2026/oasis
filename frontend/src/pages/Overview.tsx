@@ -28,7 +28,7 @@ export default function Overview() {
             {/* HERO SECTION: MarineTraffic Map */}
             <div className="relative w-full h-[400px] shrink-0 bg-ink-900 overflow-hidden">
                <iframe 
-                  src="https://www.marinetraffic.com/en/ais/embed/zoom:10/centery:22.3/centerx:60.9"
+                  src="https://www.marinetraffic.com/en/ais/embed/zoom:9/centery:27.05/centerx:-90.0"
                   className="absolute inset-0 w-full h-full border-0 z-0 mix-blend-luminosity opacity-80"
                   title="Marine Traffic Live Map"
                />

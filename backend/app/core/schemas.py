@@ -262,6 +262,14 @@ class DriftRequest(BaseModel):
         description="fixed horizontal eddy diffusivity; omit to derive it from the ensemble's "
                     "own spread each step via the Okubo (1971) scale-dependent law",
     )
+    custom_polygon: GeoJSON | None = Field(
+        default=None,
+        description="A polygon geometry representing a custom-uploaded slick, used instead of slick_id lookup.",
+    )
+    mock_wind_dir_deg: float | None = Field(
+        default=None, ge=0.0, le=360.0,
+        description="Optional override for the wind direction (bearing toward, degrees clockwise from north), used for simulation testing.",
+    )
 
 
 class HindcastResponse(BaseModel):
@@ -286,6 +294,8 @@ class OriginSearchRequest(BaseModel):
     timestep_minutes: float = Field(default=15.0, gt=0.0, le=1440.0)
     diffusion_m2s: float | None = Field(default=None, ge=0.0)
     seed: int = 42
+    custom_polygon: GeoJSON | None = None
+    mock_wind_dir_deg: float | None = Field(default=None, ge=0.0, le=360.0)
 
 
 class CandidateMetrics(BaseModel):

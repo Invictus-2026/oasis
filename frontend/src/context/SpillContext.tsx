@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, useRef, type ReactNode } from "react";
 import * as api from "../api/client";
 import { getDataMode, onDataModeChange } from "../api/client";
-import { shiftHindcast, shiftForecast, shiftAttribution, MOCK_CENTER } from "../lib/shiftMock";
+
 import type {
   AttributeResponse,
   CaseMeta,
@@ -16,7 +16,7 @@ import type {
 import { type LayerVisibility } from "../components/MapView";
 import { type ViewMode } from "../lib/viewMode";
 
-const FRAME_MS = 150; // Slower playback for smoother analysis
+const FRAME_MS = 60; // Faster playback for smoother analysis
 
 const DEFAULT_WIND_DIR = 306;
 
@@ -77,6 +77,8 @@ interface SpillContextType {
   // Legacy compatibility, though components will migrate off this
   frameIndex: number;
   frames: number;
+  hindcastFrames: number;
+  forecastFrames: number;
   playing: boolean;
   setFrameIndex: React.Dispatch<React.SetStateAction<number>>;
   setPlaying: React.Dispatch<React.SetStateAction<boolean>>;
@@ -127,7 +129,7 @@ export function SpillProvider({ children }: { children: ReactNode }) {
   const [mockWindDir, setMockWindDir] = useState(DEFAULT_WIND_DIR);
 
   // Clear simulation data when switching between spills
-  const prevActiveSlick = useRef<string | null>(null);
+  const prevActiveSlick = useRef < string | null > (null);
   useEffect(() => {
     if (prevActiveSlick.current !== null && activeSlickId !== prevActiveSlick.current) {
       // User switched spills — wipe old hindcast/forecast/attribution so
@@ -279,34 +281,15 @@ export function SpillProvider({ children }: { children: ReactNode }) {
         : detection.slicks;
       if (!targetSlicks.length) return null;
 
-      let result: HindcastResponse;
-      const isAdhoc = targetSlicks.some(s => s.id.startsWith("adhoc-"));
-      if (isAdhoc) {
-        const raw = (await import("../mock/hindcast.json")).default;
-        let finalH: HindcastResponse | null = null;
-        for (const slick of targetSlicks) {
-          let h = JSON.parse(JSON.stringify(raw)) as HindcastResponse;
-          const poly = slick.polygon as GeoJSON.Polygon;
-          const pts = poly.coordinates[0];
-          const cLon = pts.reduce((s, p) => s + p[0], 0) / pts.length;
-          const cLat = pts.reduce((s, p) => s + p[1], 0) / pts.length;
-          h = shiftHindcast(h, cLon - MOCK_CENTER[0], cLat - MOCK_CENTER[1], windDir ?? mockWindDir);
-
-          if (!finalH) {
-            finalH = h;
-          } else {
-            finalH.cone.push(...h.cone);
-            for (let i = 0; i < finalH.particles_timeline.length; i++) {
-              if (h.particles_timeline[i]) {
-                finalH.particles_timeline[i].points.push(...h.particles_timeline[i].points);
-              }
-            }
-          }
-        }
-        result = finalH!;
-      } else {
-        result = await api.hindcast(targetSlicks[0].id, 24);
-      }
+      const firstSlick = targetSlicks[0];
+      const isAdhoc = firstSlick.id.startsWith("adhoc-");
+      const result = await api.hindcast(
+        firstSlick.id,
+        24,
+        500,
+        isAdhoc ? (firstSlick.polygon as GeoJSON.Polygon) : undefined,
+        windDir ?? mockWindDir
+      );
       setHindcast(result);
 
       setAttribution(null);
@@ -329,44 +312,15 @@ export function SpillProvider({ children }: { children: ReactNode }) {
         : detection.slicks;
       if (!targetSlicks.length) return;
 
-      const isAdhoc = targetSlicks.some(s => s.id.startsWith("adhoc-"));
-      let finalF: ForecastResponse | null = null;
-      if (isAdhoc) {
-        const raw = (await import("../mock/forecast.json")).default;
-        for (const slick of targetSlicks) {
-          let f = JSON.parse(JSON.stringify(raw)) as ForecastResponse;
-          const poly = slick.polygon as GeoJSON.Polygon;
-          const pts = poly.coordinates[0];
-          const cLon = pts.reduce((s, p) => s + p[0], 0) / pts.length;
-          const cLat = pts.reduce((s, p) => s + p[1], 0) / pts.length;
-          f = shiftForecast(f, cLon - MOCK_CENTER[0], cLat - MOCK_CENTER[1], windDir ?? mockWindDir);
-
-          if (!finalF) {
-            finalF = f;
-          } else {
-            finalF.cone.push(...f.cone);
-            for (let i = 0; i < finalF.particles_timeline.length; i++) {
-              if (f.particles_timeline[i]) {
-                finalF.particles_timeline[i].points.push(...f.particles_timeline[i].points);
-              }
-            }
-          }
-        }
-      } else {
-        finalF = await api.forecast(targetSlicks[0].id, 72);
-      }
-
-      // Limit to max 15 segments as requested
-      if (finalF && finalF.particles_timeline.length > 15) {
-        finalF.particles_timeline = finalF.particles_timeline.slice(0, 15);
-        const maxT = finalF.particles_timeline[finalF.particles_timeline.length - 1].t_offset_hours;
-        finalF.cone = finalF.cone.filter(c => c.t_offset_hours <= maxT);
-
-        // Also truncate the centroid path coordinates if possible (approximate by segment count)
-        if (finalF.centroid_path.type === "LineString") {
-          finalF.centroid_path.coordinates = finalF.centroid_path.coordinates.slice(0, 15);
-        }
-      }
+      const firstSlick = targetSlicks[0];
+      const isAdhoc = firstSlick.id.startsWith("adhoc-");
+      let finalF = await api.forecast(
+        firstSlick.id,
+        72,
+        500,
+        isAdhoc ? (firstSlick.polygon as GeoJSON.Polygon) : undefined,
+        windDir ?? mockWindDir
+      );
 
       setForecast(finalF);
       setForecastIndex(0);
@@ -376,7 +330,7 @@ export function SpillProvider({ children }: { children: ReactNode }) {
     }
   }, [detection, mockWindDir, activeSlickId]);
 
-  const runAttribute = useCallback(async (windDir?: number, hindcastOverride?: HindcastResponse) => {
+  const runAttribute = useCallback(async (_windDir?: number, hindcastOverride?: HindcastResponse) => {
     const h = hindcastOverride ?? hindcast;
     const o = h?.origin_estimate;
     if (!o) return;
@@ -388,22 +342,12 @@ export function SpillProvider({ children }: { children: ReactNode }) {
         : detection?.slicks || [];
       const firstSlick = targetSlicks[0] || detection?.slicks[0];
 
-      const isAdhoc = firstSlick?.id.startsWith("adhoc-");
-      const raw = isAdhoc
-        ? (await import("../mock/attribution.json")).default
-        : await api.attribute(o.point, o.time_utc, {
-            uncertaintyRadiusKm: o.uncertainty_radius_km,
-            timeWindowHours: o.time_window_hours,
-            driftBearingDeg: firstSlick?.geometry.orientation_deg,
-          });
-      let a = raw as AttributeResponse;
-      if (isAdhoc && firstSlick) {
-        const poly = firstSlick.polygon as GeoJSON.Polygon;
-        const pts = poly.coordinates[0];
-        const cLon = pts.reduce((s, p) => s + p[0], 0) / pts.length;
-        const cLat = pts.reduce((s, p) => s + p[1], 0) / pts.length;
-        a = shiftAttribution(a, cLon - MOCK_CENTER[0], cLat - MOCK_CENTER[1], windDir ?? mockWindDir);
-      }
+      const raw = await api.attribute(o.point, o.time_utc, {
+        uncertaintyRadiusKm: o.uncertainty_radius_km,
+        timeWindowHours: o.time_window_hours,
+        driftBearingDeg: firstSlick?.geometry.orientation_deg,
+      });
+      const a = raw as AttributeResponse;
       setAttribution(a);
       setSelectedMmsi(a.candidates[0]?.mmsi ?? null);
     } finally {
@@ -418,7 +362,7 @@ export function SpillProvider({ children }: { children: ReactNode }) {
       const activeSlick = (activeSlickId && activeSlickId !== "all"
         ? detection.slicks.find(s => s.id === activeSlickId)
         : null) || detection.slicks[0];
-      
+
       const rep = await api.report(caseMeta.id, activeSlick.id);
       if (rep) {
         setReport(rep);
@@ -600,6 +544,8 @@ export function SpillProvider({ children }: { children: ReactNode }) {
 
         hindcastIndex,
         forecastIndex,
+        hindcastFrames,
+        forecastFrames,
         hindcastPlaying,
         forecastPlaying,
 

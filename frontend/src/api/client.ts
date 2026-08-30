@@ -79,17 +79,29 @@ export const getCase = () =>
 export const detect = (method: DetectionMethod = "classical") =>
   call<DetectResponse>("/api/detect", { method }, detectionMock);
 
-export const hindcast = (slickId: string, hours = 24, nParticles = 500) =>
+export const hindcast = (slickId: string, hours = 24, nParticles = 500, customPolygon?: GeoJSON.Polygon, mockWindDir?: number) =>
   call<HindcastResponse>(
     "/api/drift/hindcast",
-    { slick_id: slickId, hours, n_particles: nParticles },
+    {
+      slick_id: slickId,
+      hours,
+      n_particles: nParticles,
+      custom_polygon: customPolygon,
+      mock_wind_dir_deg: mockWindDir,
+    },
     hindcastMock,
   );
 
-export const forecast = (slickId: string, hours = 12, nParticles = 500) =>
+export const forecast = (slickId: string, hours = 12, nParticles = 500, customPolygon?: GeoJSON.Polygon, mockWindDir?: number) =>
   call<ForecastResponse>(
     "/api/drift/forecast",
-    { slick_id: slickId, hours, n_particles: nParticles },
+    {
+      slick_id: slickId,
+      hours,
+      n_particles: nParticles,
+      custom_polygon: customPolygon,
+      mock_wind_dir_deg: mockWindDir,
+    },
     forecastMock,
   );
 

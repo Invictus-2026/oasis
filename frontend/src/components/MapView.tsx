@@ -38,6 +38,7 @@ interface Props {
   activeSlickId?: string | null;
   mockWindDir?: number;
   customOverlays?: CustomImageOverlay[];
+  offlineMap?: boolean;
 }
 
 const EMPTY: GeoJSON.FeatureCollection = { type: "FeatureCollection", features: [] };
@@ -112,6 +113,21 @@ function sliceLine(geom: GeoJSON.Geometry, progress: number): GeoJSON.Geometry {
   return geom;
 }
 
+function getLineEnd(geom: GeoJSON.Geometry, progress: number): [number, number] | null {
+  const sliced = sliceLine(geom, progress);
+  if (sliced.type === "LineString") {
+    const coords = sliced.coordinates as [number, number][];
+    return coords.length > 0 ? coords[coords.length - 1] : null;
+  }
+  if (sliced.type === "MultiLineString") {
+    const lines = sliced.coordinates as [number, number][][];
+    for (let i = lines.length - 1; i >= 0; i--) {
+      if (lines[i].length > 0) return lines[i][lines[i].length - 1];
+    }
+  }
+  return null;
+}
+
 /** A no-network raster style. Demo rule: nothing on screen may depend on the
  *  venue's wifi, so the basemap is a flat colour plus our own data. */
 const STYLE: maplibregl.StyleSpecification = {
@@ -131,10 +147,7 @@ export default function MapView({
   const map = useRef < maplibregl.Map | null > (null);
   const resizeObs = useRef < ResizeObserver | null > (null);
 
-  // Filter slicks based on active selection
-  const targetSlicks = activeSlickId && activeSlickId !== "all" && detection?.slicks
-    ? detection.slicks.filter(s => s.id === activeSlickId)
-    : detection?.slicks || [];
+  const targetSlicks = detection?.slicks || [];
 
   // State, not a ref: when the style finishes loading the data effects below
   // must re-run. A ref flips silently and they would never fire again.
@@ -143,12 +156,13 @@ export default function MapView({
 
   useEffect(() => {
     if (!ready || !map.current) return;
-    // Dark theme on the map doubles as the SAR/satellite-radar look: a near-
-    // black navy base rather than the lighter dark-UI ink tone, so the grain
-    // and scanline overlay reads as radar imagery instead of just a dim map.
-    const mapBgColor = theme === "dark" ? "#04070d" : "#e2e8f0";
+    // Rich oceanic colors for offline map
+    const mapBgColor = theme === "dark" ? "#06132b" : "#e0f2fe";
     map.current.setPaintProperty("bg", "background-color", mapBgColor);
+    map.current.setPaintProperty("graticule-line", "line-color", theme === "dark" ? "#1e3a8a" : "#93c5fd");
+    map.current.setPaintProperty("graticule-line", "line-opacity", theme === "dark" ? 0.6 : 0.5);
   }, [theme, ready]);
+
 
   const onSelect = useRef(onSelectVessel);
   onSelect.current = onSelectVessel;
@@ -163,7 +177,7 @@ export default function MapView({
     const m = new maplibregl.Map({
       container: container.current,
       style: STYLE,
-      center: [-90.0, 28.55],
+      center: [-90.0, 27.05],
       zoom: 8.2,
       attributionControl: false,
     });
@@ -187,20 +201,33 @@ export default function MapView({
       for (const id of ["graticule", "frame", "cone90", "cone50", "originRegion90",
         "originRegion50", "lookalikes", "slick",
         "particles", "forecastCone", "forecastPath", "tracks", "origin",
-        "gap", "connector", "windField"]) {
+        "gap", "connector", "windField", "currentField"]) {
         m.addSource(id, { type: "geojson", data: EMPTY });
       }
 
-      // With no network basemap the ocean is a flat colour.
-      // Light theme graticules
+
+
+      const shipSvg = `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="black" stroke-width="2" xmlns="http://www.w3.org/2000/svg"><path d="M2 12l2-6 8-2 8 2 2 6-4 10H6L2 12z" fill="#f87171"/></svg>`;
+      const img = new Image(24, 24);
+      img.onload = () => {
+        if (!m.hasImage("boat-icon")) m.addImage("boat-icon", img);
+      };
+      img.src = "data:image/svg+xml;charset=utf-8," + encodeURIComponent(shipSvg);
+
+      // Graticules
       m.addLayer({
         id: "graticule-line", source: "graticule", type: "line",
-        paint: { "line-color": "#94a3b8", "line-width": 1, "line-opacity": 0.4 }
+        paint: { "line-color": "#93c5fd", "line-width": 1, "line-opacity": 0.5 }
       });
 
       m.addLayer({
         id: "windField-line", source: "windField", type: "line",
-        paint: { "line-color": "#9ca3af", "line-width": 1.5, "line-opacity": 0.3 }
+        paint: { "line-color": "#10b981", "line-width": 1.5, "line-opacity": 0.4 } // Emerald wind
+      });
+
+      m.addLayer({
+        id: "currentField-line", source: "currentField", type: "line",
+        paint: { "line-color": "#3b82f6", "line-width": 1.5, "line-opacity": 0.4 } // Blue currents
       });
 
       // Draw order matters: cones sit under everything, the slick sits above
@@ -306,6 +333,20 @@ export default function MapView({
         }
       });
 
+      m.addLayer({
+        id: "tracks-head", source: "tracks", type: "symbol",
+        filter: ["==", ["geometry-type"], "Point"],
+        layout: {
+          "icon-image": "boat-icon",
+          "icon-size": ["case", ["get", "selected"], 1.2, 0.8],
+          "icon-allow-overlap": true,
+          "icon-ignore-placement": true,
+        },
+        paint: {
+          "icon-opacity": ["case", ["get", "dimmed"], 0.25, 1],
+        }
+      });
+
       // The evidence connective tissue: what links a selected vessel to the
       // spill. The gap is where its AIS went dark; the connector is a plain
       // "this is how close it came" line to the origin — not a claim, a ruler.
@@ -382,22 +423,7 @@ export default function MapView({
     });
   }, [caseMeta, ready]);
 
-  // ---- pan to new custom uploads ----------------------------------------
-  const prevSlickCount = useRef(0);
-  useEffect(() => {
-    if (!ready || !map.current) return;
-    const count = detection?.slicks?.length || 0;
-    if (count > prevSlickCount.current) {
-      const lastSlick = detection!.slicks[count - 1];
-      if (lastSlick.polygon.type === "Polygon") {
-        const pts = lastSlick.polygon.coordinates[0] as [number, number][];
-        const cx = pts.reduce((s, p) => s + p[0], 0) / pts.length;
-        const cy = pts.reduce((s, p) => s + p[1], 0) / pts.length;
-        map.current.flyTo({ center: [cx, cy], zoom: 9, duration: 1500 });
-      }
-    }
-    prevSlickCount.current = count;
-  }, [ready, detection]);
+
 
   // ---- SAR overlay ------------------------------------------------------
   // Added in its own effect rather than in the style-load handler: the case is
@@ -412,9 +438,7 @@ export default function MapView({
     const m = map.current;
     if (!ready || !m || !caseMeta?.sar_overlay_url) return;
 
-    const url = theme === "dark"
-      ? caseMeta.sar_overlay_url
-      : caseMeta.sar_overlay_url.replace(/\.png$/, "-inverted.png");
+    const url = caseMeta.sar_overlay_url;
 
     const existing = m.getSource("sar") as maplibregl.ImageSource | undefined;
     if (existing) {
@@ -519,10 +543,16 @@ export default function MapView({
     setData("slick", {
       type: "FeatureCollection",
       features: layers.slick
-        ? targetSlicks.map((s) => ({
-          type: "Feature", geometry: s.polygon,
-          properties: { id: s.id, confidence: s.confidence },
-        }))
+        ? detection?.slicks?.map(s => ({
+          type: "Feature",
+          geometry: s.polygon,
+          properties: {
+            id: s.id,
+            confidence: s.confidence,
+            selected: s.id === activeSlickId,
+            class: "oil",
+          }
+        })) || []
         : [],
     });
     setData("lookalikes", {
@@ -727,17 +757,29 @@ export default function MapView({
 
     const render = (progress: number) => setData("tracks", {
       type: "FeatureCollection",
-      features: candidates.map((c) => ({
-        type: "Feature",
-        geometry: sliceLine(c.track, progress),
-        properties: {
+      features: candidates.flatMap((c) => {
+        const props = {
           mmsi: c.mmsi,
           name: c.name,
           suspect: c.flags.includes("DARK_VESSEL"),
           selected: c.mmsi === selectedMmsi,
           dimmed: selectedMmsi !== null && c.mmsi !== selectedMmsi,
-        },
-      })),
+        };
+        const res: any[] = [{
+          type: "Feature",
+          geometry: sliceLine(c.track, progress),
+          properties: props,
+        }];
+        const endPt = getLineEnd(c.track, progress);
+        if (endPt) {
+          res.push({
+            type: "Feature",
+            geometry: { type: "Point", coordinates: endPt },
+            properties: props,
+          });
+        }
+        return res;
+      }),
     });
 
     if (isNew && candidates.length > 0) {
@@ -789,11 +831,18 @@ export default function MapView({
     });
   }, [ready, attribution, selectedMmsi, hindcast, layers.tracks]);
 
+  const handledFocusNonce = useRef<number | null>(null);
+
   // ---- "View on SAR": fly to a ruled-out candidate ------------------------
   useEffect(() => {
     const m = map.current;
     if (!ready || !m || !focusRequest || !detection) return;
-    const target = detection.rejected_lookalikes.find((r) => r.id === focusRequest.id);
+    
+    if (handledFocusNonce.current === focusRequest.nonce) return;
+    handledFocusNonce.current = focusRequest.nonce;
+
+    const target = detection.rejected_lookalikes.find((r) => r.id === focusRequest.id) ||
+                   detection.slicks.find((s) => s.id === focusRequest.id);
     if (!target || target.polygon.type !== "Polygon") return;
     const ring = target.polygon.coordinates[0] as [number, number][];
     const lons = ring.map((p) => p[0]);
@@ -868,6 +917,36 @@ export default function MapView({
         }
       }
       setData("windField", { type: "FeatureCollection", features: arrows });
+
+      // Currents (blue arrows), let's offset the angle slightly (e.g. Ekman transport 45deg right of wind)
+      const currentArrows: GeoJSON.Feature[] = [];
+      const currentRad = (90 - mockWindDir + 45) * (Math.PI / 180);
+      const cdx = Math.cos(currentRad) * arrowLen * 0.8;
+      const cdy = Math.sin(currentRad) * arrowLen * 0.8;
+      const chx1 = Math.cos(currentRad + Math.PI - headAngle) * headLen;
+      const chy1 = Math.sin(currentRad + Math.PI - headAngle) * headLen;
+      const chx2 = Math.cos(currentRad + Math.PI + headAngle) * headLen;
+      const chy2 = Math.sin(currentRad + Math.PI + headAngle) * headLen;
+
+      // Shift the grid slightly for currents so they don't overlap wind perfectly
+      for (let lon = from(west) + step * 0.25; lon < east; lon += step) {
+        for (let lat = from(south) + step * 0.25; lat < north; lat += step) {
+          const endLon = lon + cdx;
+          const endLat = lat + cdy;
+          currentArrows.push({
+            type: "Feature", properties: {},
+            geometry: {
+              type: "MultiLineString",
+              coordinates: [
+                [[lon, lat], [endLon, endLat]],
+                [[endLon, endLat], [endLon + chx1, endLat + chy1]],
+                [[endLon, endLat], [endLon + chx2, endLat + chy2]]
+              ]
+            }
+          });
+        }
+      }
+      setData("currentField", { type: "FeatureCollection", features: currentArrows });
     };
 
     updateGridAndArrows();
@@ -882,11 +961,11 @@ export default function MapView({
        *  layered over the dark-theme map so it reads as radar imagery rather
        *  than just a dimmed basemap. Cross-faded via opacity, not mounted
        *  conditionally, so the transition itself animates. */}
-      <div className={`sar-noise-overlay${theme === "dark" ? " active" : ""}`}>
-        <div className="sar-grain" />
+      <div className={`sar-noise-overlay active ${theme}`}>
+        <div className="sar-vignette" />
         <div className="sar-scanlines" />
         <div className="sar-sweep" />
-        <div className="sar-vignette" />
+        {theme === "dark" && <div className="sar-grain" />}
       </div>
     </>
   );
