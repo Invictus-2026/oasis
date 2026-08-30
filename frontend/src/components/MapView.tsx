@@ -113,6 +113,21 @@ function sliceLine(geom: GeoJSON.Geometry, progress: number): GeoJSON.Geometry {
   return geom;
 }
 
+function getLineEnd(geom: GeoJSON.Geometry, progress: number): [number, number] | null {
+  const sliced = sliceLine(geom, progress);
+  if (sliced.type === "LineString") {
+    const coords = sliced.coordinates as [number, number][];
+    return coords.length > 0 ? coords[coords.length - 1] : null;
+  }
+  if (sliced.type === "MultiLineString") {
+    const lines = sliced.coordinates as [number, number][][];
+    for (let i = lines.length - 1; i >= 0; i--) {
+      if (lines[i].length > 0) return lines[i][lines[i].length - 1];
+    }
+  }
+  return null;
+}
+
 /** A no-network raster style. Demo rule: nothing on screen may depend on the
  *  venue's wifi, so the basemap is a flat colour plus our own data. */
 const STYLE: maplibregl.StyleSpecification = {
@@ -191,6 +206,13 @@ export default function MapView({
       }
 
 
+
+      const shipSvg = `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="black" stroke-width="2" xmlns="http://www.w3.org/2000/svg"><path d="M2 12l2-6 8-2 8 2 2 6-4 10H6L2 12z" fill="#f87171"/></svg>`;
+      const img = new Image(24, 24);
+      img.onload = () => {
+        if (!m.hasImage("boat-icon")) m.addImage("boat-icon", img);
+      };
+      img.src = "data:image/svg+xml;charset=utf-8," + encodeURIComponent(shipSvg);
 
       // Graticules
       m.addLayer({
@@ -308,6 +330,20 @@ export default function MapView({
             ["get", "suspect"], C.suspect, C.vessel],
           "line-width": ["case", ["get", "selected"], 3.5, 1.6],
           "line-opacity": ["case", ["get", "dimmed"], 0.15, 0.85],
+        }
+      });
+
+      m.addLayer({
+        id: "tracks-head", source: "tracks", type: "symbol",
+        filter: ["==", ["geometry-type"], "Point"],
+        layout: {
+          "icon-image": "boat-icon",
+          "icon-size": ["case", ["get", "selected"], 1.2, 0.8],
+          "icon-allow-overlap": true,
+          "icon-ignore-placement": true,
+        },
+        paint: {
+          "icon-opacity": ["case", ["get", "dimmed"], 0.25, 1],
         }
       });
 
@@ -721,17 +757,29 @@ export default function MapView({
 
     const render = (progress: number) => setData("tracks", {
       type: "FeatureCollection",
-      features: candidates.map((c) => ({
-        type: "Feature",
-        geometry: sliceLine(c.track, progress),
-        properties: {
+      features: candidates.flatMap((c) => {
+        const props = {
           mmsi: c.mmsi,
           name: c.name,
           suspect: c.flags.includes("DARK_VESSEL"),
           selected: c.mmsi === selectedMmsi,
           dimmed: selectedMmsi !== null && c.mmsi !== selectedMmsi,
-        },
-      })),
+        };
+        const res: any[] = [{
+          type: "Feature",
+          geometry: sliceLine(c.track, progress),
+          properties: props,
+        }];
+        const endPt = getLineEnd(c.track, progress);
+        if (endPt) {
+          res.push({
+            type: "Feature",
+            geometry: { type: "Point", coordinates: endPt },
+            properties: props,
+          });
+        }
+        return res;
+      }),
     });
 
     if (isNew && candidates.length > 0) {

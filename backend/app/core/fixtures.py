@@ -399,7 +399,7 @@ def forecast_response(hours: float = 12.0, n_particles: int = 500, seed: int = 4
 
 _VESSELS = [
     # (mmsi, name, type, bearing_deg, closest_km, has_gap, gap_min)
-    (GT_MMSI, GT_NAME, "Chemical/Oil Products Tanker", 52.0, 1.8, True, 94.0),
+    (GT_MMSI, GT_NAME, "Chemical/Oil Products Tanker", 52.0, 0.1, True, 94.0),
     ("538007612", "MV NORTHERN PETREL", "Bulk Carrier", 61.0, 6.4, True, 38.0),
     ("311000765", "MV GULF SENTINEL", "Crude Oil Tanker", 128.0, 9.1, False, 0.0),
     ("366998210", "SEACOR REVIVAL", "Offshore Supply Vessel", 205.0, 14.7, False, 0.0),
@@ -407,7 +407,7 @@ _VESSELS = [
 ]
 
 
-def attribute_response(weights: ScoreWeights | None = None) -> AttributeResponse:
+def attribute_response(weights: ScoreWeights | None = None, origin: tuple[float, float] | None = None, origin_time_utc: datetime | None = None) -> AttributeResponse:
     """Mock/fixture shape for Phase 7's six-component scoring.
 
     Kept structurally aligned with app/attribution/scoring.py's real pipeline
@@ -418,7 +418,8 @@ def attribute_response(weights: ScoreWeights | None = None) -> AttributeResponse
     """
     weights = weights or ScoreWeights()
     rng = random.Random(7)
-    origin_time = config.ACQUIRED_AT - timedelta(hours=8)
+    origin_pos = origin or GT_ORIGIN
+    origin_time = origin_time_utc or (config.ACQUIRED_AT - timedelta(hours=8))
 
     candidates: list[VesselCandidate] = []
     for mmsi, name, vtype, bearing, closest, has_gap, gap_min in _VESSELS:
@@ -427,7 +428,7 @@ def attribute_response(weights: ScoreWeights | None = None) -> AttributeResponse
         pts = []
         for s in range(-9, 10):
             along = s * 5.0
-            pts.append(list(_offset(*GT_ORIGIN,
+            pts.append(list(_offset(*origin_pos,
                                     along * math.sin(theta) + closest * math.cos(theta) + rng.gauss(0, 0.25),
                                     along * math.cos(theta) - closest * math.sin(theta) + rng.gauss(0, 0.25))))
 

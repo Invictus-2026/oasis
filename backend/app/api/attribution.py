@@ -18,5 +18,10 @@ def attribute(req: AttributeRequest) -> AttributeResponse:
     otherwise, mirroring every other endpoint's mock-mode convention.
     """
     if not data_files_ready():
-        return fixtures.attribute_response(req.weights)
+        if req.origin_region and "coordinates" in req.origin_region:
+            pts = req.origin_region["coordinates"][0]
+            origin_pos = [sum(p[0] for p in pts) / len(pts), sum(p[1] for p in pts) / len(pts)]
+        else:
+            origin_pos = None
+        return fixtures.attribute_response(req.weights, origin=origin_pos, origin_time_utc=req.release_window_start_utc)
     return engine.reconstruct_and_score(req)
