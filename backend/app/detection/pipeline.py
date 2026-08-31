@@ -11,6 +11,7 @@ from app.core import config
 from app.core.case_store import CaseBundle
 from app.core.schemas import (
     AgeEstimate,
+    BackscatterStats,
     DetectionEvidence,
     DetectionMethod,
     DetectResponse,
@@ -24,21 +25,41 @@ from app.detection import age as age_mod
 from app.detection import classical, geometry, unet
 
 
-def _major_axis_km(region, bundle) -> float:
-    """Extent of the region along its own principal axis, in km."""
-    ys, xs = np.nonzero(region.mask)
-    cx, cy = xs.mean(), ys.mean()
-    c = np.cov(np.vstack([xs.astype(float), ys.astype(float)]))
-    evecs = np.linalg.eigh(c)[1]
-    major = evecs[:, -1]
-    t = (xs - cx) * major[0] + (ys - cy) * major[1]
-    px_km = bundle.pixel_area_km2() ** 0.5
-    return float((t.max() - t.min()) * px_km)
-
-
 def iou(pred: np.ndarray, truth: np.ndarray) -> float:
     union = np.logical_or(pred, truth).sum()
     return float(np.logical_and(pred, truth).sum() / union) if union else 0.0
+
+
+def to_feature_collection(response: DetectResponse) -> dict:
+    """Flatten a DetectResponse into an RFC 7946 FeatureCollection.
+
+    Both retained and rejected regions become features, distinguished by the
+    `class` property, so a map layer can style them differently from one source
+    without a second request. Morphology and backscatter are flattened into
+    feature properties because that is where MapLibre expressions and most
+    GIS tools expect to read them.
+    """
+    features: list[dict] = []
+
+    def feature(obj, cls: str) -> dict:
+        props: dict = {"id": obj.id, "class": cls, "confidence": obj.confidence}
+        if obj.geometry is not None:
+            props.update(obj.geometry.model_dump())
+        if obj.backscatter is not None:
+            props.update(obj.backscatter.model_dump())
+        if getattr(obj, "reason", None):
+            props["reason"] = obj.reason
+        age = getattr(obj, "age", None)
+        if age is not None:
+            props["age_min_hours"] = age.min_hours
+            props["age_max_hours"] = age.max_hours
+            props["age_confidence"] = age.confidence
+        return {"type": "Feature", "geometry": obj.polygon, "properties": props}
+
+    features.extend(feature(s, "oil") for s in response.slicks)
+    features.extend(feature(r, "lookalike") for r in response.rejected_lookalikes)
+
+    return {"type": "FeatureCollection", "features": features}
 
 
 def run(bundle: CaseBundle, method: DetectionMethod = DetectionMethod.classical) -> DetectResponse:
@@ -49,16 +70,16 @@ def run(bundle: CaseBundle, method: DetectionMethod = DetectionMethod.classical)
     slicks: list[Slick] = []
     for i, (r, conf, _reason, evidence) in enumerate(oil, 1):
         g = geometry.describe(r, bundle)
-        # Trail length from the major-axis extent, needed because age depends
-        # on the slick's WIDTH, not its total area.
-        length_km = _major_axis_km(r, bundle)
-        a = age_mod.estimate(g["area_km2"], r.contrast_db, length_km)
+        # Age depends on the slick's WIDTH, not its total area, so it is driven
+        # by the measured trail length from the same morphology record.
+        a = age_mod.estimate(g["area_km2"], r.contrast_db, g["length_km"])
         slicks.append(Slick(
             id=f"slick-{i:03d}",
             polygon={"type": "Polygon", "coordinates": [geometry.contour_to_lonlat(r.contour, bundle)]},
             confidence=conf,
             method=method,
             geometry=SlickGeometry(**g),
+            backscatter=BackscatterStats(**geometry.backscatter(r)),
             age=AgeEstimate(**a) if a else None,
             evidence=DetectionEvidence(**evidence),
         ))
@@ -69,6 +90,8 @@ def run(bundle: CaseBundle, method: DetectionMethod = DetectionMethod.classical)
             polygon={"type": "Polygon", "coordinates": [geometry.contour_to_lonlat(r.contour, bundle)]},
             reason=reason,
             confidence=round(1.0 - conf, 3),
+            geometry=SlickGeometry(**geometry.describe(r, bundle)),
+            backscatter=BackscatterStats(**geometry.backscatter(r)),
             evidence=DetectionEvidence(**evidence),
         )
         for i, (r, conf, reason, evidence) in enumerate(looks, 1)

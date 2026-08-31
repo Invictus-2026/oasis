@@ -64,9 +64,30 @@ export type DetectionMethod = "classical" | "unet";
 export interface SlickGeometry {
   area_km2: number;
   perimeter_km: number;
+  /** Extent along the region's own major axis (not a bounding box). */
+  length_km: number;
+  /** Extent along the region's minor axis; the quantity age estimation inverts. */
+  width_km: number;
+  /** length_km / width_km. Distinct from `elongation`, which is the
+   *  second-moment eigenvalue ratio of the fitted ellipse. */
+  aspect_ratio: number;
   elongation: number;
   orientation_deg: number;
   compactness: number;
+  /** area / convex-hull area; 1.0 = convex, lower = ragged. */
+  solidity: number;
+}
+
+/** Radiometric statistics measured per region on the speckle-filtered raster.
+ *  Absolute for calibrated case-study SAR; relative only for uploaded imagery
+ *  that carries no Sigma0 calibration. */
+export interface BackscatterStats {
+  mean_db: number;
+  std_db: number;
+  background_db: number;
+  contrast_db: number;
+  variance_ratio: number;
+  edge_gradient: number;
 }
 
 export interface AgeEstimate {
@@ -98,6 +119,7 @@ export interface Slick {
   confidence: number;
   method: DetectionMethod;
   geometry: SlickGeometry;
+  backscatter?: BackscatterStats | null;
   age: AgeEstimate | null;
   evidence?: DetectionEvidence | null;
 }
@@ -107,6 +129,8 @@ export interface RejectedLookalike {
   polygon: Geom;
   reason: string;
   confidence: number;
+  geometry?: SlickGeometry | null;
+  backscatter?: BackscatterStats | null;
   evidence?: DetectionEvidence | null;
 }
 
@@ -161,20 +185,27 @@ export interface ForecastResponse {
   provenance: Provenance;
 }
 
+/** Six components (Phase 7), each stored separately so a candidate's rank is
+ *  always traceable to individual evidence, never a black-box number.
+ *  counterfactual_similarity is null for a candidate that did not receive
+ *  the expensive simulate-and-compare step (only the top-ranked candidates
+ *  do) — never a fabricated 0. */
 export interface ScoreBreakdown {
-  proximity: number;
-  temporal_overlap: number;
-  heading_consistency: number;
+  origin_proximity: number;
+  temporal_compatibility: number;
+  trajectory_consistency: number;
+  behaviour_anomaly: number;
   ais_gap: number;
-  speed_anomaly: number;
+  counterfactual_similarity: number | null;
 }
 
 export interface ScoreWeights {
-  proximity: number;
-  temporal_overlap: number;
+  origin_proximity: number;
+  temporal_compatibility: number;
+  trajectory_consistency: number;
+  behaviour_anomaly: number;
   ais_gap: number;
-  heading_consistency: number;
-  speed_anomaly: number;
+  counterfactual_similarity: number;
 }
 
 export interface AISGap {
@@ -183,6 +214,8 @@ export interface AISGap {
   duration_minutes: number;
   interpolated_path: Geom | null;
   overlaps_origin_window: boolean;
+  /** Deliberately phrased as an investigation signal, never an accusation. */
+  label: string;
 }
 
 export type CandidateFlag =
@@ -191,13 +224,18 @@ export type CandidateFlag =
   | "SLOW_STEAMING"
   | "CLOSEST_APPROACH";
 
+/** Acceptance vocabulary: a vessel is a candidate, or an investigation lead
+ *  when the evidence is stronger — never a "suspect" or "culprit". */
+export type CandidateLabel = "candidate" | "investigation lead";
+
 export interface VesselCandidate {
   mmsi: string;
-  name: string;
-  vessel_type: string;
+  name: string | null;
+  vessel_type: string | null;
   track: Geom;
   score: number;
   rank: number;
+  label: CandidateLabel;
   flags: CandidateFlag[];
   breakdown: ScoreBreakdown;
   gaps: AISGap[];
@@ -229,15 +267,75 @@ export interface ReportContent {
   provenance: Provenance;
 }
 
-/** The order of the five scoring factors as shown in the UI. */
+/** The order of the six scoring factors (Phase 7) as shown in the UI. */
 export const SCORE_FACTORS: {
   key: keyof ScoreBreakdown;
   label: string;
   hint: string;
 }[] = [
-  { key: "proximity", label: "Proximity to origin", hint: "Distance to the estimated release point, weighted by the cone's probability density" },
-  { key: "temporal_overlap", label: "Temporal overlap", hint: "Vessel presence within the estimated release time window" },
-  { key: "ais_gap", label: "AIS gap", hint: "Reporting gap overlapping the release window — the dark-vessel signal" },
-  { key: "heading_consistency", label: "Heading consistency", hint: "Course alignment with the observed slick axis" },
-  { key: "speed_anomaly", label: "Speed anomaly", hint: "Slow steaming or unusual manoeuvre near the origin" },
+  { key: "origin_proximity", label: "Origin proximity", hint: "How close this vessel's track comes to the origin probability region" },
+  { key: "temporal_compatibility", label: "Temporal compatibility", hint: "Vessel presence within the estimated release time window" },
+  { key: "trajectory_consistency", label: "Trajectory consistency", hint: "Whether the vessel's own track ran along the slick's measured axis" },
+  { key: "behaviour_anomaly", label: "Behaviour anomaly", hint: "Speed jumps, sharp course changes, unexpected stops and erratic legs — transparent rule-based indicators" },
+  { key: "ais_gap", label: "AIS gap", hint: "Reporting gap overlapping the release window — an investigation signal, not a finding" },
+  { key: "counterfactual_similarity", label: "Counterfactual simulation", hint: "How closely a simulated release from this vessel's track reproduces the observed slick — computed only for the top-ranked candidates" },
 ];
+
+export interface UploadRegion {
+  contour: [number, number][];
+  circle: { cx: number; cy: number; radius: number };
+  confidence: number;
+  reason: string;
+  area_px: number;
+  area_km2: number;
+  contrast_db: number;
+  thickness_um: number;
+  volume_m3: number;
+  volume_liters: number;
+  volume_barrels: number;
+  morphology: SlickGeometry;
+  backscatter: BackscatterStats;
+  /** Georeferenced ring; null unless lon/lat were supplied with the upload. */
+  polygon?: Geom | null;
+}
+
+export interface UploadResponse {
+  width: number;
+  height: number;
+  method: DetectionMethod;
+  gsd_m: number;
+  oil_regions: UploadRegion[];
+  rejected_lookalikes: UploadRegion[];
+  total_area_km2: number;
+  total_volume_liters: number;
+  total_volume_barrels: number;
+  processing: ProcessingStep[];
+  notes: string;
+  /** FeatureCollection ready for MapLibre; null when the upload carried no
+   *  lon/lat anchor, since there is then no honest georeferencing. */
+  geojson?: GeoJSONFeatureCollection | null;
+}
+
+/** RFC 7946 FeatureCollection as returned by the detection endpoints.
+ *  Morphology and backscatter fields are flattened into feature properties so
+ *  MapLibre expressions can style directly off them. */
+export interface GeoJSONFeatureCollection {
+  type: "FeatureCollection";
+  features: {
+    type: "Feature";
+    geometry: Geom;
+    properties: Record<string, unknown> & {
+      class: "oil" | "lookalike";
+      confidence: number;
+    };
+  }[];
+}
+
+export interface CustomImageOverlay {
+  id: string;
+  imageUrl: string;
+  coordinates: [[number, number], [number, number], [number, number], [number, number]];
+  bbox: { west: number; south: number; east: number; north: number };
+  name?: string;
+}
+

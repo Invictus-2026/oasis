@@ -50,6 +50,49 @@
   --ease-out-soft: cubic-bezier(0.16, 1, 0.3, 1);
 }
 
+/* ── Dark Theme Overrides ────────────────────────── */
+.dark {
+  /* Invert the surface grays */
+  --color-ink-50:  #020617;
+  --color-ink-100: #0f172a;
+  --color-ink-200: #1e293b;
+  --color-ink-300: #334155;
+  --color-ink-400: #475569;
+  --color-ink-500: #64748b;
+  --color-ink-600: #94a3b8;
+  --color-ink-700: #cbd5e1;
+  --color-ink-800: #e2e8f0;
+  --color-ink-900: #f8fafc;
+  --color-ink-950: #ffffff;
+
+  /* Redefine white to be our dark surface color so bg-white/95 etc work automatically */
+  --color-white: var(--color-ink-100);
+
+  /* Darken semantic surface colors (used in badges and alert cards) */
+  --color-blue-50: #172554;
+  --color-blue-100: #1e3a8a;
+  --color-purple-50: #3b0764;
+  --color-purple-100: #581c87;
+  --color-amber-50: #451a03;
+  --color-amber-100: #78350f;
+  --color-red-50: #450a0a;
+  --color-red-100: #7f1d1d;
+  --color-emerald-50: #022c22;
+  --color-emerald-100: #064e3b;
+  --color-orange-50: #431407;
+  --color-orange-100: #7c2d12;
+}
+
+/* Ensure background of app updates to dark */
+.dark body {
+  background: var(--color-ink-50);
+  color: var(--color-ink-900);
+}
+
+.dark .text-ink-900 {
+  color: var(--color-ink-900) !important;
+}
+
 /* ── Base ────────────────────────────────────────── */
 html, body, #root { height: 100%; }
 
@@ -98,6 +141,10 @@ body {
   border-radius: 0.75rem;
   box-shadow: 0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04);
   padding: 1.25rem;
+}
+.dark .content-card {
+  background: var(--color-ink-100);
+  border-color: var(--color-ink-200);
 }
 
 /* ── Tabular numerals ────────────────────────────── */
@@ -170,4 +217,140 @@ body {
   font-size: 10px;
   backdrop-filter: blur(4px);
   border-radius: 4px;
+}
+
+/* Dark mode map controls */
+.dark .maplibregl-ctrl-group {
+  background: var(--color-ink-100) !important;
+  border-color: var(--color-ink-200) !important;
+}
+.dark .maplibregl-ctrl-group button:hover {
+  background: var(--color-ink-200) !important;
+}
+.dark .maplibregl-ctrl-attrib {
+  background: rgba(2, 6, 23, 0.8) !important;
+  color: var(--color-ink-600) !important;
+}
+.dark .maplibregl-ctrl-scale {
+  background: rgba(2, 6, 23, 0.85) !important;
+  color: var(--color-ink-700) !important;
+}
+.dark .maplibregl-ctrl-icon {
+  filter: invert(1);
+}
+
+/* ── SAR / satellite dark-radar map skin ─────────── */
+.sar-noise-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 400ms ease;
+}
+.sar-noise-overlay.active {
+  opacity: 1;
+}
+.sar-noise-overlay .sar-grain {
+  position: absolute;
+  inset: -50%;
+  width: 200%;
+  height: 200%;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix type='matrix' values='0 0 0 0 0.55  0 0 0 0 0.85  0 0 0 0 0.95  0 0 0 0.5 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  mix-blend-mode: overlay;
+  opacity: 0.16;
+  animation: sar-grain-shift 0.6s steps(4) infinite;
+}
+.sar-noise-overlay .sar-scanlines {
+  position: absolute;
+  inset: 0;
+  background-image: repeating-linear-gradient(
+    to bottom,
+    rgba(120, 255, 220, 0.05) 0px,
+    rgba(120, 255, 220, 0.05) 1px,
+    transparent 1px,
+    transparent 3px
+  );
+  mix-blend-mode: overlay;
+}
+.sar-noise-overlay.light .sar-scanlines {
+  background-image: repeating-linear-gradient(
+    to bottom,
+    rgba(14, 165, 233, 0.06) 0px,
+    rgba(14, 165, 233, 0.06) 1px,
+    transparent 1px,
+    transparent 3px
+  );
+}
+.sar-noise-overlay .sar-sweep {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    115deg,
+    transparent 40%,
+    rgba(94, 234, 212, 0.06) 48%,
+    rgba(94, 234, 212, 0.1) 50%,
+    rgba(94, 234, 212, 0.06) 52%,
+    transparent 60%
+  );
+  background-size: 300% 300%;
+  animation: sar-sweep-move 6s linear infinite;
+}
+.sar-noise-overlay.light .sar-sweep {
+  background: linear-gradient(
+    115deg,
+    transparent 40%,
+    rgba(14, 165, 233, 0.04) 48%,
+    rgba(14, 165, 233, 0.08) 50%,
+    rgba(14, 165, 233, 0.04) 52%,
+    transparent 60%
+  );
+  background-size: 300% 300%;
+}
+.sar-noise-overlay .sar-vignette {
+  position: absolute;
+  inset: 0;
+  box-shadow: inset 0 0 140px 40px rgba(2, 6, 23, 0.65);
+}
+.sar-noise-overlay.light .sar-vignette {
+  box-shadow: inset 0 0 140px 40px rgba(186, 230, 253, 0.45);
+}
+@keyframes sar-grain-shift {
+  0%   { transform: translate(0, 0); }
+  25%  { transform: translate(-2%, 1%); }
+  50%  { transform: translate(1%, -2%); }
+  75%  { transform: translate(-1%, -1%); }
+  100% { transform: translate(0, 0); }
+}
+@keyframes sar-sweep-move {
+  0%   { background-position: 0% 0%; }
+  100% { background-position: 100% 100%; }
+}
+
+/* ── Sonar-ping origin marker ─────────────────────── */
+@keyframes sonar-ping {
+  0%   { transform: scale(0.3); opacity: 0.75; }
+  100% { transform: scale(2.4); opacity: 0; }
+}
+.sonar-ping-ring {
+  position: absolute;
+  width: 26px;
+  height: 26px;
+  margin-left: -13px;
+  margin-top: -13px;
+  border-radius: 9999px;
+  border: 2.5px solid var(--sonar-color, #5eead4);
+  box-shadow: 0 0 8px 1px var(--sonar-color, #5eead4);
+  pointer-events: none;
+  animation: sonar-ping 2.2s cubic-bezier(0.2, 0.6, 0.4, 1) infinite;
+}
+.sonar-ping-ring.delay-1 { animation-delay: 0.7s; }
+.sonar-ping-ring.delay-2 { animation-delay: 1.4s; }
+
+@media (prefers-reduced-motion: reduce) {
+  .sar-noise-overlay .sar-grain,
+  .sar-noise-overlay .sar-sweep,
+  .sonar-ping-ring {
+    animation: none !important;
+  }
 }

@@ -59,6 +59,40 @@ class Region:
     compactness: float
     elongation: float
     orientation_deg: float
+    # extent along the region's own principal axes, in pixels. Length and width
+    # are measured in the rotated frame rather than as a bounding box, so a
+    # diagonal trail is not reported as wide as its diagonal.
+    length_px: float = 0.0
+    width_px: float = 0.0
+    solidity: float = 1.0        # area / convex-hull area; 1.0 = convex
+
+
+def normalise(img: np.ndarray) -> np.ndarray:
+    """Put arbitrary image intensities on a dB-like relative scale.
+
+    Calibrated Sentinel-1 backscatter already arrives in dB and passes through
+    this untouched in spirit — but an uploaded PNG/JPEG has no Sigma0, only
+    8-bit brightness. Everything downstream (the adaptive threshold, the
+    contrast term) reasons about *relative* darkness, so all this has to
+    guarantee is a monotonic map onto a plausible dB span with the dynamic
+    range set by robust percentiles rather than by outliers.
+
+    A handful of saturated pixels — a ship, a hot spot, a dead pixel — would
+    otherwise compress the sea into a couple of levels and flatten the very
+    contrast the detector keys on, so the stretch is anchored at the 1st/99th
+    percentile and the tails are clipped.
+    """
+    img = np.asarray(img, dtype=np.float32)
+    lo, hi = np.percentile(img, (1.0, 99.0))
+    if not np.isfinite(lo) or not np.isfinite(hi) or hi - lo < 1e-6:
+        # Flat or degenerate image: no dynamic range to stretch. Return a
+        # constant mid-scale field instead of dividing by zero.
+        return np.full(img.shape, -15.0, dtype=np.float32)
+
+    unit = np.clip((img - lo) / (hi - lo), 0.0, 1.0)
+    # Darker pixel -> more damped -> lower dB, mapped onto the range ocean
+    # Sigma0 actually occupies at C-band VV.
+    return (unit * 30.0 - 30.0).astype(np.float32)
 
 
 def lee_filter(img: np.ndarray, size: int = 7) -> np.ndarray:
@@ -128,17 +162,39 @@ def clean(mask: np.ndarray) -> np.ndarray:
     return ndimage.binary_fill_holes(m.astype(bool))
 
 
-def _shape_stats(ys: np.ndarray, xs: np.ndarray) -> tuple[float, float]:
-    """Elongation and orientation from the second moments of the region."""
+def _shape_stats(ys: np.ndarray, xs: np.ndarray) -> tuple[float, float, float, float]:
+    """Elongation, orientation and principal-axis extents of the region.
+
+    Returns (elongation, orientation_deg, length_px, width_px).
+
+    Length and width are the extents along the region's own major and minor
+    axes, not the axis-aligned bounding box: a trail running diagonally across
+    the scene would otherwise report a width equal to its diagonal, and width
+    is the quantity the age estimate inverts through the diffusivity law.
+    """
     if len(xs) < 3:
-        return 1.0, 0.0
-    c = np.cov(np.vstack([xs.astype(float), ys.astype(float)]))
+        return 1.0, 0.0, float(len(xs)), 1.0
+
+    fx, fy = xs.astype(float), ys.astype(float)
+    c = np.cov(np.vstack([fx, fy]))
     evals, evecs = np.linalg.eigh(c)
     lo, hi = float(max(evals[0], 1e-9)), float(max(evals[1], 1e-9))
-    major = evecs[:, int(np.argmax(evals))]
+
+    order = int(np.argmax(evals))
+    major = evecs[:, order]
+    minor = evecs[:, 1 - order]
     # Pixel rows increase southward, so negate dy to get a compass bearing.
     bearing = np.degrees(np.arctan2(major[0], -major[1])) % 180.0
-    return float(np.sqrt(hi / lo)), float(bearing)
+
+    cx, cy = fx.mean(), fy.mean()
+    proj_major = (fx - cx) * major[0] + (fy - cy) * major[1]
+    proj_minor = (fx - cx) * minor[0] + (fy - cy) * minor[1]
+
+    length = float(proj_major.max() - proj_major.min())
+    width = float(proj_minor.max() - proj_minor.min())
+    # A single-pixel-wide region still has physical width; never return 0 so
+    # aspect ratio stays finite.
+    return float(np.sqrt(hi / lo)), float(bearing), max(length, 1.0), max(width, 1.0)
 
 
 def extract_regions(db: np.ndarray, mask: np.ndarray, excluded: np.ndarray) -> list[Region]:
@@ -179,7 +235,14 @@ def extract_regions(db: np.ndarray, mask: np.ndarray, excluded: np.ndarray) -> l
         boundary = rm ^ ndimage.binary_erosion(rm)
 
         ys, xs = np.nonzero(rm)
-        elong, orient = _shape_stats(ys, xs)
+        elong, orient, length_px, width_px = _shape_stats(ys, xs)
+
+        # Solidity separates a solid trail from a ragged, fragmented patch that
+        # merely spans a large area — a convex-hull comparison the perimeter
+        # alone cannot make.
+        hull = cv2.convexHull(cnt)
+        hull_area = float(cv2.contourArea(hull))
+        solidity = float(min(area / hull_area, 1.0)) if hull_area > 0 else 1.0
 
         regions.append(Region(
             id=i,
@@ -196,6 +259,9 @@ def extract_regions(db: np.ndarray, mask: np.ndarray, excluded: np.ndarray) -> l
             compactness=float(4 * np.pi * area / (peri ** 2)),
             elongation=elong,
             orientation_deg=orient,
+            length_px=length_px,
+            width_px=width_px,
+            solidity=solidity,
         ))
 
     return regions

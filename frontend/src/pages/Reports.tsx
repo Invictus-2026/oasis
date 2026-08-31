@@ -3,7 +3,7 @@ import { useSpillState } from "../context/SpillContext";
 import { ViewModeProvider } from "../lib/viewMode";
 import { utc } from "../lib/format";
 import {
-  FileText, Download, ShieldAlert, Clock, Anchor, Layers,
+  FileText, ShieldAlert, Clock, Anchor, Layers,
   ChevronDown, ChevronRight, CheckCircle2, AlertTriangle, Circle,
   BookOpen, Database, Cpu, Map, Users,
 } from "lucide-react";
@@ -86,18 +86,26 @@ function CandidateRow({ c }: { c: VesselCandidate }) {
       </div>
       <p className="mt-2 text-[11px] leading-relaxed text-ink-600">{c.narrative}</p>
       {/* Score bars */}
-      <div className="mt-2.5 grid grid-cols-5 gap-1.5">
-        {(["proximity", "temporal_overlap", "ais_gap", "heading_consistency", "speed_anomaly"] as const).map(k => (
-          <div key={k}>
-            <div className="h-1.5 rounded-full bg-ink-100 overflow-hidden">
-              <div
-                className={`h-full rounded-full ${k === "ais_gap" && c.breakdown[k] > 0.5 ? "bg-red-500" : "bg-blue-500"}`}
-                style={{ width: `${c.breakdown[k] * 100}%` }}
-              />
+      <div className="mt-2.5 grid grid-cols-6 gap-1.5">
+        {([
+          "origin_proximity", "temporal_compatibility", "trajectory_consistency",
+          "behaviour_anomaly", "ais_gap", "counterfactual_similarity",
+        ] as const).map(k => {
+          const val = c.breakdown[k];
+          return (
+            <div key={k}>
+              <div className="h-1.5 rounded-full bg-ink-100 overflow-hidden">
+                <div
+                  className={`h-full rounded-full ${k === "ais_gap" && (val ?? 0) > 0.5 ? "bg-red-500" : "bg-blue-500"}`}
+                  style={{ width: `${(val ?? 0) * 100}%` }}
+                />
+              </div>
+              <div className="text-[9px] text-ink-400 mt-0.5 text-center truncate">
+                {val === null ? "n/a" : k.replace(/_/g, " ")}
+              </div>
             </div>
-            <div className="text-[9px] text-ink-400 mt-0.5 text-center truncate">{k.replace(/_/g, " ")}</div>
-          </div>
-        ))}
+          );
+        })}
       </div>
     </div>
   );

@@ -1,585 +1,443 @@
 {
-  "total_vessels_in_region": 213,
-  "after_filter": 5,
-  "candidates": [
+ "total_vessels_in_region": 213,
+ "after_filter": 5,
+ "candidates": [
+  {
+   "mmsi": "367301820",
+   "name": "MV KESTREL TRADER",
+   "vessel_type": "Bulk Carrier",
+   "track": {
+    "type": "LineString",
+    "coordinates": [
+     [
+      -89.648,
+      28.35
+     ],
+     [
+      -89.667,
+      28.376
+     ],
+     [
+      -89.686,
+      28.4
+     ],
+     [
+      -89.705,
+      28.423
+     ],
+     [
+      -89.724,
+      28.445
+     ],
+     [
+      -89.742,
+      28.464
+     ],
+     [
+      -89.76,
+      28.474
+     ],
+     [
+      -89.776,
+      28.48
+     ],
+     [
+      -89.824,
+      28.524
+     ],
+     [
+      -89.834,
+      28.545
+     ],
+     [
+      -89.84,
+      28.569
+     ],
+     [
+      -89.842,
+      28.597
+     ],
+     [
+      -89.839,
+      28.627
+     ],
+     [
+      -89.831,
+      28.657
+     ],
+     [
+      -89.82,
+      28.687
+     ],
+     [
+      -89.808,
+      28.717
+     ],
+     [
+      -89.799,
+      28.74
+     ]
+    ]
+   },
+   "score": 0.941,
+   "rank": 1,
+   "label": "investigation lead",
+   "flags": [
+    "DARK_VESSEL",
+    "CLOSEST_APPROACH",
+    "SLOW_STEAMING"
+   ],
+   "breakdown": {
+    "origin_proximity": 0.972,
+    "temporal_compatibility": 0.955,
+    "trajectory_consistency": 0.981,
+    "behaviour_anomaly": 0.86,
+    "ais_gap": 1.0,
+    "counterfactual_similarity": 0.953
+   },
+   "gaps": [
     {
-      "mmsi": "367301820",
-      "name": "MV KESTREL TRADER",
-      "vessel_type": "Chemical/Oil Products Tanker",
-      "track": {
-        "type": "LineString",
-        "coordinates": [
-          [
-            -90.46649091858183,
-            28.145774450883412
-          ],
-          [
-            -90.42617537597985,
-            28.171745134705255
-          ],
-          [
-            -90.38773315592518,
-            28.199814563281194
-          ],
-          [
-            -90.34228012240864,
-            28.229095131357912
-          ],
-          [
-            -90.30223221585395,
-            28.256538258924184
-          ],
-          [
-            -90.26363217389427,
-            28.28423385969669
-          ],
-          [
-            -90.22865446119337,
-            28.31358785298365
-          ],
-          [
-            -90.18286820067894,
-            28.340621325083582
-          ],
-          [
-            -90.14824006954963,
-            28.363390066720576
-          ],
-          [
-            -90.10595352043775,
-            28.394113673418477
-          ],
-          [
-            -90.06266275392724,
-            28.422907754874636
-          ],
-          [
-            -90.02187296166785,
-            28.449398852436342
-          ],
-          [
-            -89.98217544404066,
-            28.479581397006598
-          ],
-          [
-            -89.94441217572763,
-            28.51041279802987
-          ],
-          [
-            -89.90106348819644,
-            28.537075269377468
-          ],
-          [
-            -89.86382899890825,
-            28.56053627371011
-          ],
-          [
-            -89.82288407904913,
-            28.589806997549346
-          ],
-          [
-            -89.78015230687396,
-            28.618448626891738
-          ],
-          [
-            -89.7426688553609,
-            28.643562781076447
-          ]
-        ]
-      },
-      "score": 0.936,
-      "rank": 1,
-      "flags": [
-        "DARK_VESSEL",
-        "CLOSEST_APPROACH",
-        "SLOW_STEAMING"
-      ],
-      "breakdown": {
-        "proximity": 0.928,
-        "temporal_overlap": 0.955,
-        "heading_consistency": 0.978,
-        "ais_gap": 1.0,
-        "speed_anomaly": 0.72
-      },
-      "gaps": [
-        {
-          "start_utc": "2023-06-15T03:13:00Z",
-          "end_utc": "2023-06-15T04:47:00Z",
-          "duration_minutes": 94.0,
-          "interpolated_path": null,
-          "overlaps_origin_window": true
-        }
-      ],
-      "closest_approach_km": 1.8,
-      "closest_approach_utc": "2023-06-15T04:00:00Z",
-      "narrative": "Went AIS-dark for 94 minutes while transiting within 1.8 km of the estimated origin, on a heading consistent with the slick axis."
-    },
-    {
-      "mmsi": "538007612",
-      "name": "MV NORTHERN PETREL",
-      "vessel_type": "Bulk Carrier",
-      "track": {
-        "type": "LineString",
-        "coordinates": [
-          [
-            -90.49092445854116,
-            28.161174728422218
-          ],
-          [
-            -90.44185344484855,
-            28.183303644772774
-          ],
-          [
-            -90.39404939073424,
-            28.207476975373464
-          ],
-          [
-            -90.34940600327626,
-            28.22678261694974
-          ],
-          [
-            -90.30896346074996,
-            28.247828799668163
-          ],
-          [
-            -90.26527971117063,
-            28.270666552430395
-          ],
-          [
-            -90.21455762828283,
-            28.292812041809817
-          ],
-          [
-            -90.17144607488088,
-            28.315312840338894
-          ],
-          [
-            -90.12553296042843,
-            28.334491497807566
-          ],
-          [
-            -90.08231421631706,
-            28.35716235232578
-          ],
-          [
-            -90.04285738515445,
-            28.377876129802374
-          ],
-          [
-            -89.99301780357423,
-            28.399347684225923
-          ],
-          [
-            -89.95108629092518,
-            28.42528597916912
-          ],
-          [
-            -89.9043830290401,
-            28.444250161691546
-          ],
-          [
-            -89.85831562151549,
-            28.467984192786815
-          ],
-          [
-            -89.8156443509923,
-            28.488128171918326
-          ],
-          [
-            -89.77093600665188,
-            28.508901430890106
-          ],
-          [
-            -89.72942132149221,
-            28.531148180672762
-          ],
-          [
-            -89.68517264461225,
-            28.555881484218386
-          ]
-        ]
-      },
-      "score": 0.729,
-      "rank": 2,
-      "flags": [
-        "SLOW_STEAMING"
-      ],
-      "breakdown": {
-        "proximity": 0.744,
-        "temporal_overlap": 0.84,
-        "heading_consistency": 0.928,
-        "ais_gap": 0.422,
-        "speed_anomaly": 0.72
-      },
-      "gaps": [
-        {
-          "start_utc": "2023-06-15T03:41:00Z",
-          "end_utc": "2023-06-15T04:19:00Z",
-          "duration_minutes": 38.0,
-          "interpolated_path": null,
-          "overlaps_origin_window": false
-        }
-      ],
-      "closest_approach_km": 6.4,
-      "closest_approach_utc": "2023-06-15T04:04:00Z",
-      "narrative": "Passed within 6.4 km of the estimated origin during the release window with continuous AIS reporting and no behavioural anomaly."
-    },
-    {
-      "mmsi": "311000765",
-      "name": "MV GULF SENTINEL",
-      "vessel_type": "Crude Oil Tanker",
-      "track": {
-        "type": "LineString",
-        "coordinates": [
-          [
-            -90.53156049829397,
-            28.594058038073538
-          ],
-          [
-            -90.49350659345053,
-            28.56684522453437
-          ],
-          [
-            -90.44982475796097,
-            28.53942339907565
-          ],
-          [
-            -90.41233089149935,
-            28.511422873327877
-          ],
-          [
-            -90.37741988941175,
-            28.48524304452151
-          ],
-          [
-            -90.33073753297599,
-            28.455703235653427
-          ],
-          [
-            -90.29797639741204,
-            28.42523374632072
-          ],
-          [
-            -90.25054654016479,
-            28.394732082879386
-          ],
-          [
-            -90.21292749203542,
-            28.373292848560876
-          ],
-          [
-            -90.1755659133247,
-            28.34678876310681
-          ],
-          [
-            -90.13056935437916,
-            28.314969631900183
-          ],
-          [
-            -90.09090968945237,
-            28.288938965188777
-          ],
-          [
-            -90.05119226004557,
-            28.262220658303566
-          ],
-          [
-            -90.01294923367504,
-            28.230853370563537
-          ],
-          [
-            -89.9683609965556,
-            28.20401230844886
-          ],
-          [
-            -89.93302919253902,
-            28.17825224463963
-          ],
-          [
-            -89.88679990967668,
-            28.147267314056577
-          ],
-          [
-            -89.85382561299159,
-            28.120129036470864
-          ],
-          [
-            -89.81044315211469,
-            28.0919205947159
-          ]
-        ]
-      },
-      "score": 0.485,
-      "rank": 3,
-      "flags": [],
-      "breakdown": {
-        "proximity": 0.636,
-        "temporal_overlap": 0.772,
-        "heading_consistency": 0.556,
-        "ais_gap": 0.0,
-        "speed_anomaly": 0.18
-      },
-      "gaps": [],
-      "closest_approach_km": 9.1,
-      "closest_approach_utc": "2023-06-15T04:31:00Z",
-      "narrative": "Passed within 9.1 km of the estimated origin during the release window with continuous AIS reporting and no behavioural anomaly."
-    },
-    {
-      "mmsi": "366998210",
-      "name": "SEACOR REVIVAL",
-      "vessel_type": "Offshore Supply Vessel",
-      "track": {
-        "type": "LineString",
-        "coordinates": [
-          [
-            -90.05884585973989,
-            28.834449429196397
-          ],
-          [
-            -90.07553541128308,
-            28.793981790625445
-          ],
-          [
-            -90.09911663666695,
-            28.751379547437548
-          ],
-          [
-            -90.12118960977055,
-            28.71137640065835
-          ],
-          [
-            -90.143609659864,
-            28.669721038605065
-          ],
-          [
-            -90.16327833810648,
-            28.628113716221172
-          ],
-          [
-            -90.18437087288217,
-            28.58840927148718
-          ],
-          [
-            -90.20276874128432,
-            28.546882576167526
-          ],
-          [
-            -90.2305749529951,
-            28.504323634659084
-          ],
-          [
-            -90.25109752580262,
-            28.466272601142173
-          ],
-          [
-            -90.27350424506595,
-            28.424074357538114
-          ],
-          [
-            -90.28953471738703,
-            28.376421515986294
-          ],
-          [
-            -90.31867623078361,
-            28.341789551759586
-          ],
-          [
-            -90.33637044312843,
-            28.300795558079393
-          ],
-          [
-            -90.36006917168842,
-            28.260755442690005
-          ],
-          [
-            -90.37982885334014,
-            28.21711192506304
-          ],
-          [
-            -90.3959255594719,
-            28.178113219354476
-          ],
-          [
-            -90.42512598356345,
-            28.13610348570259
-          ],
-          [
-            -90.4458677607792,
-            28.095204520450444
-          ]
-        ]
-      },
-      "score": 0.319,
-      "rank": 4,
-      "flags": [],
-      "breakdown": {
-        "proximity": 0.412,
-        "temporal_overlap": 0.633,
-        "heading_consistency": 0.128,
-        "ais_gap": 0.0,
-        "speed_anomaly": 0.18
-      },
-      "gaps": [],
-      "closest_approach_km": 14.7,
-      "closest_approach_utc": "2023-06-15T04:27:00Z",
-      "narrative": "Present in the region but closest approach was 14.7 km, outside the high-probability origin area."
-    },
-    {
-      "mmsi": "356420119",
-      "name": "MV ATLANTIC PIONEER",
-      "vessel_type": "Container Ship",
-      "track": {
-        "type": "LineString",
-        "coordinates": [
-          [
-            -90.56780043913975,
-            28.204380927215404
-          ],
-          [
-            -90.51152741665642,
-            28.205225819221322
-          ],
-          [
-            -90.47018647471948,
-            28.203869462920224
-          ],
-          [
-            -90.41472673219995,
-            28.207281615031192
-          ],
-          [
-            -90.3654914220533,
-            28.206905581916164
-          ],
-          [
-            -90.31384561611176,
-            28.206817562499523
-          ],
-          [
-            -90.25948062116021,
-            28.207051827166705
-          ],
-          [
-            -90.20883703651978,
-            28.21390416546657
-          ],
-          [
-            -90.16217848681339,
-            28.216290526613232
-          ],
-          [
-            -90.10648735260115,
-            28.217991185162134
-          ],
-          [
-            -90.05729332706757,
-            28.210280314528745
-          ],
-          [
-            -90.00462114248973,
-            28.21616696409817
-          ],
-          [
-            -89.95310060088904,
-            28.22311147825113
-          ],
-          [
-            -89.90586613666449,
-            28.225209270117666
-          ],
-          [
-            -89.8526382898796,
-            28.2213097053443
-          ],
-          [
-            -89.80017391868778,
-            28.224807074066167
-          ],
-          [
-            -89.74786855300178,
-            28.22805838370439
-          ],
-          [
-            -89.70067507910365,
-            28.23032220642763
-          ],
-          [
-            -89.64461618087844,
-            28.22940186214957
-          ]
-        ]
-      },
-      "score": 0.296,
-      "rank": 5,
-      "flags": [],
-      "breakdown": {
-        "proximity": 0.148,
-        "temporal_overlap": 0.468,
-        "heading_consistency": 0.778,
-        "ais_gap": 0.0,
-        "speed_anomaly": 0.18
-      },
-      "gaps": [],
-      "closest_approach_km": 21.3,
-      "closest_approach_utc": "2023-06-15T03:20:00Z",
-      "narrative": "Present in the region but closest approach was 21.3 km, outside the high-probability origin area."
+     "start_utc": "2023-06-14T05:13:00Z",
+     "end_utc": "2023-06-14T06:47:00Z",
+     "duration_minutes": 94.0,
+     "interpolated_path": {
+      "type": "LineString",
+      "coordinates": [
+       [
+        -89.776,
+        28.48
+       ],
+       [
+        -89.8,
+        28.502
+       ],
+       [
+        -89.824,
+        28.524
+       ]
+      ]
+     },
+     "overlaps_origin_window": true,
+     "label": "AIS reporting gap \u2014 investigation signal, not a finding of wrongdoing"
     }
-  ],
-  "weights": {
-    "proximity": 0.3,
-    "temporal_overlap": 0.25,
-    "ais_gap": 0.2,
-    "heading_consistency": 0.15,
-    "speed_anomaly": 0.1
+   ],
+   "closest_approach_km": 0.3,
+   "closest_approach_utc": "2023-06-14T06:00:00Z",
+   "narrative": "Went AIS-dark for 94 minutes while transiting within 0.3 km of the estimated release point, on a heading consistent with the slick axis (306\u00b0). Hull damage visible in the SAR scene at the same position."
   },
-  "all_tracks": null,
-  "processing": [
+  {
+   "mmsi": "538007612",
+   "name": "MV NORTHERN PETREL",
+   "vessel_type": "Bulk Carrier",
+   "track": {
+    "type": "LineString",
+    "coordinates": [
+     [
+      -89.664,
+      28.735
+     ],
+     [
+      -89.673,
+      28.686
+     ],
+     [
+      -89.683,
+      28.637
+     ],
+     [
+      -89.693,
+      28.588
+     ],
+     [
+      -89.702,
+      28.539
+     ],
+     [
+      -89.71,
+      28.49
+     ],
+     [
+      -89.716,
+      28.441
+     ],
+     [
+      -89.72,
+      28.392
+     ],
+     [
+      -89.722,
+      28.35
+     ]
+    ]
+   },
+   "score": 0.612,
+   "rank": 2,
+   "label": "investigation lead",
+   "flags": [
+    "SLOW_STEAMING"
+   ],
+   "breakdown": {
+    "origin_proximity": 0.541,
+    "temporal_compatibility": 0.688,
+    "trajectory_consistency": 0.604,
+    "behaviour_anomaly": 0.71,
+    "ais_gap": 0.42,
+    "counterfactual_similarity": 0.617
+   },
+   "gaps": [
     {
-      "name": "load AIS extract",
-      "duration_ms": 420.0,
-      "detail": "213 vessels, 48 h window"
-    },
-    {
-      "name": "track reconstruction + interpolation",
-      "duration_ms": 380.0,
-      "detail": null
-    },
-    {
-      "name": "AIS gap detection",
-      "duration_ms": 95.0,
-      "detail": ">30 min threshold"
-    },
-    {
-      "name": "spatiotemporal filter against origin cone",
-      "duration_ms": 140.0,
-      "detail": "213 -> 5 candidates"
-    },
-    {
-      "name": "weighted scoring",
-      "duration_ms": 18.0,
-      "detail": null
+     "start_utc": "2023-06-14T12:04:00Z",
+     "end_utc": "2023-06-14T12:42:00Z",
+     "duration_minutes": 38.0,
+     "interpolated_path": {
+      "type": "LineString",
+      "coordinates": [
+       [
+        -89.693,
+        28.588
+       ],
+       [
+        -89.702,
+        28.539
+       ]
+      ]
+     },
+     "overlaps_origin_window": false,
+     "label": "AIS reporting gap \u2014 investigation signal, not a finding of wrongdoing"
     }
-  ],
-  "provenance": {
-    "model_version": "spilltrace-0.1.0+fixture",
-    "params": {
-      "stage": "attribution",
-      "radius_km": 25.0,
-      "window_hours": 6.0,
-      "weights": {
-        "proximity": 0.3,
-        "temporal_overlap": 0.25,
-        "ais_gap": 0.2,
-        "heading_consistency": 0.15,
-        "speed_anomaly": 0.1
-      },
-      "gap_threshold_min": 30
-    },
-    "generated_at": "2026-08-23T16:22:25.361742Z",
-    "inputs": [
-      "NOAA AccessAIS extract",
-      "hindcast origin estimate"
-    ],
-    "notes": "FIXTURE DATA \u2014 not produced by the real pipeline."
+   ],
+   "closest_approach_km": 9.3,
+   "closest_approach_utc": "2023-06-14T06:00:00Z",
+   "narrative": "Passed 9.3 km east of the estimated release point at reduced speed. A 38-minute reporting gap falls outside the origin time window."
+  },
+  {
+   "mmsi": "366998210",
+   "name": "SEACOR REVIVAL",
+   "vessel_type": "Offshore Supply Vessel",
+   "track": {
+    "type": "LineString",
+    "coordinates": [
+     [
+      -89.749,
+      28.6
+     ],
+     [
+      -89.735,
+      28.57
+     ],
+     [
+      -89.724,
+      28.539
+     ],
+     [
+      -89.716,
+      28.507
+     ],
+     [
+      -89.712,
+      28.475
+     ],
+     [
+      -89.711,
+      28.443
+     ],
+     [
+      -89.714,
+      28.411
+     ],
+     [
+      -89.72,
+      28.379
+     ]
+    ]
+   },
+   "score": 0.418,
+   "rank": 3,
+   "label": "candidate",
+   "flags": [],
+   "breakdown": {
+    "origin_proximity": 0.585,
+    "temporal_compatibility": 0.402,
+    "trajectory_consistency": 0.311,
+    "behaviour_anomaly": 0.36,
+    "ais_gap": 0.0,
+    "counterfactual_similarity": 0.44
+   },
+   "gaps": [],
+   "closest_approach_km": 8.6,
+   "closest_approach_utc": "2023-06-14T06:00:00Z",
+   "narrative": "Field-support transit 8.6 km east of the estimated release point; continuous AIS coverage throughout the origin window."
+  },
+  {
+   "mmsi": "311000765",
+   "name": "MV GULF SENTINEL",
+   "vessel_type": "Crude Oil Tanker",
+   "track": {
+    "type": "LineString",
+    "coordinates": [
+     [
+      -89.641,
+      28.476
+     ],
+     [
+      -89.663,
+      28.46
+     ],
+     [
+      -89.685,
+      28.443
+     ],
+     [
+      -89.706,
+      28.425
+     ],
+     [
+      -89.726,
+      28.406
+     ],
+     [
+      -89.741,
+      28.387
+     ],
+     [
+      -89.752,
+      28.368
+     ],
+     [
+      -89.761,
+      28.347
+     ]
+    ]
+   },
+   "score": 0.336,
+   "rank": 4,
+   "label": "candidate",
+   "flags": [],
+   "breakdown": {
+    "origin_proximity": 0.362,
+    "temporal_compatibility": 0.455,
+    "trajectory_consistency": 0.288,
+    "behaviour_anomaly": 0.22,
+    "ais_gap": 0.0,
+    "counterfactual_similarity": 0.351
+   },
+   "gaps": [],
+   "closest_approach_km": 12.9,
+   "closest_approach_utc": "2023-06-14T06:00:00Z",
+   "narrative": "Outbound transit passing 12.9 km south-east of the estimated release point, after the origin window closed."
+  },
+  {
+   "mmsi": "356420119",
+   "name": "MV ATLANTIC PIONEER",
+   "vessel_type": "Container Ship",
+   "track": {
+    "type": "LineString",
+    "coordinates": [
+     [
+      -89.791,
+      28.744
+     ],
+     [
+      -89.766,
+      28.731
+     ],
+     [
+      -89.74,
+      28.717
+     ],
+     [
+      -89.714,
+      28.702
+     ],
+     [
+      -89.688,
+      28.686
+     ],
+     [
+      -89.662,
+      28.669
+     ],
+     [
+      -89.641,
+      28.655
+     ]
+    ]
+   },
+   "score": 0.214,
+   "rank": 5,
+   "label": "candidate",
+   "flags": [],
+   "breakdown": {
+    "origin_proximity": 0.188,
+    "temporal_compatibility": 0.351,
+    "trajectory_consistency": 0.142,
+    "behaviour_anomaly": 0.15,
+    "ais_gap": 0.0,
+    "counterfactual_similarity": 0.243
+   },
+   "gaps": [],
+   "closest_approach_km": 23.1,
+   "closest_approach_utc": "2023-06-14T06:00:00Z",
+   "narrative": "Deep-water transit 23.1 km north-east of the estimated release point; no track segment inside the origin cone."
   }
+ ],
+ "weights": {
+  "origin_proximity": 0.22,
+  "temporal_compatibility": 0.18,
+  "trajectory_consistency": 0.18,
+  "behaviour_anomaly": 0.14,
+  "ais_gap": 0.14,
+  "counterfactual_similarity": 0.14
+ },
+ "all_tracks": null,
+ "processing": [
+  {
+   "name": "load AIS extract",
+   "duration_ms": 420.0,
+   "detail": "213 vessels, 48 h window"
+  },
+  {
+   "name": "track reconstruction + interpolation",
+   "duration_ms": 380.0,
+   "detail": null
+  },
+  {
+   "name": "AIS gap detection",
+   "duration_ms": 95.0,
+   "detail": ">30 min threshold"
+  },
+  {
+   "name": "spatiotemporal filter against origin cone",
+   "duration_ms": 140.0,
+   "detail": "213 -> 5 candidates"
+  },
+  {
+   "name": "weighted scoring",
+   "duration_ms": 18.0,
+   "detail": null
+  }
+ ],
+ "provenance": {
+  "model_version": "spilltrace-0.1.0+fixture",
+  "params": {
+   "radius_km": 3.4,
+   "window_hours": 6.0,
+   "weights": {
+    "origin_proximity": 0.22,
+    "temporal_compatibility": 0.18,
+    "trajectory_consistency": 0.18,
+    "behaviour_anomaly": 0.14,
+    "ais_gap": 0.14,
+    "counterfactual_similarity": 0.14
+   },
+   "gap_threshold_min": 30,
+   "stage": "attribution"
+  },
+  "generated_at": "2026-08-27T00:00:00Z",
+  "inputs": [
+   "NOAA AccessAIS extract",
+   "hindcast origin estimate"
+  ],
+  "notes": "FIXTURE DATA \u2014 not produced by the real pipeline."
+ }
 }

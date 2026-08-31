@@ -20,7 +20,9 @@ from app.core.schemas import (
     AISGap,
     AgeEstimate,
     AttributeResponse,
+    BackscatterStats,
     CandidateFlag,
+    CandidateLabel,
     CaseMeta,
     ConePolygon,
     DataSource,
@@ -174,9 +176,24 @@ def detect_response(method: DetectionMethod = DetectionMethod.classical) -> Dete
         geometry=SlickGeometry(
             area_km2=59.4,
             perimeter_km=41.8,
+            # Extents match the ellipse this fixture's own polygon is drawn
+            # from (18.0 x 4.2 km semi-axes), so mock morphology stays
+            # internally consistent with the mock geometry on screen.
+            length_km=36.0,
+            width_km=8.4,
+            aspect_ratio=4.29,
             elongation=4.29,
             orientation_deg=48.0,
             compactness=0.427,
+            solidity=0.94,
+        ),
+        backscatter=BackscatterStats(
+            mean_db=-18.2,
+            std_db=1.31,
+            background_db=-9.8,
+            contrast_db=8.4,
+            variance_ratio=0.61,
+            edge_gradient=0.42,
         ),
         age=AgeEstimate(
             min_hours=6.0,
@@ -206,6 +223,15 @@ def detect_response(method: DetectionMethod = DetectionMethod.classical) -> Dete
             },
             reason="Low-wind zone: high compactness (0.81) and soft edge gradient; ERA5 wind 1.9 m/s, below the 3 m/s detectability floor.",
             confidence=0.74,
+            geometry=SlickGeometry(
+                area_km2=31.1, perimeter_km=19.6, length_km=22.0, width_km=18.0,
+                aspect_ratio=1.22, elongation=1.22, orientation_deg=10.0,
+                compactness=0.81, solidity=0.97,
+            ),
+            backscatter=BackscatterStats(
+                mean_db=-13.4, std_db=2.44, background_db=-10.3,
+                contrast_db=3.1, variance_ratio=0.94, edge_gradient=0.14,
+            ),
             evidence=DetectionEvidence(contrast=0.31, variance=0.22, shape=0.18, edge=0.29),
         ),
         RejectedLookalike(
@@ -219,6 +245,15 @@ def detect_response(method: DetectionMethod = DetectionMethod.classical) -> Dete
             },
             reason="Biogenic slick signature: weak backscatter damping (-3.1 dB vs -8.4 dB for the retained slick) and no coherent drift-consistent elongation.",
             confidence=0.66,
+            geometry=SlickGeometry(
+                area_km2=14.6, perimeter_km=13.4, length_km=15.0, width_km=12.4,
+                aspect_ratio=1.21, elongation=1.21, orientation_deg=120.0,
+                compactness=1.0, solidity=0.96,
+            ),
+            backscatter=BackscatterStats(
+                mean_db=-12.9, std_db=2.61, background_db=-10.1,
+                contrast_db=2.8, variance_ratio=1.02, edge_gradient=0.11,
+            ),
             evidence=DetectionEvidence(contrast=0.18, variance=0.35, shape=0.41, edge=0.20),
         ),
     ]
@@ -364,7 +399,7 @@ def forecast_response(hours: float = 12.0, n_particles: int = 500, seed: int = 4
 
 _VESSELS = [
     # (mmsi, name, type, bearing_deg, closest_km, has_gap, gap_min)
-    (GT_MMSI, GT_NAME, "Chemical/Oil Products Tanker", 52.0, 1.8, True, 94.0),
+    (GT_MMSI, GT_NAME, "Chemical/Oil Products Tanker", 52.0, 0.1, True, 94.0),
     ("538007612", "MV NORTHERN PETREL", "Bulk Carrier", 61.0, 6.4, True, 38.0),
     ("311000765", "MV GULF SENTINEL", "Crude Oil Tanker", 128.0, 9.1, False, 0.0),
     ("366998210", "SEACOR REVIVAL", "Offshore Supply Vessel", 205.0, 14.7, False, 0.0),
@@ -372,10 +407,19 @@ _VESSELS = [
 ]
 
 
-def attribute_response(weights: ScoreWeights | None = None) -> AttributeResponse:
+def attribute_response(weights: ScoreWeights | None = None, origin: tuple[float, float] | None = None, origin_time_utc: datetime | None = None) -> AttributeResponse:
+    """Mock/fixture shape for Phase 7's six-component scoring.
+
+    Kept structurally aligned with app/attribution/scoring.py's real pipeline
+    (same six components, same weighting, same "candidate"/"investigation
+    lead" vocabulary) so mock mode is a faithful preview, not a different
+    contract. Real ingestion + scoring runs through engine.py; this only
+    backs /api/report and /api/pipeline/run's fixture-only paths.
+    """
     weights = weights or ScoreWeights()
     rng = random.Random(7)
-    origin_time = config.ACQUIRED_AT - timedelta(hours=8)
+    origin_pos = origin or GT_ORIGIN
+    origin_time = origin_time_utc or (config.ACQUIRED_AT - timedelta(hours=8))
 
     candidates: list[VesselCandidate] = []
     for mmsi, name, vtype, bearing, closest, has_gap, gap_min in _VESSELS:
@@ -384,31 +428,40 @@ def attribute_response(weights: ScoreWeights | None = None) -> AttributeResponse
         pts = []
         for s in range(-9, 10):
             along = s * 5.0
-            pts.append(list(_offset(*GT_ORIGIN,
+            pts.append(list(_offset(*origin_pos,
                                     along * math.sin(theta) + closest * math.cos(theta) + rng.gauss(0, 0.25),
                                     along * math.cos(theta) - closest * math.sin(theta) + rng.gauss(0, 0.25))))
 
-        proximity = max(0.0, 1.0 - closest / 25.0)
-        temporal = max(0.0, 1.0 - abs(closest) / 40.0)
-        heading = max(0.0, 1.0 - abs(bearing - 48.0) / 180.0)
+        origin_proximity = max(0.0, 1.0 - closest / 25.0)
+        temporal_compatibility = max(0.0, 1.0 - abs(closest) / 40.0)
+        trajectory_consistency = max(0.0, 1.0 - abs(bearing - 48.0) / 180.0)
         gap_score = min(1.0, gap_min / 90.0) if has_gap else 0.0
-        speed = 0.72 if has_gap else 0.18
+        behaviour_anomaly = 0.72 if has_gap else 0.18
+        # Mock proxy for the real counterfactual-simulation step: a vessel
+        # whose proximity+trajectory already look plausible gets a
+        # correspondingly plausible simulated-slick match in this fixture,
+        # since there is no real environmental field to actually simulate
+        # against in mock mode.
+        counterfactual_similarity = round(0.5 * origin_proximity + 0.5 * trajectory_consistency, 3)
 
         breakdown = ScoreBreakdown(
-            proximity=round(proximity, 3),
-            temporal_overlap=round(temporal, 3),
-            heading_consistency=round(heading, 3),
+            origin_proximity=round(origin_proximity, 3),
+            temporal_compatibility=round(temporal_compatibility, 3),
+            trajectory_consistency=round(trajectory_consistency, 3),
+            behaviour_anomaly=round(behaviour_anomaly, 3),
             ais_gap=round(gap_score, 3),
-            speed_anomaly=round(speed, 3),
+            counterfactual_similarity=counterfactual_similarity,
         )
         score = round(
-            breakdown.proximity * weights.proximity
-            + breakdown.temporal_overlap * weights.temporal_overlap
-            + breakdown.heading_consistency * weights.heading_consistency
+            breakdown.origin_proximity * weights.origin_proximity
+            + breakdown.temporal_compatibility * weights.temporal_compatibility
+            + breakdown.trajectory_consistency * weights.trajectory_consistency
+            + breakdown.behaviour_anomaly * weights.behaviour_anomaly
             + breakdown.ais_gap * weights.ais_gap
-            + breakdown.speed_anomaly * weights.speed_anomaly,
+            + breakdown.counterfactual_similarity * weights.counterfactual_similarity,
             3,
         )
+        label = CandidateLabel.investigation_lead if score >= 0.55 else CandidateLabel.candidate
 
         flags: list[CandidateFlag] = []
         gaps: list[AISGap] = []
@@ -428,7 +481,7 @@ def attribute_response(weights: ScoreWeights | None = None) -> AttributeResponse
                 flags.append(CandidateFlag.dark_vessel)
         if closest < 3.0:
             flags.append(CandidateFlag.closest_approach)
-        if speed > 0.6:
+        if behaviour_anomaly > 0.6:
             flags.append(CandidateFlag.slow_steaming)
 
         if has_gap and gap_min >= 60:
@@ -451,7 +504,7 @@ def attribute_response(weights: ScoreWeights | None = None) -> AttributeResponse
             VesselCandidate(
                 mmsi=mmsi, name=name, vessel_type=vtype,
                 track={"type": "LineString", "coordinates": pts},
-                score=score, rank=0, flags=flags, breakdown=breakdown, gaps=gaps,
+                score=score, rank=0, label=label, flags=flags, breakdown=breakdown, gaps=gaps,
                 closest_approach_km=closest,
                 closest_approach_utc=origin_time + timedelta(minutes=rng.randint(-40, 40)),
                 narrative=narrative,

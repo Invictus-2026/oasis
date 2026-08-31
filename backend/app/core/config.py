@@ -3,6 +3,7 @@ tunables that appear in provenance blocks."""
 
 from __future__ import annotations
 
+import os
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -46,6 +47,16 @@ DRIFT_DIFFUSION_M2S = 5.0         # horizontal eddy diffusivity, m^2/s
 DRIFT_TIMESTEP_MINUTES = 15
 DRIFT_N_PARTICLES = 500
 DRIFT_SEED = 42
+
+# --------------------------------------------------------------------------
+# Environmental data (Phase 3)
+# --------------------------------------------------------------------------
+# "auto" prefers the best available real provider and falls back to the
+# synthetic one; "mock" forces the fallback. Mirrors the frontend's
+# VITE_FORCE_MOCK escape hatch so both halves can be pinned to mock data
+# independently for an offline demo.
+ENV_DATA_MODE = os.environ.get("ENV_DATA_MODE", "auto")  # "auto" | "mock"
+ENV_DEFAULT_STEP_HOURS = 1.0
 
 AIS_GAP_THRESHOLD_MINUTES = 30
 ATTRIBUTION_RADIUS_KM = 25.0

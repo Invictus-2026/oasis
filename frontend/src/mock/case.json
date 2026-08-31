@@ -1,81 +1,81 @@
 {
-  "id": "gom-2023-06-15",
-  "name": "Gulf of Mexico \u2014 offshore Louisiana",
-  "bbox": {
-    "west": -90.6,
-    "south": 28.1,
-    "east": -89.4,
-    "north": 29.0
+ "id": "gom-2023-06-15",
+ "name": "Gulf of Mexico \u2014 offshore Louisiana",
+ "bbox": {
+  "west": -90.36,
+  "south": 26.845,
+  "east": -89.64,
+  "north": 27.25
+ },
+ "center": [
+  -89.983125,
+  27.091429
+ ],
+ "scene_id": "S1A_IW_GRDH_1SDV_20230615T120000",
+ "acquired_at": "2023-06-15T12:00:00Z",
+ "sar_overlay_url": "/sar/scene-sar.png",
+ "sources": [
+  {
+   "name": "Sentinel-1 SAR oil-spill dataset (Parts I-III)",
+   "kind": "sar",
+   "source_url": "https://zenodo.org/records/8346860",
+   "licence": "CC BY 4.0",
+   "is_synthetic": false,
+   "note": "Officially specified in the problem statement."
   },
-  "center": [
-    -90.0,
-    28.55
-  ],
-  "scene_id": "S1A_IW_GRDH_1SDV_20230615T120000",
-  "acquired_at": "2023-06-15T12:00:00Z",
-  "sar_overlay_url": null,
-  "sources": [
-    {
-      "name": "Sentinel-1 SAR oil-spill dataset (Parts I-III)",
-      "kind": "sar",
-      "source_url": "https://zenodo.org/records/8346860",
-      "licence": "CC BY 4.0",
-      "is_synthetic": false,
-      "note": "Officially specified in the problem statement."
-    },
-    {
-      "name": "NOAA AccessAIS historical AIS",
-      "kind": "ais",
-      "source_url": "https://marinecadastre.gov/accessais/",
-      "licence": "Public domain (US Government)",
-      "is_synthetic": false,
-      "note": "Officially specified in the problem statement."
-    },
-    {
-      "name": "ERA5 10 m wind reanalysis",
-      "kind": "wind",
-      "source_url": "https://cds.climate.copernicus.eu/",
-      "licence": "Copernicus licence",
-      "is_synthetic": false,
-      "note": null
-    },
-    {
-      "name": "CMEMS surface currents",
-      "kind": "current",
-      "source_url": "https://marine.copernicus.eu/",
-      "licence": "Copernicus licence",
-      "is_synthetic": false,
-      "note": null
-    },
-    {
-      "name": "Injected ground-truth polluter track",
-      "kind": "synthetic",
-      "source_url": null,
-      "licence": null,
-      "is_synthetic": true,
-      "note": "One synthetic vessel added so attribution can be validated against a known answer."
-    }
-  ],
-  "ground_truth": {
-    "origin": [
-      -90.115,
-      28.408
-    ],
-    "origin_time_utc": "2023-06-15T04:10:00Z",
-    "polluter_mmsi": "367301820",
-    "polluter_name": "MV KESTREL TRADER"
+  {
+   "name": "NOAA AccessAIS historical AIS",
+   "kind": "ais",
+   "source_url": "https://marinecadastre.gov/accessais/",
+   "licence": "Public domain (US Government)",
+   "is_synthetic": false,
+   "note": "Officially specified in the problem statement."
   },
-  "disclaimer": "Constructed validation scenario. Real Sentinel-1 SAR imagery (Zenodo oil-spill dataset) and real AIS traffic (NOAA AccessAIS) are synthetically co-located onto a common region and time so the end-to-end pipeline can be validated against a known ground truth. The imagery and the vessel traffic are not from the same real-world incident.",
-  "provenance": {
-    "model_version": "spilltrace-0.1.0+fixture",
-    "params": {
-      "stage": "case",
-      "case_id": "gom-2023-06-15"
-    },
-    "generated_at": "2026-08-23T16:22:25.342357Z",
-    "inputs": [
-      "data/case/case.json"
-    ],
-    "notes": "FIXTURE DATA \u2014 not produced by the real pipeline."
+  {
+   "name": "ERA5 10 m wind reanalysis",
+   "kind": "wind",
+   "source_url": "https://cds.climate.copernicus.eu/",
+   "licence": "Copernicus licence",
+   "is_synthetic": false,
+   "note": null
+  },
+  {
+   "name": "CMEMS surface currents",
+   "kind": "current",
+   "source_url": "https://marine.copernicus.eu/",
+   "licence": "Copernicus licence",
+   "is_synthetic": false,
+   "note": null
+  },
+  {
+   "name": "Injected ground-truth polluter track",
+   "kind": "synthetic",
+   "source_url": null,
+   "licence": null,
+   "is_synthetic": true,
+   "note": "One synthetic vessel added so attribution can be validated against a known answer."
   }
+ ],
+ "ground_truth": {
+  "origin": [
+   -89.8045,
+   28.5025
+  ],
+  "origin_time_utc": "2023-06-14T06:10:00Z",
+  "polluter_mmsi": "367301820",
+  "polluter_name": "MV KESTREL TRADER"
+ },
+ "disclaimer": "Constructed validation scenario. Real Sentinel-1 SAR imagery (Zenodo oil-spill dataset) and real AIS traffic (NOAA AccessAIS) are synthetically co-located onto a common region and time so the end-to-end pipeline can be validated against a known ground truth. The imagery and the vessel traffic are not from the same real-world incident.",
+ "provenance": {
+  "model_version": "spilltrace-0.1.0+fixture",
+  "params": {
+   "stage": "case",
+   "case_id": "gom-2023-06-15"
+  },
+  "generated_at": "2026-08-27T00:00:00Z",
+  "inputs": [
+   "data/case/case.json"
+  ],
+  "notes": "FIXTURE DATA \u2014 not produced by the real pipeline."
+ }
 }

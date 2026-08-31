@@ -35,15 +35,28 @@ def ring_perimeter_km(ring: list[list[float]]) -> float:
 
 
 def describe(region, bundle) -> dict:
-    """Area, perimeter, elongation, orientation and compactness.
+    """Full morphology record for one region, in real-world units.
 
     Area comes from the pixel count rather than the simplified polygon: contour
     simplification is for rendering, and using it here would quietly bias the
     area low.
+
+    Length and width are the extents along the region's own principal axes
+    (measured in classical._shape_stats), converted to km. Aspect ratio is
+    length/width — related to, but not the same as, `elongation`, which is the
+    second-moment eigenvalue ratio of the fitted ellipse. Both are reported
+    because they answer different questions: elongation describes the mass
+    distribution, aspect ratio the bounding extent.
     """
+    px_km = math.sqrt(bundle.pixel_area_km2())  # square pixels in this projection
+
     area_km2 = region.area_px * bundle.pixel_area_km2()
     ring = contour_to_lonlat(region.contour, bundle)
     perim_km = ring_perimeter_km(ring)
+
+    length_km = region.length_px * px_km
+    width_km = region.width_px * px_km
+    aspect_ratio = (length_km / width_km) if width_km > 0 else 1.0
 
     # Recompute compactness in real units. The pixel-space value is distorted
     # because a degree of longitude is shorter than a degree of latitude here.
@@ -52,7 +65,28 @@ def describe(region, bundle) -> dict:
     return {
         "area_km2": round(area_km2, 2),
         "perimeter_km": round(perim_km, 2),
+        "length_km": round(length_km, 2),
+        "width_km": round(width_km, 3),
+        "aspect_ratio": round(aspect_ratio, 2),
         "elongation": round(region.elongation, 2),
         "orientation_deg": round(region.orientation_deg, 1),
         "compactness": round(min(compactness, 1.0), 3),
+        "solidity": round(region.solidity, 3),
+    }
+
+
+def backscatter(region) -> dict:
+    """Per-region backscatter statistics, as measured on the filtered raster.
+
+    These are the raw radiometric numbers behind the contrast and variance
+    terms in classical.classify(); surfacing them keeps the confidence score
+    auditable instead of opaque.
+    """
+    return {
+        "mean_db": round(float(region.mean_db), 2),
+        "std_db": round(float(region.std_db), 3),
+        "background_db": round(float(region.background_db), 2),
+        "contrast_db": round(float(region.contrast_db), 2),
+        "variance_ratio": round(float(region.variance_ratio), 3),
+        "edge_gradient": round(float(region.edge_gradient), 4),
     }

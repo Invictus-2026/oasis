@@ -160,6 +160,13 @@ export default function Timeline() {
   const hindcastFrames = hindcast?.particles_timeline.length ?? 0;
   const forecastFrames = forecast?.particles_timeline.length ?? 0;
 
+  // Span labels come from the run itself — the fixtures backtrack 30 h and
+  // forecast 9 h, and a live run may use a different window again.
+  const span = (ts: number[] | undefined) =>
+    ts && ts.length ? Math.round(Math.max(...ts.map(Math.abs))) : 0;
+  const hindcastSpan = -span(hindcast?.particles_timeline.map(f => f.t_offset_hours));
+  const forecastSpan = span(forecast?.particles_timeline.map(f => f.t_offset_hours));
+
   const toggleHindcast = () => {
     if (!hindcastPlaying && hindcastIndex >= hindcastFrames - 1) setHindcastIndex(0);
     setHindcastPlaying(p => !p);
@@ -176,13 +183,13 @@ export default function Timeline() {
     <div className="pointer-events-auto w-full max-w-4xl mx-auto rounded-xl border border-ink-200 bg-white/95 shadow-xl backdrop-blur-md px-5 py-4 flex flex-col gap-3">
       {/* Header labels */}
       <div className="flex items-center justify-between">
-        <span className="text-[11px] font-black uppercase tracking-widest text-blue-600">Hindcast (-24h)</span>
+        <span className="text-[11px] font-black uppercase tracking-widest text-blue-600">Hindcast ({hindcastSpan}h)</span>
         <div className="flex items-center gap-1.5">
           <div className="h-px w-12 bg-ink-200" />
           <span className="text-[11px] font-black uppercase tracking-widest text-ink-800">Det. 0h</span>
           <div className="h-px w-12 bg-ink-200" />
         </div>
-        <span className="text-[11px] font-black uppercase tracking-widest text-purple-600">Forecast (+72h)</span>
+        <span className="text-[11px] font-black uppercase tracking-widest text-purple-600">Forecast (+{forecastSpan}h)</span>
       </div>
 
       {/* Two tracks */}

@@ -61,10 +61,20 @@ def _frames_to_api(frames, rng) -> list[ParticleFrame]:
 
 
 def hindcast(bundle, slick_ring, age_hours: tuple[float, float], *,
-             n_particles: int, wind_factor: float, seed: int) -> HindcastResponse:
+             n_particles: int, wind_factor: float, seed: int,
+             timestep_minutes: float = config.DRIFT_TIMESTEP_MINUTES,
+             diffusion_m2s: float | None = None,
+             wind_dir_deg: float | None = None) -> HindcastResponse:
     field = ForcingField.from_bundle(bundle)
     if field is None:
         raise RuntimeError("case bundle has no forcing field")
+
+    if wind_dir_deg is not None:
+        import math
+        rad = math.radians(wind_dir_deg)
+        speed = np.hypot(field.u_wind, field.v_wind)
+        field.u_wind = speed * math.sin(rad)
+        field.v_wind = speed * math.cos(rad)
 
     steps: list[ProcessingStep] = []
     rng = np.random.default_rng(seed)
@@ -81,14 +91,15 @@ def hindcast(bundle, slick_ring, age_hours: tuple[float, float], *,
     t0 = time.perf_counter()
     frames, _ = lagrangian.advect(
         particles, field, hours=age_max, direction=-1,
-        wind_factor=wind_factor, diffusion_m2s=None,
-        timestep_minutes=config.DRIFT_TIMESTEP_MINUTES, seed=seed,
+        wind_factor=wind_factor, diffusion_m2s=diffusion_m2s,
+        timestep_minutes=timestep_minutes, seed=seed,
     )
     steps.append(ProcessingStep(
         name=f"backward advection {age_max:.1f} h",
         duration_ms=round((time.perf_counter() - t0) * 1000, 1),
-        detail=f"{config.DRIFT_TIMESTEP_MINUTES:.0f} min steps, "
-               f"K={config.DRIFT_DIFFUSION_M2S} m²/s, wind factor {wind_factor:.0%}",
+        detail=f"{timestep_minutes:.0f} min steps, "
+               f"K={diffusion_m2s if diffusion_m2s is not None else 'Okubo scale-dependent'}, "
+               f"wind factor {wind_factor:.0%}",
     ))
 
     # Pool every particle whose elapsed time falls inside the plausible age
@@ -149,8 +160,8 @@ def hindcast(bundle, slick_ring, age_hours: tuple[float, float], *,
                 "hours": age_max,
                 "n_particles": n_particles,
                 "wind_factor": wind_factor,
-                "diffusion": "Okubo scale-dependent",
-                "timestep_minutes": config.DRIFT_TIMESTEP_MINUTES,
+                "diffusion": diffusion_m2s if diffusion_m2s is not None else "Okubo scale-dependent",
+                "timestep_minutes": timestep_minutes,
                 "seed": seed,
                 "age_window_hours": [age_min, age_max],
                 "forcing": bundle.meta.get("forcing", {}).get("mode"),
@@ -163,10 +174,20 @@ def hindcast(bundle, slick_ring, age_hours: tuple[float, float], *,
 
 
 def forecast(bundle, slick_ring, hours: float, *,
-             n_particles: int, wind_factor: float, seed: int) -> ForecastResponse:
+             n_particles: int, wind_factor: float, seed: int,
+             timestep_minutes: float = config.DRIFT_TIMESTEP_MINUTES,
+             diffusion_m2s: float | None = None,
+             wind_dir_deg: float | None = None) -> ForecastResponse:
     field = ForcingField.from_bundle(bundle)
     if field is None:
         raise RuntimeError("case bundle has no forcing field")
+
+    if wind_dir_deg is not None:
+        import math
+        rad = math.radians(wind_dir_deg)
+        speed = np.hypot(field.u_wind, field.v_wind)
+        field.u_wind = speed * math.sin(rad)
+        field.v_wind = speed * math.cos(rad)
 
     steps: list[ProcessingStep] = []
     rng = np.random.default_rng(seed)
@@ -175,8 +196,8 @@ def forecast(bundle, slick_ring, hours: float, *,
     particles = lagrangian.seed_in_polygon(slick_ring, n_particles, rng)
     frames, final = lagrangian.advect(
         particles, field, hours=hours, direction=+1,
-        wind_factor=wind_factor, diffusion_m2s=None,
-        timestep_minutes=config.DRIFT_TIMESTEP_MINUTES, seed=seed + 1,
+        wind_factor=wind_factor, diffusion_m2s=diffusion_m2s,
+        timestep_minutes=timestep_minutes, seed=seed + 1,
     )
     steps.append(ProcessingStep(
         name=f"forward advection {hours:.0f} h",
@@ -227,7 +248,9 @@ def forecast(bundle, slick_ring, hours: float, *,
         provenance=_provenance(
             "forecast",
             {"direction": "forward", "hours": hours, "n_particles": n_particles,
-             "wind_factor": wind_factor, "diffusion": "Okubo scale-dependent",
+             "wind_factor": wind_factor,
+             "diffusion": diffusion_m2s if diffusion_m2s is not None else "Okubo scale-dependent",
+             "timestep_minutes": timestep_minutes,
              "seed": seed + 1, "forcing": bundle.meta.get("forcing", {}).get("mode")},
             "Same engine as the hindcast with the advection sign flipped. Diffusion "
             "is irreversible in both directions, so the envelope widens either way.",

@@ -99,11 +99,38 @@ class CaseMeta(BaseModel):
 
 
 class SlickGeometry(BaseModel):
+    """Morphology of one detected region, in real-world units.
+
+    Fields carry defaults so a fixture or an older cached payload that predates
+    the extent measurements still validates — mock mode must never break on a
+    schema addition.
+    """
+
     area_km2: float
     perimeter_km: float
+    length_km: float = Field(default=0.0, description="extent along the region's major axis")
+    width_km: float = Field(default=0.0, description="extent along the region's minor axis")
+    aspect_ratio: float = Field(default=1.0, description="length/width of the principal-axis extents")
     elongation: float = Field(description="major/minor axis ratio of the fitted ellipse")
     orientation_deg: float = Field(description="major-axis bearing, 0=N, clockwise")
     compactness: float = Field(description="4*pi*A/P^2; 1.0 = perfect circle")
+    solidity: float = Field(default=1.0, description="area/convex-hull area; 1.0 = convex, lower = ragged")
+
+
+class BackscatterStats(BaseModel):
+    """Radiometric statistics measured on the speckle-filtered raster.
+
+    These are the numbers behind the contrast and variance sub-scores, exposed
+    so a confidence value can be traced back to physical measurements. For
+    uploaded imagery with no calibrated Sigma0 these are relative, not absolute
+    — see the upload endpoint's notes field."""
+
+    mean_db: float = Field(description="mean backscatter inside the region")
+    std_db: float = Field(description="backscatter standard deviation inside the region")
+    background_db: float = Field(description="mean backscatter of the surrounding annulus")
+    contrast_db: float = Field(description="background - inside; positive means darker than the sea")
+    variance_ratio: float = Field(description="inside std / background std; oil damps speckle below 1")
+    edge_gradient: float = Field(default=0.0, description="mean |gradient| on the region boundary")
 
 
 class AgeEstimate(BaseModel):
@@ -149,6 +176,7 @@ class Slick(BaseModel):
     confidence: float = Field(ge=0.0, le=1.0)
     method: DetectionMethod
     geometry: SlickGeometry
+    backscatter: BackscatterStats | None = None
     age: AgeEstimate | None = None
     evidence: DetectionEvidence | None = None
 
@@ -161,6 +189,8 @@ class RejectedLookalike(BaseModel):
     polygon: GeoJSON
     reason: str
     confidence: float = Field(ge=0.0, le=1.0)
+    geometry: SlickGeometry | None = None
+    backscatter: BackscatterStats | None = None
     evidence: DetectionEvidence | None = None
 
 
@@ -220,12 +250,95 @@ class DriftRequest(BaseModel):
         description="fraction of 10m wind added to surface current; 0.02-0.04 is the defensible range",
     )
     seed: int = 42
+    # Phase 4 additions. Defaults match the values engine.py already used as
+    # fixed constants, so an old client that omits these fields gets the
+    # identical run it always got.
+    timestep_minutes: float = Field(
+        default=15.0, gt=0.0, le=1440.0,
+        description="integration step; smaller values trade runtime for finer trajectories",
+    )
+    diffusion_m2s: float | None = Field(
+        default=None, ge=0.0,
+        description="fixed horizontal eddy diffusivity; omit to derive it from the ensemble's "
+                    "own spread each step via the Okubo (1971) scale-dependent law",
+    )
+    custom_polygon: GeoJSON | None = Field(
+        default=None,
+        description="A polygon geometry representing a custom-uploaded slick, used instead of slick_id lookup.",
+    )
+    mock_wind_dir_deg: float | None = Field(
+        default=None, ge=0.0, le=360.0,
+        description="Optional override for the wind direction (bearing toward, degrees clockwise from north), used for simulation testing.",
+    )
 
 
 class HindcastResponse(BaseModel):
     particles_timeline: list[ParticleFrame]
     cone: list[ConePolygon]
     origin_estimate: OriginEstimate
+    processing: list[ProcessingStep]
+    provenance: Provenance
+
+
+# --------------------------------------------------------------------------
+# POST /api/drift/origin-search  (Phase 5)
+# --------------------------------------------------------------------------
+
+
+class OriginSearchRequest(BaseModel):
+    slick_id: str
+    max_age_hours: float = Field(default=24.0, gt=0.0, le=24 * 14)
+    time_step_hours: float = Field(default=1.0, gt=0.0, le=24.0)
+    n_particles: int = Field(default=150, gt=0, le=5000)
+    wind_factor: float = Field(default=0.03, ge=0.0, le=0.2)
+    timestep_minutes: float = Field(default=15.0, gt=0.0, le=1440.0)
+    diffusion_m2s: float | None = Field(default=None, ge=0.0)
+    seed: int = 42
+    custom_polygon: GeoJSON | None = None
+    mock_wind_dir_deg: float | None = Field(default=None, ge=0.0, le=360.0)
+
+
+class CandidateMetrics(BaseModel):
+    """The five required comparison metrics plus the documented composite,
+    for one candidate release location/time — auditable rather than a single
+    opaque rank."""
+
+    spatial_overlap: float = Field(ge=0.0, le=1.0)
+    centroid_distance_km: float
+    shape_similarity: float = Field(ge=0.0, le=1.0)
+    orientation_similarity: float = Field(ge=0.0, le=1.0)
+    density_similarity: float = Field(ge=0.0, le=1.0)
+    composite_score: float = Field(ge=0.0, le=1.0)
+
+
+class OriginCandidate(BaseModel):
+    release_time_utc: datetime
+    age_hours: float
+    origin: LonLat
+    metrics: CandidateMetrics
+    age_plausibility: float = Field(
+        ge=0.0, le=1.0,
+        description="how well this age matches the Okubo width-inversion bracket — an empirical "
+                    "constraint folded into ranking, never the sole age estimator",
+    )
+
+
+class OriginSearchResponse(BaseModel):
+    """Best estimated origin/time plus the full ranked candidate set, so the
+    result is auditable rather than a single number asserted without
+    evidence."""
+
+    best_origin: LonLat
+    region_50: GeoJSON | None
+    region_90: GeoJSON | None
+    estimated_release_time_utc: datetime
+    estimated_age_hours: float
+    age_uncertainty_hours: tuple[float, float]
+    confidence: Literal["low", "medium", "high"]
+    candidates: list[OriginCandidate] = Field(
+        description="every searched (release location, release time) pair, ranked best first"
+    )
+    geojson: GeoJSON = Field(description="origin regions + best-origin point, ready for MapLibre")
     processing: list[ProcessingStep]
     provenance: Provenance
 
@@ -247,35 +360,116 @@ class ForecastResponse(BaseModel):
 
 
 # --------------------------------------------------------------------------
+# GET /api/ais/tracks  (Phase 6 — ingestion + track reconstruction)
+# --------------------------------------------------------------------------
+
+
+class AISPositionOut(BaseModel):
+    """One normalised AIS broadcast. `imo`/`heading_deg` are null whenever
+    the source does not carry them — the real case-bundle AIS source (NOAA
+    AccessAIS-derived) has neither; never fabricated to fill the field."""
+
+    timestamp: datetime
+    lat: float
+    lon: float
+    speed_knots: float | None = None
+    course_deg: float | None = None
+    heading_deg: float | None = None
+    imo: str | None = None
+
+
+class VesselOut(BaseModel):
+    mmsi: str
+    name: str | None = None
+    vessel_type_code: int | None = None
+    imo: str | None = None
+
+
+class VesselTrackOut(BaseModel):
+    vessel: VesselOut
+    positions: list[AISPositionOut]
+    linestring: GeoJSON | None = Field(
+        default=None, description="null when fewer than two valid fixes exist for this vessel"
+    )
+    interpolated_segments: list[dict[str, Any]] = Field(
+        default_factory=list,
+        description="short, plausibility-checked straight-line fills between two real fixes — "
+                    "never fabricated across a long or physically implausible gap",
+    )
+    gaps: list[AISGap] = Field(
+        default_factory=list,
+        description="reporting gaps above the threshold. A plain geometric/temporal fact, "
+                    "never a suspicion label — see AISGap.label",
+    )
+
+
+class AISTracksResponse(BaseModel):
+    """Phase 6 output: real AIS ingestion and track reconstruction, not
+    attribution scoring — no proximity/heading/suspicion score is computed
+    or returned here. That remains /api/attribute's job."""
+
+    vessels: list[VesselTrackOut]
+    geojson: GeoJSON = Field(description="every vessel's track as one FeatureCollection of "
+                                          "LineStrings, ready for the existing MapLibre map")
+    total_positions_parsed: int
+    total_vessels: int
+    processing: list[ProcessingStep]
+    provenance: Provenance
+
+
+# --------------------------------------------------------------------------
 # POST /api/attribute
 # --------------------------------------------------------------------------
 
 
 class ScoreBreakdown(BaseModel):
     """Every factor normalised 0-1 and returned individually, so the UI can
-    show WHY a vessel ranks where it does. No black-box score."""
+    show WHY a vessel ranks where it does. No black-box score.
 
-    proximity: float = Field(ge=0.0, le=1.0)
-    temporal_overlap: float = Field(ge=0.0, le=1.0)
-    heading_consistency: float = Field(ge=0.0, le=1.0)
+    Six components (Phase 7): origin proximity, temporal compatibility,
+    trajectory consistency, behaviour anomaly, AIS gap, and counterfactual
+    simulation similarity. `counterfactual_similarity` is null for a
+    candidate that did not receive the expensive simulate-and-compare step
+    (see app/attribution/scoring.py — only the top-ranked candidates get it),
+    never a fabricated 0.
+    """
+
+    origin_proximity: float = Field(ge=0.0, le=1.0)
+    temporal_compatibility: float = Field(ge=0.0, le=1.0)
+    trajectory_consistency: float = Field(ge=0.0, le=1.0)
+    behaviour_anomaly: float = Field(ge=0.0, le=1.0)
     ais_gap: float = Field(ge=0.0, le=1.0)
-    speed_anomaly: float = Field(ge=0.0, le=1.0)
+    counterfactual_similarity: float | None = Field(
+        default=None, ge=0.0, le=1.0,
+        description="null when this candidate did not receive a counterfactual simulation run",
+    )
 
 
 class ScoreWeights(BaseModel):
-    proximity: float = 0.30
-    temporal_overlap: float = 0.25
-    ais_gap: float = 0.20
-    heading_consistency: float = 0.15
-    speed_anomaly: float = 0.10
+    """Named, documented weights — the only place a percentage exists in the
+    whole scoring path, and it is an inspectable constant, never baked
+    silently into the composite. See app/attribution/scoring.SCORE_WEIGHTS,
+    the source of these defaults."""
+
+    origin_proximity: float = 0.22
+    temporal_compatibility: float = 0.18
+    trajectory_consistency: float = 0.18
+    behaviour_anomaly: float = 0.14
+    ais_gap: float = 0.14
+    counterfactual_similarity: float = 0.14
 
 
 class AISGap(BaseModel):
+    """A plain geometric/temporal fact about a silence in AIS reporting.
+    Never a verdict — `label` is deliberately phrased as an investigation
+    signal, not an accusation. See app/attribution/ais_ingest.py (Phase 6)."""
+
     start_utc: datetime
     end_utc: datetime
     duration_minutes: float
     interpolated_path: GeoJSON | None = None
     overlaps_origin_window: bool = False
+    label: str = "AIS reporting gap — investigation signal, not a finding of wrongdoing"
 
 
 class CandidateFlag(str, Enum):
@@ -285,13 +479,24 @@ class CandidateFlag(str, Enum):
     closest_approach = "CLOSEST_APPROACH"
 
 
+class CandidateLabel(str, Enum):
+    """Acceptance vocabulary (Phase 7): a vessel is a CANDIDATE, or an
+    INVESTIGATION LEAD when the evidence is stronger — never a "suspect" or
+    "culprit". Crossing the lead threshold is a stronger plausibility
+    signal, not a verdict; see app/attribution/scoring.INVESTIGATION_LEAD_THRESHOLD."""
+
+    candidate = "candidate"
+    investigation_lead = "investigation lead"
+
+
 class VesselCandidate(BaseModel):
     mmsi: str
-    name: str
-    vessel_type: str
+    name: str | None = None
+    vessel_type: str | None = None
     track: GeoJSON
     score: float = Field(ge=0.0, le=1.0)
     rank: int
+    label: CandidateLabel = CandidateLabel.candidate
     flags: list[CandidateFlag] = Field(default_factory=list)
     breakdown: ScoreBreakdown
     gaps: list[AISGap] = Field(default_factory=list)
@@ -303,10 +508,24 @@ class VesselCandidate(BaseModel):
 
 
 class AttributeRequest(BaseModel):
-    origin: LonLat
-    origin_time_utc: datetime
+    origin_region: GeoJSON = Field(
+        description="origin probability region (Polygon), e.g. Phase 5's origin-search region_50/region_90"
+    )
+    release_window_start_utc: datetime
+    release_window_end_utc: datetime
+    drift_bearing_deg: float = Field(
+        description="the observed slick's OWN measured orientation (e.g. Phase 2's "
+                    "geometry.orientation_deg) — the trail's own axis, not a current/wind drift "
+                    "direction. An underway discharge's trail runs along the vessel's heading at "
+                    "the moment of release, then the current reshapes it afterward, so a "
+                    "vessel's later drift-like motion is not the diagnostic signal here; whether "
+                    "the vessel's own track once ran along the trail's axis is."
+    )
     search_radius_km: float = 25.0
-    time_window_hours: float = 6.0
+    counterfactual_top_n: int = Field(
+        default=5, ge=0, le=50,
+        description="how many top-ranked candidates receive the expensive counterfactual simulation step",
+    )
     weights: ScoreWeights = Field(default_factory=ScoreWeights)
 
 
