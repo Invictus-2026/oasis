@@ -12,6 +12,7 @@ import type {
   HindcastResponse,
   ProcessingStep,
   ReportContent,
+  ReRouteOption,
 } from "../api/types";
 import { type LayerVisibility } from "../components/MapView";
 import { type ViewMode } from "../lib/viewMode";
@@ -74,6 +75,9 @@ interface SpillContextType {
   injectAdHocDetection: (det: DetectResponse, overlay?: CustomImageOverlay) => void;
   removeCustomOverlay: (id: string) => void;
 
+  activeReRouteOption: ReRouteOption | null;
+  setActiveReRouteOption: (opt: ReRouteOption | null) => void;
+
   // Legacy compatibility, though components will migrate off this
   frameIndex: number;
   frames: number;
@@ -123,6 +127,8 @@ export function SpillProvider({ children }: { children: ReactNode }) {
   const [layers, setLayers] = useState < LayerVisibility > ({
     sar: true, slick: true, lookalikes: true, cone: true, particles: true, forecast: true, tracks: true,
   });
+
+  const [activeReRouteOption, setActiveReRouteOption] = useState<ReRouteOption | null>(null);
 
   // The drift bearing of the bundled case: WNW, matching the slick axis traced
   // off the SAR scene (carrier in the south-east -> slick head in the bay).
@@ -583,6 +589,8 @@ export function SpillProvider({ children }: { children: ReactNode }) {
         randomizeWind,
         injectAdHocDetection,
         removeCustomOverlay,
+        activeReRouteOption,
+        setActiveReRouteOption,
       }}
     >
       {children}

@@ -8,6 +8,7 @@ import type {
   DetectResponse,
   ForecastResponse,
   HindcastResponse,
+  ReRouteOption,
 } from "../api/types";
 import { C } from "../lib/theme";
 
@@ -39,6 +40,7 @@ interface Props {
   mockWindDir?: number;
   customOverlays?: CustomImageOverlay[];
   offlineMap?: boolean;
+  reRouteOption?: ReRouteOption | null;
 }
 
 const EMPTY: GeoJSON.FeatureCollection = { type: "FeatureCollection", features: [] };
@@ -142,6 +144,7 @@ export default function MapView({
   caseMeta, detection, hindcast, forecast, attribution,
   layers, hindcastIndex, forecastIndex, selectedMmsi, onSelectVessel, focusRequest, activeSlickId, mockWindDir,
   customOverlays = [],
+  reRouteOption,
 }: Props) {
   const container = useRef < HTMLDivElement > (null);
   const map = useRef < maplibregl.Map | null > (null);
@@ -184,24 +187,18 @@ export default function MapView({
     m.addControl(new maplibregl.NavigationControl({ showCompass: true }), "bottom-right");
     m.addControl(new maplibregl.ScaleControl({ unit: "metric" }), "bottom-left");
 
-    // MapLibre measures the container once at construction. Inside a flex
-    // layout that measurement can land before the browser has resolved the
-    // final height, and the canvas silently falls back to 400x300 — a map that
-    // renders correctly into a corner too small to see. Observing the container
-    // and resizing keeps the canvas correct on first paint and on every window
-    // resize during a demo.
     const ro = new ResizeObserver(() => m.resize());
     ro.observe(container.current!);
     resizeObs.current = ro;
 
-    // Surface style/render failures instead of leaving a silently blank canvas.
     m.on("error", (e) => console.error("[SpillTrace] map error:", e?.error ?? e));
 
     m.on("load", () => {
       for (const id of ["graticule", "frame", "cone90", "cone50", "originRegion90",
         "originRegion50", "lookalikes", "slick",
         "particles", "forecastCone", "forecastPath", "tracks", "origin",
-        "gap", "connector", "windField", "currentField"]) {
+        "gap", "connector", "windField", "currentField",
+        "rerouteExclusion", "rerouteDirect", "reroutePath", "rerouteWaypoints"]) {
         m.addSource(id, { type: "geojson", data: EMPTY });
       }
 
@@ -373,6 +370,37 @@ export default function MapView({
         paint: {
           "circle-radius": 6, "circle-color": C.origin,
           "circle-stroke-color": "#ffffff", "circle-stroke-width": 2
+        }
+      });
+
+      // ── Re-Routing Alternate Navigation Layers ─────────────────────
+      m.addLayer({
+        id: "rerouteExclusion-fill", source: "rerouteExclusion", type: "fill",
+        paint: { "fill-color": "rgba(239, 68, 68, 0.08)" }
+      });
+      m.addLayer({
+        id: "rerouteExclusion-line", source: "rerouteExclusion", type: "line",
+        paint: { "line-color": "#ef4444", "line-width": 1.5, "line-dasharray": [3, 2], "line-opacity": 0.8 }
+      });
+      m.addLayer({
+        id: "rerouteDirect-line", source: "rerouteDirect", type: "line",
+        paint: { "line-color": "#ef4444", "line-width": 2, "line-dasharray": [2, 2], "line-opacity": 0.75 }
+      });
+      m.addLayer({
+        id: "reroutePath-glow", source: "reroutePath", type: "line",
+        paint: { "line-color": "#10b981", "line-width": 10, "line-blur": 6, "line-opacity": 0.5 }
+      });
+      m.addLayer({
+        id: "reroutePath-line", source: "reroutePath", type: "line",
+        paint: { "line-color": "#059669", "line-width": 3.5 }
+      });
+      m.addLayer({
+        id: "rerouteWaypoints-circle", source: "rerouteWaypoints", type: "circle",
+        paint: {
+          "circle-radius": 6,
+          "circle-color": "#10b981",
+          "circle-stroke-color": "#ffffff",
+          "circle-stroke-width": 2.5
         }
       });
 
@@ -830,6 +858,42 @@ export default function MapView({
         : [],
     });
   }, [ready, attribution, selectedMmsi, hindcast, layers.tracks]);
+
+  // ── Re-Routing Alternate Detour Path Synchronization ─────────────
+  useEffect(() => {
+    if (!ready) return;
+    if (!reRouteOption) {
+      setData("rerouteExclusion", EMPTY);
+      setData("rerouteDirect", EMPTY);
+      setData("reroutePath", EMPTY);
+      setData("rerouteWaypoints", EMPTY);
+      return;
+    }
+
+    setData("rerouteExclusion", {
+      type: "FeatureCollection",
+      features: [{ type: "Feature", properties: {}, geometry: reRouteOption.geojson_exclusion_zone }]
+    });
+
+    setData("rerouteDirect", {
+      type: "FeatureCollection",
+      features: [{ type: "Feature", properties: { label: "Direct Hazard Line" }, geometry: reRouteOption.geojson_direct }]
+    });
+
+    setData("reroutePath", {
+      type: "FeatureCollection",
+      features: [{ type: "Feature", properties: { label: reRouteOption.name }, geometry: reRouteOption.geojson_path }]
+    });
+
+    setData("rerouteWaypoints", {
+      type: "FeatureCollection",
+      features: reRouteOption.waypoints.map(w => ({
+        type: "Feature",
+        properties: { name: w.name, course: `${w.course_to_steer_deg}°`, instructions: w.instructions },
+        geometry: { type: "Point", coordinates: [w.lon, w.lat] }
+      }))
+    });
+  }, [ready, reRouteOption]);
 
   const handledFocusNonce = useRef<number | null>(null);
 

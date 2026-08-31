@@ -8,9 +8,9 @@ import {
   Satellite, Search, Layers, Zap, BrainCircuit, Maximize,
   Clock, EyeOff, AlertTriangle, ChevronDown, ChevronRight,
   UploadCloud, FileImage, MapPin, CheckCircle2, ArrowRight, Activity, Crosshair,
-  Wind, Ship, FlameKindling, Droplets
+  Wind, Ship, FlameKindling, Droplets, Compass, Route, ExternalLink, ShieldCheck
 } from "lucide-react";
-import type { DetectionMethod, UploadResponse, UploadRegion, CustomImageOverlay, SlickGeometry, AgeEstimate, DetectionEvidence, BackscatterStats, OilClassifyResponse } from "../api/types";
+import type { DetectionMethod, UploadResponse, UploadRegion, CustomImageOverlay, SlickGeometry, AgeEstimate, DetectionEvidence, BackscatterStats, OilClassifyResponse, ReRouteOption } from "../api/types";
 
 function Badge({ children, color = "gray" }: { children: React.ReactNode; color?: string }) {
   const map: Record<string, string> = {
@@ -211,22 +211,34 @@ function SlickDetailsPanel({ item, onMapProject }: { item: UnifiedSlick; onMapPr
 
 // ── OilImpactPanel Component ────────────────────────────────────
 function OilImpactPanel({ data, loading }: { data: OilClassifyResponse | null; loading: boolean }) {
+  const { setActiveReRouteOption } = useSpillState();
+  const navigate = useNavigate();
+  const [selectedOptId, setSelectedOptId] = useState<string>("port_fastest");
+
+  useEffect(() => {
+    if (data?.reroute_plan?.options?.length) {
+      const rec = data.reroute_plan.recommended_option_id;
+      setSelectedOptId(rec);
+      const chosen = data.reroute_plan.options.find(o => o.id === rec) || data.reroute_plan.options[0];
+      setActiveReRouteOption(chosen);
+    }
+  }, [data]);
+
   if (loading) {
     return (
       <div className="rounded-xl border border-ink-200 bg-ink-50 p-5 flex items-center gap-4">
         <div className="w-5 h-5 border-2 border-blue-500 border-t-transparent rounded-full animate-spin shrink-0" />
-        <div className="text-sm font-semibold text-ink-600">Analysing oil film thickness & evaporation…</div>
+        <div className="text-sm font-semibold text-ink-600">Analysing oil film thickness & computing optimal navigation route…</div>
       </div>
     );
   }
 
   if (!data) return null;
 
-  const { impact, thickness_um } = data;
+  const { impact, thickness_um, reroute_plan } = data;
   const isReroute = impact.re_route_needed;
   const thicknessDisplay = thickness_um != null ? `${thickness_um.toFixed(1)} µm` : "N/A";
 
-  // Evaporation icon + colour palette keyed to the four physical bands
   type EvapKey = "fast" | "partial" | "partial-heavy" | "minimal";
   const bandKey: EvapKey =
     thickness_um == null         ? "minimal"
@@ -243,11 +255,18 @@ function OilImpactPanel({ data, loading }: { data: OilClassifyResponse | null; l
   };
   const band = bandStyle[bandKey];
 
+  const activeOption = reroute_plan?.options.find(o => o.id === selectedOptId) || reroute_plan?.options[0];
+
+  const handleSelectOption = (opt: ReRouteOption) => {
+    setSelectedOptId(opt.id);
+    setActiveReRouteOption(opt);
+  };
+
   return (
-    <div className="flex flex-col gap-3 animate-in fade-in slide-in-from-bottom-3 duration-500">
-      {/* Main card */}
+    <div className="flex flex-col gap-4 animate-in fade-in slide-in-from-bottom-3 duration-500">
+      {/* Physical Assessment card */}
       <div className="rounded-xl border border-ink-200 bg-white shadow-sm overflow-hidden">
-        {/* Card header — thickness measurement */}
+        {/* Card header */}
         <div className="flex items-center gap-3 px-5 py-3.5 bg-ink-50 border-b border-ink-200">
           <Droplets className="w-4 h-4 text-blue-600 shrink-0" />
           <span className="flex-1 text-sm font-bold text-ink-800 tracking-tight">Oil Film Physical Assessment</span>
@@ -302,7 +321,7 @@ function OilImpactPanel({ data, loading }: { data: OilClassifyResponse | null; l
         </div>
       </div>
 
-      {/* Routing verdict */}
+      {/* Routing verdict strip */}
       <div className={`rounded-xl border flex items-center gap-4 px-5 py-4 ${
         isReroute ? "bg-red-50 border-red-200" : "bg-emerald-50 border-emerald-200"
       }`}>
@@ -311,7 +330,7 @@ function OilImpactPanel({ data, loading }: { data: OilClassifyResponse | null; l
         }`}>
           <Ship className={`w-5 h-5 ${isReroute ? "text-red-600" : "text-emerald-600"}`} />
         </div>
-        <div>
+        <div className="flex-1">
           <div className={`text-sm font-black ${
             isReroute ? "text-red-900" : "text-emerald-900"
           }`}>
@@ -321,11 +340,168 @@ function OilImpactPanel({ data, loading }: { data: OilClassifyResponse | null; l
             isReroute ? "text-red-700" : "text-emerald-700"
           }`}>
             {isReroute
-              ? "Vessel should deviate from current heading — persistent oil at this thickness poses a fouling hazard."
+              ? "Vessel should deviate from current heading — persistent oil at this thickness poses a sea-chest intake fouling hazard."
               : "Oil film will dissipate naturally at this thickness — vessel may proceed on current course."}
           </div>
         </div>
       </div>
+
+      {/* ── Enhanced Optimal Alternate Re-Routing Module ────────── */}
+      {isReroute && reroute_plan && (
+        <div className="rounded-xl border border-emerald-300 bg-white shadow-sm overflow-hidden">
+          {/* Header */}
+          <div className="px-5 py-3.5 bg-emerald-50/80 border-b border-emerald-200 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+            <div className="flex items-center gap-2">
+              <Route className="w-4 h-4 text-emerald-700" />
+              <span className="text-sm font-bold text-emerald-950 tracking-tight">
+                Optimal Alternate Navigation Re-Route
+              </span>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="text-[10px] font-bold uppercase tracking-wider bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded">
+                Speed: {reroute_plan.vessel_speed_kts.toFixed(0)} kts
+              </span>
+              <button
+                onClick={() => navigate("/map")}
+                className="text-xs font-bold text-emerald-700 hover:text-emerald-900 flex items-center gap-1 bg-white hover:bg-emerald-100/50 px-2.5 py-1 rounded border border-emerald-300 transition-colors shadow-2xs"
+              >
+                Open Maritime Map <ExternalLink className="w-3 h-3" />
+              </button>
+            </div>
+          </div>
+
+          <div className="p-5 flex flex-col gap-4">
+            {/* Strategy selector tabs */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              {reroute_plan.options.map((opt) => {
+                const isSel = opt.id === selectedOptId;
+                return (
+                  <button
+                    key={opt.id}
+                    onClick={() => handleSelectOption(opt)}
+                    className={`p-3.5 rounded-lg border text-left transition-all relative ${
+                      isSel
+                        ? "bg-emerald-50/90 border-emerald-500 ring-2 ring-emerald-500/20 shadow-xs"
+                        : "bg-white border-ink-200 hover:border-emerald-300 hover:bg-ink-50/50"
+                    }`}
+                  >
+                    <div className="flex justify-between items-start mb-1.5 gap-2">
+                      <span className="font-bold text-xs text-ink-900 flex items-center gap-1.5">
+                        {opt.is_recommended && <Zap className="w-3.5 h-3.5 text-emerald-600 fill-emerald-600 shrink-0" />}
+                        {opt.name}
+                      </span>
+                      {opt.is_recommended ? (
+                        <span className="text-[9px] font-black uppercase tracking-wider bg-emerald-100 text-emerald-800 px-1.5 py-0.5 rounded shrink-0">
+                          Recommended · Safe
+                        </span>
+                      ) : (
+                        <span className="text-[9px] font-bold uppercase tracking-wider bg-amber-100 text-amber-800 px-1.5 py-0.5 rounded shrink-0">
+                          Down-Drift Wide
+                        </span>
+                      )}
+                    </div>
+                    <div className="flex items-baseline gap-3 text-xs font-mono mb-1.5">
+                      <span className="font-bold text-emerald-700">+{opt.time_delay_min.toFixed(0)} min delay</span>
+                      <span className="text-ink-400">+{opt.extra_distance_nm.toFixed(1)} NM ({opt.extra_distance_pct.toFixed(1)}%)</span>
+                    </div>
+                    {opt.plume_clearance_desc && (
+                      <p className="text-[10px] text-ink-500 leading-tight border-t border-ink-100/70 pt-1.5 mt-1">
+                        {opt.plume_clearance_desc}
+                      </p>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* Guidance summary highlight */}
+            <div className="bg-emerald-50/60 border border-emerald-200 rounded-lg p-3 flex items-start gap-2.5">
+              <ShieldCheck className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
+              <div className="text-xs text-emerald-900 leading-relaxed font-medium">
+                {reroute_plan.guidance_summary}
+              </div>
+            </div>
+
+            {/* Selected Route Telemetry Grid */}
+            {activeOption && (
+              <>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                  <StatBox
+                    label="Time Delay"
+                    value={`+${activeOption.time_delay_min.toFixed(1)} min`}
+                    hint={`Total transit: ${activeOption.transit_time_min.toFixed(0)} min`}
+                  />
+                  <StatBox
+                    label="Detour Distance"
+                    value={`${activeOption.distance_nm.toFixed(1)} NM`}
+                    hint={`+${activeOption.extra_distance_nm.toFixed(1)} NM (+${activeOption.extra_distance_pct.toFixed(1)}%)`}
+                  />
+                  <StatBox
+                    label="Safety Buffer"
+                    value={`${activeOption.min_clearance_nm.toFixed(1)} NM`}
+                    hint="Clear of slick fouling boundary"
+                  />
+                  <StatBox
+                    label="Fuel Penalty"
+                    value={`+${activeOption.fuel_extra_mt.toFixed(2)} MT`}
+                    hint="Estimated HFO consumption"
+                  />
+                </div>
+
+                {/* Waypoint Corridor Table */}
+                <div className="rounded-lg border border-ink-200 overflow-hidden bg-ink-50/50">
+                  <div className="px-4 py-2.5 bg-ink-100/70 border-b border-ink-200 flex justify-between items-center">
+                    <span className="text-xs font-bold text-ink-800 uppercase tracking-wider flex items-center gap-1.5">
+                      <Compass className="w-3.5 h-3.5 text-blue-600" />
+                      Tactical Waypoint Plan & Steering Orders
+                    </span>
+                    <span className="text-[10px] text-ink-500 font-mono">
+                      {activeOption.waypoints.length} WAYPOINTS
+                    </span>
+                  </div>
+                  <div className="divide-y divide-ink-100">
+                    {activeOption.waypoints.map((wpt, idx) => (
+                      <div key={wpt.name} className="p-3.5 bg-white flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
+                        <div className="flex items-start gap-3">
+                          <div className="w-6 h-6 rounded-full bg-emerald-100 text-emerald-800 font-black flex items-center justify-center text-[10px] shrink-0">
+                            {idx + 1}
+                          </div>
+                          <div>
+                            <div className="font-bold text-ink-900">{wpt.name}</div>
+                            <div className="text-[11px] text-ink-500 font-mono mt-0.5">
+                              {wpt.lat.toFixed(4)}°N, {Math.abs(wpt.lon).toFixed(4)}°W
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="flex items-center gap-4 sm:text-right">
+                          <div>
+                            <div className="text-[10px] uppercase font-bold text-ink-400 tracking-wider">Course to Steer</div>
+                            <div className="font-mono font-black text-ink-900 text-sm flex items-center gap-1">
+                              <Compass className="w-3 h-3 text-emerald-600" />
+                              {wpt.course_to_steer_deg.toFixed(0)}°
+                            </div>
+                          </div>
+                          {wpt.leg_distance_nm > 0 && (
+                            <div>
+                              <div className="text-[10px] uppercase font-bold text-ink-400 tracking-wider">Leg Distance</div>
+                              <div className="font-mono font-bold text-ink-700">{wpt.leg_distance_nm.toFixed(1)} NM</div>
+                            </div>
+                          )}
+                        </div>
+
+                        <div className="sm:max-w-[280px] text-[11px] text-ink-600 bg-ink-50 p-2 rounded border border-ink-100">
+                          {wpt.instructions}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -391,7 +567,7 @@ function SidebarList({ items, selectedId, onSelect }: { items: UnifiedSlick[]; s
 
 // ── AdHocUpload Component ──────────────────────────────────────
 function AdHocUpload() {
-  const { caseMeta, injectAdHocDetection, setActiveSlickId } = useSpillState();
+  const { caseMeta, injectAdHocDetection, setActiveSlickId, mockWindDir } = useSpillState();
   const navigate = useNavigate();
   const [file, setFile] = useState < File | null > (null);
   const [imgUrl, setImgUrl] = useState < string | null > (null);
@@ -486,6 +662,12 @@ function AdHocUpload() {
         const weathering_indicator = Math.max(0.01, Math.min(1.0, 1.0 - variance_ratio));
         const VV_VH_ratio = Math.max(1.0, Math.abs(contrast_dB) * 1.1);
 
+        const center_lon = caseMeta?.center[0] ?? -89.85125;
+        const center_lat = caseMeta?.center[1] ?? 28.47625;
+        const length_km = r.morphology?.length_km ?? 30.0;
+        const width_km = r.morphology?.width_km ?? 6.0;
+        const orientation_deg = r.morphology?.orientation_deg ?? 48.0;
+
         setOilClassifying(true);
         fetch("/api/classify-oil", {
           method: "POST",
@@ -494,6 +676,9 @@ function AdHocUpload() {
             contrast_dB, thickness_proxy, area_growth_rate,
             weathering_indicator, VV_VH_ratio,
             thickness_um,
+            center_lon, center_lat, length_km, width_km, orientation_deg,
+            mock_wind_dir_deg: mockWindDir,
+            drift_heading_deg: 340.0,
           }),
         })
           .then(res => res.ok ? res.json() : null)
@@ -518,7 +703,7 @@ function AdHocUpload() {
 
   useEffect(() => {
     if (result && imgRef.current) drawCanvas();
-  }, [result, selectedId]);
+  }, [result, selectedId, oilClassify]);
 
   const drawCanvas = () => {
     const canvas = canvasRef.current;
@@ -561,6 +746,62 @@ function AdHocUpload() {
 
       result.oil_regions.forEach((r, i) => drawRegion(r, "#f59e0b", false, selectedId === `slick-${i}`));
       result.rejected_lookalikes.forEach((r, i) => drawRegion(r, "#94a3b8", true, selectedId === `lookalike-${i}`));
+
+      // ── Re-Routing Detour Overlay on Radar Canvas (Up-Drift Clean Water Route) ─────────────
+      if (oilClassify?.impact?.re_route_needed && result.oil_regions.length > 0) {
+        const r = result.oil_regions[0];
+        const cx = r.circle.cx * scale;
+        const cy = r.circle.cy * scale;
+        const rad = r.circle.radius * scale;
+
+        ctx.save();
+        // Direct hazard path (dashed red line)
+        ctx.strokeStyle = "#ef4444";
+        ctx.lineWidth = 2;
+        ctx.setLineDash([5, 4]);
+        ctx.beginPath();
+        ctx.moveTo(cx - rad * 2.0, cy + rad * 1.4);
+        ctx.lineTo(cx + rad * 2.0, cy - rad * 1.4);
+        ctx.stroke();
+
+        // Detour track (vibrant emerald line with glow) — steers to South-East Starboard flank
+        ctx.strokeStyle = "#10b981";
+        ctx.lineWidth = 3.5;
+        ctx.setLineDash([]);
+        ctx.shadowColor = "#10b981";
+        ctx.shadowBlur = 6;
+        ctx.beginPath();
+        const p0 = [cx - rad * 2.0, cy + rad * 1.4];
+        const pApex = [cx + rad * 0.8, cy + rad * 1.6];
+        const p3 = [cx + rad * 2.0, cy - rad * 1.4];
+        ctx.moveTo(p0[0], p0[1]);
+        ctx.lineTo(pApex[0], pApex[1]);
+        ctx.lineTo(p3[0], p3[1]);
+        ctx.stroke();
+
+        // Waypoint markers 1, 2, 3
+        const wpts = [
+          { p: p0, label: "1" },
+          { p: pApex, label: "2" },
+          { p: p3, label: "3" },
+        ];
+        wpts.forEach((w) => {
+          ctx.beginPath();
+          ctx.arc(w.p[0], w.p[1], 7, 0, Math.PI * 2);
+          ctx.fillStyle = "#10b981";
+          ctx.fill();
+          ctx.strokeStyle = "#ffffff";
+          ctx.lineWidth = 2;
+          ctx.stroke();
+
+          ctx.fillStyle = "#ffffff";
+          ctx.font = "bold 8px sans-serif";
+          ctx.textAlign = "center";
+          ctx.textBaseline = "middle";
+          ctx.fillText(w.label, w.p[0], w.p[1]);
+        });
+        ctx.restore();
+      }
     }
   };
 
@@ -751,7 +992,7 @@ function AdHocUpload() {
 
 // ── main component ─────────────────────────────────────────────
 export default function SatelliteIntelligence() {
-  const { detection, detecting, method, runDetect, viewMode, onFocusLookalike, setActiveSlickId } = useSpillState();
+  const { caseMeta, detection, detecting, method, runDetect, viewMode, onFocusLookalike, setActiveSlickId, mockWindDir } = useSpillState();
   const [mode, setMode] = useState<"case" | "upload">("case");
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [caseOilClassify, setCaseOilClassify] = useState<OilClassifyResponse | null>(null);
@@ -783,6 +1024,13 @@ export default function SatelliteIntelligence() {
       ? slick.thickness_um
       : Math.max(2, Math.min(120, Math.abs(rawContrast) * 5.0));
 
+    const pts = slick.polygon?.type === "Polygon" ? (slick.polygon.coordinates[0] as [number, number][]) : [];
+    const center_lon = pts.length > 0 ? pts.reduce((sum, p) => sum + p[0], 0) / pts.length : (caseMeta?.center[0] ?? -90.02);
+    const center_lat = pts.length > 0 ? pts.reduce((sum, p) => sum + p[1], 0) / pts.length : (caseMeta?.center[1] ?? 28.47);
+    const length_km = slick.geometry?.length_km ?? 36.0;
+    const width_km = slick.geometry?.width_km ?? 8.4;
+    const orientation_deg = slick.geometry?.orientation_deg ?? 48.0;
+
     setCaseOilClassify(null);
     setCaseOilClassifying(true);
     fetch("/api/classify-oil", {
@@ -792,6 +1040,9 @@ export default function SatelliteIntelligence() {
         contrast_dB, thickness_proxy, area_growth_rate,
         weathering_indicator, VV_VH_ratio,
         thickness_um,
+        center_lon, center_lat, length_km, width_km, orientation_deg,
+        mock_wind_dir_deg: mockWindDir,
+        drift_heading_deg: 340.0,
       }),
     })
       .then(res => res.ok ? res.json() : null)

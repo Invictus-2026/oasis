@@ -29,6 +29,7 @@ export default function MaritimeMap() {
     runHindcast,
     runForecast,
     drifting,
+    activeReRouteOption,
   } = useSpillState();
 
   const location = useLocation();
@@ -78,6 +79,7 @@ export default function MaritimeMap() {
               activeSlickId={effectiveSlickId}
               mockWindDir={mockWindDir}
               customOverlays={customOverlays}
+              reRouteOption={activeReRouteOption}
             />
           </ErrorBoundary>
 

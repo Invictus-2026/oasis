@@ -220,6 +220,44 @@ class OilImpactAssessment(BaseModel):
     re_route_needed: bool
 
 
+class ReRouteWaypoint(BaseModel):
+    name: str
+    lat: float
+    lon: float
+    course_to_steer_deg: float
+    leg_distance_nm: float
+    instructions: str
+
+
+class ReRouteOption(BaseModel):
+    id: str
+    name: str
+    is_recommended: bool
+    distance_nm: float
+    direct_distance_nm: float
+    extra_distance_nm: float
+    extra_distance_pct: float
+    transit_time_min: float
+    direct_time_min: float
+    time_delay_min: float
+    fuel_extra_mt: float
+    min_clearance_nm: float
+    plume_clearance_desc: str = ""
+    waypoints: list[ReRouteWaypoint]
+    geojson_path: GeoJSON
+    geojson_direct: GeoJSON
+    geojson_exclusion_zone: GeoJSON
+
+
+class ReRoutePlan(BaseModel):
+    status: str
+    reason: str
+    recommended_option_id: str
+    vessel_speed_kts: float = 14.0
+    options: list[ReRouteOption]
+    guidance_summary: str
+
+
 class OilClassifyRequest(BaseModel):
     """Physical SAR features for oil impact assessment."""
     contrast_dB: float
@@ -232,6 +270,13 @@ class OilClassifyRequest(BaseModel):
         description="Actual physical film thickness in micrometres if available from the detector; "
                     "overrides the proxy-derived estimate when present."
     )
+    center_lon: float | None = Field(default=None, description="Slick centroid longitude for route diversion geometry")
+    center_lat: float | None = Field(default=None, description="Slick centroid latitude for route diversion geometry")
+    length_km: float | None = Field(default=None, description="Major axis extent in km")
+    width_km: float | None = Field(default=None, description="Minor axis extent in km")
+    orientation_deg: float | None = Field(default=None, description="Slick orientation angle in degrees")
+    mock_wind_dir_deg: float | None = Field(default=None, description="Wind direction in degrees from north")
+    drift_heading_deg: float | None = Field(default=None, description="Forecast oil drift vector heading in degrees")
 
 
 class OilClassifyResponse(BaseModel):
@@ -241,6 +286,9 @@ class OilClassifyResponse(BaseModel):
     features_used: dict[str, float]
     thickness_um: float | None = Field(
         default=None, description="Film thickness in µm used for the assessment"
+    )
+    reroute_plan: ReRoutePlan | None = Field(
+        default=None, description="Optimized nautical diversion routes and waypoints when re-routing is required"
     )
 
 

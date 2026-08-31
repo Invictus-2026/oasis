@@ -342,13 +342,51 @@ export interface CustomImageOverlay {
 }
 
 // --------------------------------------------------------------------------
-// POST /api/classify-oil
+// POST /api/classify-oil & Re-routing
 // --------------------------------------------------------------------------
 
 export interface OilImpactAssessment {
   evaporation_potential: string;
   navigational_hazard: string;
   re_route_needed: boolean;
+}
+
+export interface ReRouteWaypoint {
+  name: string;
+  lat: number;
+  lon: number;
+  course_to_steer_deg: number;
+  leg_distance_nm: number;
+  instructions: string;
+}
+
+export interface ReRouteOption {
+  id: string;
+  name: string;
+  is_recommended: boolean;
+  distance_nm: number;
+  direct_distance_nm: number;
+  extra_distance_nm: number;
+  extra_distance_pct: number;
+  transit_time_min: number;
+  direct_time_min: number;
+  time_delay_min: number;
+  fuel_extra_mt: number;
+  min_clearance_nm: number;
+  plume_clearance_desc?: string;
+  waypoints: ReRouteWaypoint[];
+  geojson_path: GeoJSON.LineString;
+  geojson_direct: GeoJSON.LineString;
+  geojson_exclusion_zone: GeoJSON.Polygon;
+}
+
+export interface ReRoutePlan {
+  status: string;
+  reason: string;
+  recommended_option_id: string;
+  vessel_speed_kts: number;
+  options: ReRouteOption[];
+  guidance_summary: string;
 }
 
 export interface OilClassifyRequest {
@@ -358,6 +396,13 @@ export interface OilClassifyRequest {
   weathering_indicator: number;
   VV_VH_ratio: number;
   thickness_um?: number;
+  center_lon?: number;
+  center_lat?: number;
+  length_km?: number;
+  width_km?: number;
+  orientation_deg?: number;
+  mock_wind_dir_deg?: number;
+  drift_heading_deg?: number;
 }
 
 export interface OilClassifyResponse {
@@ -365,5 +410,6 @@ export interface OilClassifyResponse {
   impact: OilImpactAssessment;
   features_used: Record<string, number>;
   thickness_um: number | null;
+  reroute_plan?: ReRoutePlan | null;
 }
 
