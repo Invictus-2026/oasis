@@ -16,7 +16,6 @@ import {
 
 const navItems = [
   { name: "Overview", path: "/", icon: LayoutDashboard },
-  { name: "Incidents", path: "/incidents", icon: AlertTriangle },
   { name: "Maritime Map", path: "/map", icon: MapIcon },
   { name: "Satellite Intelligence", path: "/satellite", icon: Satellite },
   { name: "Vessel Intelligence", path: "/vessel", icon: Ship },

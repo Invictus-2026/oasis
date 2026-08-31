@@ -101,9 +101,11 @@ def _compute_reroute_plan(
     vessel_speed_kts: float = 14.0,
     mock_wind_dir_deg: float | None = None,
     drift_heading_deg: float | None = None,
+    re_route_needed: bool = True,
 ) -> ReRoutePlan:
     """
     Compute mathematically optimized maritime re-routing options around the hazard zone.
+    If re_route_needed is False (safe oil), returns a single direct transit option.
     CRITICAL: Evaluates the forecast drift vector so that the primary recommended route
     steers into UP-DRIFT pristine water and avoids the down-drift forecast plume.
     """
@@ -138,6 +140,35 @@ def _compute_reroute_plan(
         "type": "LineString",
         "coordinates": [[round(p0_lon, 5), round(p0_lat, 5)], [round(p3_lon, 5), round(p3_lat, 5)]]
     }
+
+    if not re_route_needed:
+        opt_direct = ReRouteOption(
+            id="safe_direct_transit",
+            name="Safe Direct Transit",
+            is_recommended=True,
+            distance_nm=round(direct_dist_nm, 2),
+            direct_distance_nm=round(direct_dist_nm, 2),
+            extra_distance_nm=0,
+            extra_distance_pct=0,
+            transit_time_min=round(direct_time_min, 1),
+            direct_time_min=round(direct_time_min, 1),
+            time_delay_min=0,
+            fuel_extra_mt=0,
+            min_clearance_nm=0,
+            plume_clearance_desc="Safe to transit. Oil film is very thin and will rapidly evaporate.",
+            waypoints=[],
+            geojson_path=direct_geojson,
+            geojson_direct=direct_geojson,
+            geojson_exclusion_zone={"type": "Polygon", "coordinates": []}
+        )
+        return ReRoutePlan(
+            status="SAFE_TRANSIT",
+            reason=f"Thin oil film ({thickness_um:.1f} µm) poses no navigational hazard.",
+            recommended_option_id="safe_direct_transit",
+            vessel_speed_kts=vessel_speed_kts,
+            options=[opt_direct],
+            guidance_summary="Proceed on planned voyage. No detour required."
+        )
 
     # Generate exclusion zone buffer polygon around the slick
     poly_pts: list[list[float]] = []
@@ -357,24 +388,23 @@ def classify_oil(req: OilClassifyRequest) -> OilClassifyResponse:
         re_route_needed=re_route,
     )
 
-    reroute_plan = None
-    if re_route:
-        c_lon = req.center_lon if req.center_lon is not None else -90.02
-        c_lat = req.center_lat if req.center_lat is not None else 28.47
-        l_km = req.length_km if req.length_km is not None else 36.0
-        w_km = req.width_km if req.width_km is not None else 8.4
-        orient = req.orientation_deg if req.orientation_deg is not None else 48.0
+    c_lon = req.center_lon if req.center_lon is not None else -90.02
+    c_lat = req.center_lat if req.center_lat is not None else 28.47
+    l_km = req.length_km if req.length_km is not None else 36.0
+    w_km = req.width_km if req.width_km is not None else 8.4
+    orient = req.orientation_deg if req.orientation_deg is not None else 48.0
 
-        reroute_plan = _compute_reroute_plan(
-            center_lon=c_lon,
-            center_lat=c_lat,
-            length_km=l_km,
-            width_km=w_km,
-            orientation_deg=orient,
-            thickness_um=thickness_um,
-            mock_wind_dir_deg=req.mock_wind_dir_deg,
-            drift_heading_deg=req.drift_heading_deg,
-        )
+    reroute_plan = _compute_reroute_plan(
+        center_lon=c_lon,
+        center_lat=c_lat,
+        length_km=l_km,
+        width_km=w_km,
+        orientation_deg=orient,
+        thickness_um=thickness_um,
+        mock_wind_dir_deg=req.mock_wind_dir_deg,
+        drift_heading_deg=req.drift_heading_deg,
+        re_route_needed=re_route,
+    )
 
     return OilClassifyResponse(
         predicted_type=evap_label,
