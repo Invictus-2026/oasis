@@ -143,99 +143,54 @@ def reroute_vessel(req: RerouteRequest):
     else:
         routing_poly = safe_area
         
-    # Simple routing algorithm: route along the boundary of the safe area
-    # We find the intersection of the line with the boundary
+    # Simple routing algorithm: find the mathematically shortest tangent path
+    # by taking the convex hull of the routing_poly AND the start/end points!
+    # The perimeter of this hull perfectly outlines the two shortest paths around the polygon.
     try:
-        boundary = routing_poly.exterior
-        intersection = boundary.intersection(original_line)
+        from shapely.geometry import MultiPoint
+        from shapely.ops import substring
         
-        # If intersection is MultiPoint, get first and last
-        if intersection.geom_type == 'MultiPoint':
-            pts = list(intersection.geoms)
-        elif intersection.geom_type == 'Point':
-            pts = [intersection, intersection]
-        elif intersection.geom_type == 'LineString':
-            pts = [Point(intersection.coords[0]), Point(intersection.coords[-1])]
-        elif intersection.geom_type == 'GeometryCollection':
-            # Extract all points from the collection
-            pts = []
-            for geom in intersection.geoms:
-                if geom.geom_type == 'Point':
-                    pts.append(geom)
-                elif geom.geom_type == 'LineString':
-                    pts.append(Point(geom.coords[0]))
-                    pts.append(Point(geom.coords[-1]))
+        hull_with_points = unary_union([routing_poly, start_pt, end_pt]).convex_hull
+        hull_boundary = LineString(hull_with_points.exterior.coords)
+        
+        d1 = hull_boundary.project(start_pt)
+        d2 = hull_boundary.project(end_pt)
+        
+        is_swapped = False
+        if d1 > d2:
+            d1, d2 = d2, d1
+            is_swapped = True
+            
+        path1 = substring(hull_boundary, d1, d2)
+        
+        part1 = substring(hull_boundary, d1, 0)
+        part2 = substring(hull_boundary, hull_boundary.length, d2)
+        path2_coords = list(part1.coords) + list(part2.coords)[1:]
+        path2 = LineString(path2_coords)
+        
+        if path1.length < path2.length:
+            best_detour = list(path1.coords)
         else:
-            # Fallback
-            pts = []
+            best_detour = list(path2.coords)
             
-        if len(pts) >= 2:
-            # Sort by distance from start
-            pts = sorted(pts, key=lambda p: start_pt.distance(p))
-            pt1 = pts[0]
-            pt2 = pts[-1]
+        if is_swapped:
+            best_detour.reverse()
             
-            # Find the path along the boundary from pt1 to pt2
-            # Project points onto the boundary to get their distances along it
-            from shapely.ops import substring
-            
-            d1 = boundary.project(pt1)
-            d2 = boundary.project(pt2)
-            
-            # Substring needs a LineString, boundary is a LinearRing
-            boundary_line = LineString(boundary.coords)
-            
-            # Ensure d1 is the smaller distance to simplify wrapping math
-            is_swapped = False
-            if d1 > d2:
-                d1, d2 = d2, d1
-                is_swapped = True
-
-            # Path 1: Forward from d1 to d2
-            path1 = substring(boundary_line, d1, d2)
-            
-            # Path 2: Backward from d1 to 0, then length to d2 (wrapping around the origin)
-            part1 = substring(boundary_line, d1, 0)
-            part2 = substring(boundary_line, boundary_line.length, d2)
-            path2_coords = list(part1.coords) + list(part2.coords)[1:]
-            path2 = LineString(path2_coords)
-            
-            # Calculate lengths to find shortest route
-            if path1.length < path2.length:
-                best_detour = list(path1.coords)
-            else:
-                best_detour = list(path2.coords)
-                
-            # If we swapped d1 and d2 earlier, the shortest path is currently running from pt2 to pt1,
-            # so we must reverse it to run from pt1 to pt2.
-            if is_swapped:
-                best_detour.reverse()
-                
-            rerouted_coords = [(req.start_point[0], req.start_point[1])] + best_detour + [(req.end_point[0], req.end_point[1])]
-            
-            # Smooth the detour using Chaikin's corner cutting algorithm (2 iterations)
-            for _ in range(2):
-                if len(rerouted_coords) < 3:
-                    break
-                smoothed = [rerouted_coords[0]]
-                for i in range(len(rerouted_coords) - 1):
-                    p1 = rerouted_coords[i]
-                    p2 = rerouted_coords[i+1]
-                    q = (0.75 * p1[0] + 0.25 * p2[0], 0.75 * p1[1] + 0.25 * p2[1])
-                    r = (0.25 * p1[0] + 0.75 * p2[0], 0.25 * p1[1] + 0.75 * p2[1])
-                    smoothed.extend([q, r])
-                smoothed.append(rerouted_coords[-1])
-                rerouted_coords = smoothed
-                
-        else:
-            # Fallback if intersection logic fails: just route to centroid and offset
-            centroid = safe_area.centroid
-            offset_pt = Point(centroid.x + margin_deg*2, centroid.y + margin_deg*2)
-            rerouted_coords = [
-                (req.start_point[0], req.start_point[1]),
-                (offset_pt.x, offset_pt.y),
-                (req.end_point[0], req.end_point[1])
-            ]
+        rerouted_coords = best_detour
+        
+        # Smooth the detour using Chaikin's corner cutting algorithm (2 iterations)
+        for _ in range(2):
+            if len(rerouted_coords) < 3:
+                break
+            smoothed = [rerouted_coords[0]]
+            for i in range(len(rerouted_coords) - 1):
+                p1 = rerouted_coords[i]
+                p2 = rerouted_coords[i+1]
+                q = (0.75 * p1[0] + 0.25 * p2[0], 0.75 * p1[1] + 0.25 * p2[1])
+                r = (0.25 * p1[0] + 0.75 * p2[0], 0.25 * p1[1] + 0.75 * p2[1])
+                smoothed.extend([q, r])
+            smoothed.append(rerouted_coords[-1])
+            rerouted_coords = smoothed
             
     except Exception as e:
         print(f"Routing error: {e}")
