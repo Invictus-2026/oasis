@@ -122,6 +122,8 @@ export interface Slick {
   backscatter?: BackscatterStats | null;
   age: AgeEstimate | null;
   evidence?: DetectionEvidence | null;
+  thickness_um?: number | null;
+  contrast_db?: number | null;
 }
 
 export interface RejectedLookalike {
@@ -337,5 +339,31 @@ export interface CustomImageOverlay {
   coordinates: [[number, number], [number, number], [number, number], [number, number]];
   bbox: { west: number; south: number; east: number; north: number };
   name?: string;
+}
+
+// --------------------------------------------------------------------------
+// POST /api/classify-oil
+// --------------------------------------------------------------------------
+
+export interface OilImpactAssessment {
+  evaporation_potential: string;
+  navigational_hazard: string;
+  re_route_needed: boolean;
+}
+
+export interface OilClassifyRequest {
+  contrast_dB: number;
+  thickness_proxy: number;
+  area_growth_rate: number;
+  weathering_indicator: number;
+  VV_VH_ratio: number;
+  thickness_um?: number;
+}
+
+export interface OilClassifyResponse {
+  predicted_type: string;
+  impact: OilImpactAssessment;
+  features_used: Record<string, number>;
+  thickness_um: number | null;
 }
 

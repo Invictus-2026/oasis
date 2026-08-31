@@ -7,9 +7,10 @@ import { generateMockUploadDetection } from "../lib/mockDetector";
 import {
   Satellite, Search, Layers, Zap, BrainCircuit, Maximize,
   Clock, EyeOff, AlertTriangle, ChevronDown, ChevronRight,
-  UploadCloud, FileImage, MapPin, CheckCircle2, ArrowRight, Activity, Crosshair
+  UploadCloud, FileImage, MapPin, CheckCircle2, ArrowRight, Activity, Crosshair,
+  Wind, Ship, FlameKindling, Droplets
 } from "lucide-react";
-import type { DetectionMethod, UploadResponse, UploadRegion, CustomImageOverlay, SlickGeometry, AgeEstimate, DetectionEvidence, BackscatterStats } from "../api/types";
+import type { DetectionMethod, UploadResponse, UploadRegion, CustomImageOverlay, SlickGeometry, AgeEstimate, DetectionEvidence, BackscatterStats, OilClassifyResponse } from "../api/types";
 
 function Badge({ children, color = "gray" }: { children: React.ReactNode; color?: string }) {
   const map: Record<string, string> = {
@@ -208,6 +209,127 @@ function SlickDetailsPanel({ item, onMapProject }: { item: UnifiedSlick; onMapPr
   );
 }
 
+// ── OilImpactPanel Component ────────────────────────────────────
+function OilImpactPanel({ data, loading }: { data: OilClassifyResponse | null; loading: boolean }) {
+  if (loading) {
+    return (
+      <div className="rounded-xl border border-ink-200 bg-ink-50 p-5 flex items-center gap-4">
+        <div className="w-5 h-5 border-2 border-blue-500 border-t-transparent rounded-full animate-spin shrink-0" />
+        <div className="text-sm font-semibold text-ink-600">Analysing oil film thickness & evaporation…</div>
+      </div>
+    );
+  }
+
+  if (!data) return null;
+
+  const { impact, thickness_um } = data;
+  const isReroute = impact.re_route_needed;
+  const thicknessDisplay = thickness_um != null ? `${thickness_um.toFixed(1)} µm` : "N/A";
+
+  // Evaporation icon + colour palette keyed to the four physical bands
+  type EvapKey = "fast" | "partial" | "partial-heavy" | "minimal";
+  const bandKey: EvapKey =
+    thickness_um == null         ? "minimal"
+    : thickness_um <= 10         ? "fast"
+    : thickness_um <= 35         ? "partial"
+    : thickness_um <= 65         ? "partial-heavy"
+    :                              "minimal";
+
+  const bandStyle: Record<EvapKey, { bg: string; border: string; icon: string; label: string }> = {
+    "fast":          { bg: "bg-emerald-50", border: "border-emerald-200", icon: "text-emerald-600", label: "✅ Evaporates Rapidly" },
+    "partial":       { bg: "bg-amber-50",   border: "border-amber-200",   icon: "text-amber-500",  label: "🟡 Partially Evaporates" },
+    "partial-heavy": { bg: "bg-orange-50",  border: "border-orange-200",  icon: "text-orange-500", label: "🟠 Partial — Residue Remains" },
+    "minimal":       { bg: "bg-red-50",     border: "border-red-200",     icon: "text-red-500",    label: "❌ Does Not Evaporate" },
+  };
+  const band = bandStyle[bandKey];
+
+  return (
+    <div className="flex flex-col gap-3 animate-in fade-in slide-in-from-bottom-3 duration-500">
+      {/* Main card */}
+      <div className="rounded-xl border border-ink-200 bg-white shadow-sm overflow-hidden">
+        {/* Card header — thickness measurement */}
+        <div className="flex items-center gap-3 px-5 py-3.5 bg-ink-50 border-b border-ink-200">
+          <Droplets className="w-4 h-4 text-blue-600 shrink-0" />
+          <span className="flex-1 text-sm font-bold text-ink-800 tracking-tight">Oil Film Physical Assessment</span>
+          <span className="font-mono text-xs font-bold bg-blue-100 text-blue-700 px-2.5 py-1 rounded-md">
+            {thicknessDisplay} film
+          </span>
+        </div>
+
+        {/* Three stat boxes */}
+        <div className="px-5 py-4 grid grid-cols-1 sm:grid-cols-3 gap-4">
+          {/* Thickness */}
+          <div className="rounded-lg border border-ink-200 bg-ink-50 p-3 flex flex-col gap-1">
+            <div className="flex items-center gap-1.5">
+              <Droplets className="w-3.5 h-3.5 text-blue-500" />
+              <span className="text-[10px] font-bold uppercase tracking-wider text-blue-600">Thickness</span>
+            </div>
+            <div className="text-xl font-black text-ink-900 font-mono">{thicknessDisplay}</div>
+            <p className="text-[10px] leading-snug text-ink-500">
+              SAR-derived oil film depth measured in micrometres (µm).
+            </p>
+          </div>
+
+          {/* Evaporation */}
+          <div className={`rounded-lg border p-3 flex flex-col gap-1 ${band.bg} ${band.border}`}>
+            <div className="flex items-center gap-1.5">
+              <Wind className={`w-3.5 h-3.5 ${band.icon}`} />
+              <span className={`text-[10px] font-bold uppercase tracking-wider ${band.icon}`}>Evaporation</span>
+            </div>
+            <div className={`text-sm font-black ${band.icon}`}>{band.label}</div>
+            <p className={`text-[10px] leading-snug ${band.icon} opacity-80`}>
+              {impact.evaporation_potential}
+            </p>
+          </div>
+
+          {/* Navigational hazard */}
+          <div className={`rounded-lg border p-3 flex flex-col gap-1 ${
+            isReroute ? "bg-red-50 border-red-200" : "bg-emerald-50 border-emerald-200"
+          }`}>
+            <div className="flex items-center gap-1.5">
+              <FlameKindling className={`w-3.5 h-3.5 ${isReroute ? "text-red-500" : "text-emerald-600"}`} />
+              <span className={`text-[10px] font-bold uppercase tracking-wider ${
+                isReroute ? "text-red-600" : "text-emerald-600"
+              }`}>Nav. Hazard</span>
+            </div>
+            <div className={`text-sm font-black ${isReroute ? "text-red-800" : "text-emerald-800"}`}>
+              {isReroute ? "Fouling Risk" : "Minimal Risk"}
+            </div>
+            <p className={`text-[10px] leading-snug ${
+              isReroute ? "text-red-700" : "text-emerald-700"
+            }`}>{impact.navigational_hazard}</p>
+          </div>
+        </div>
+      </div>
+
+      {/* Routing verdict */}
+      <div className={`rounded-xl border flex items-center gap-4 px-5 py-4 ${
+        isReroute ? "bg-red-50 border-red-200" : "bg-emerald-50 border-emerald-200"
+      }`}>
+        <div className={`w-9 h-9 rounded-full flex items-center justify-center shrink-0 ${
+          isReroute ? "bg-red-100" : "bg-emerald-100"
+        }`}>
+          <Ship className={`w-5 h-5 ${isReroute ? "text-red-600" : "text-emerald-600"}`} />
+        </div>
+        <div>
+          <div className={`text-sm font-black ${
+            isReroute ? "text-red-900" : "text-emerald-900"
+          }`}>
+            {isReroute ? "⚠ Re-routing Recommended" : "✓ No Re-routing Required"}
+          </div>
+          <div className={`text-xs mt-0.5 ${
+            isReroute ? "text-red-700" : "text-emerald-700"
+          }`}>
+            {isReroute
+              ? "Vessel should deviate from current heading — persistent oil at this thickness poses a fouling hazard."
+              : "Oil film will dissipate naturally at this thickness — vessel may proceed on current course."}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function SidebarList({ items, selectedId, onSelect }: { items: UnifiedSlick[]; selectedId: string | null; onSelect: (id: string) => void }) {
   const slicks = items.filter(i => !i.isLookalike);
   const lookalikes = items.filter(i => i.isLookalike);
@@ -276,14 +398,16 @@ function AdHocUpload() {
   const [gsd, setGsd] = useState < number > (10.0);
   const [method, setMethod] = useState < DetectionMethod > ("classical");
   const [running, setRunning] = useState(false);
-  const [result, setResult] = useState < UploadResponse | null > (null);
-  const [error, setError] = useState < string | null > (null);
+  const [result, setResult] = useState<UploadResponse | null>(null);
+  const [error, setError] = useState<string | null>(null);
   const [projected, setProjected] = useState(false);
+  const [oilClassify, setOilClassify] = useState<OilClassifyResponse | null>(null);
+  const [oilClassifying, setOilClassifying] = useState(false);
 
-  const [selectedId, setSelectedId] = useState < string | null > (null);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
 
-  const canvasRef = useRef < HTMLCanvasElement > (null);
-  const imgRef = useRef < HTMLImageElement | null > (null);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const imgRef = useRef<HTMLImageElement | null>(null);
 
   useEffect(() => {
     if (file) {
@@ -293,6 +417,7 @@ function AdHocUpload() {
       setError(null);
       setProjected(false);
       setSelectedId(null);
+      setOilClassify(null);
       return () => URL.revokeObjectURL(url);
     }
   }, [file]);
@@ -347,6 +472,35 @@ function AdHocUpload() {
       setResult(data);
       if (data.oil_regions.length > 0) setSelectedId("slick-0");
       else if (data.rejected_lookalikes.length > 0) setSelectedId("lookalike-0");
+
+      // ── Physical Oil Impact & Evaporation Assessment ──────────
+      if (data.oil_regions.length > 0) {
+        const r = data.oil_regions[0];
+        const rawContrast = r.contrast_db ?? r.backscatter?.contrast_db ?? 6.0;
+        const contrast_dB = -Math.abs(rawContrast);
+        const thickness_um = r.thickness_um ?? 1.0;
+        const thickness_proxy = Math.max(0.01, Math.min(1.0, thickness_um / 100.0));
+        const compactness = r.morphology?.compactness ?? 0.5;
+        const area_growth_rate = Math.max(0.01, Math.min(1.0, 1.0 - compactness));
+        const variance_ratio = r.backscatter?.variance_ratio ?? 0.6;
+        const weathering_indicator = Math.max(0.01, Math.min(1.0, 1.0 - variance_ratio));
+        const VV_VH_ratio = Math.max(1.0, Math.abs(contrast_dB) * 1.1);
+
+        setOilClassifying(true);
+        fetch("/api/classify-oil", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            contrast_dB, thickness_proxy, area_growth_rate,
+            weathering_indicator, VV_VH_ratio,
+            thickness_um,
+          }),
+        })
+          .then(res => res.ok ? res.json() : null)
+          .then(json => { if (json) setOilClassify(json as OilClassifyResponse); })
+          .catch(() => null)
+          .finally(() => setOilClassifying(false));
+      }
     } catch (e: any) {
       setError(e.message);
     } finally {
@@ -448,6 +602,8 @@ function AdHocUpload() {
       slicks: [{
         id: slickId, polygon, confidence: primaryRegion.confidence, method: result.method,
         geometry: primaryRegion.morphology, backscatter: primaryRegion.backscatter, age: null, evidence: null,
+        thickness_um: primaryRegion.thickness_um,
+        contrast_db: primaryRegion.contrast_db,
       }],
       rejected_lookalikes: result.rejected_lookalikes.map((rl, idx) => ({
         id: `lookalike-${slickId}-${idx}`, polygon: rl.polygon || { type: "Polygon", coordinates: [] },
@@ -542,21 +698,32 @@ function AdHocUpload() {
 
           {result && unifiedItems.length > 0 && (
             <div className="flex flex-col gap-6">
-              {projected ? (
-                <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-6 text-center shadow-sm">
-                  <div className="flex justify-center mb-3"><CheckCircle2 className="w-12 h-12 text-emerald-500" /></div>
-                  <h3 className="text-xl font-black text-emerald-900 mb-2">Successfully Projected</h3>
-                  <p className="text-emerald-700 mb-6">Custom scene injected into operational intelligence.</p>
+              {/* Oil Impact Panel */}
+              {(oilClassify || oilClassifying) && (
+                <div>
+                  <h4 className="text-xs font-bold uppercase tracking-widest text-ink-500 mb-3 flex items-center gap-2">
+                    <Droplets className="w-3.5 h-3.5" /> Oil Classification & Routing Assessment
+                  </h4>
+                  <OilImpactPanel data={oilClassify} loading={oilClassifying} />
+                </div>
+              )}
+              {projected && (
+                <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-5 text-center shadow-sm">
+                  <div className="flex justify-center mb-2"><CheckCircle2 className="w-8 h-8 text-emerald-500" /></div>
+                  <h3 className="text-base font-black text-emerald-900 mb-1">Successfully Projected to Maritime Map</h3>
+                  <p className="text-xs text-emerald-700 mb-4">Slick geometry, thickness ({result?.oil_regions[0]?.thickness_um?.toFixed(1) ?? "12.5"} µm), and physical characteristics injected into operational map intelligence.</p>
                   <div className="flex justify-center gap-4">
-                    <button onClick={() => navigate("/map")} className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-sm font-bold flex items-center gap-2 shadow-sm transition-all">
-                      View on Map <MapPin className="w-4 h-4" />
+                    <button onClick={() => navigate("/map")} className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-bold flex items-center gap-2 shadow-sm transition-all">
+                      View on Map <MapPin className="w-3.5 h-3.5" />
                     </button>
-                    <button onClick={() => navigate("/drift")} className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-bold flex items-center gap-2 shadow-sm transition-all">
-                      Drift Intelligence <ArrowRight className="w-4 h-4" />
+                    <button onClick={() => navigate("/drift")} className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-bold flex items-center gap-2 shadow-sm transition-all">
+                      Drift Intelligence <ArrowRight className="w-3.5 h-3.5" />
                     </button>
                   </div>
                 </div>
-              ) : !activeItem ? (
+              )}
+
+              {!activeItem ? (
                 <>
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                     <StatBox label="Image Dimensions" value={`${result?.width || 0}×${result?.height || 0}`} />
@@ -571,7 +738,7 @@ function AdHocUpload() {
                   <button onClick={() => setSelectedId(null)} className="self-start flex items-center gap-2 text-sm font-bold text-ink-500 hover:text-ink-800 transition-colors bg-ink-50 hover:bg-ink-100 px-4 py-2 rounded-lg border border-ink-200">
                     <ChevronRight className="w-4 h-4 rotate-180" /> Back to Analysis List
                   </button>
-                  <SlickDetailsPanel item={activeItem} onMapProject={!activeItem.isLookalike ? handleProjectToMap : undefined} />
+                  <SlickDetailsPanel item={activeItem} onMapProject={!activeItem.isLookalike && !projected ? handleProjectToMap : undefined} />
                 </div>
               )}
             </div>
@@ -585,13 +752,52 @@ function AdHocUpload() {
 // ── main component ─────────────────────────────────────────────
 export default function SatelliteIntelligence() {
   const { detection, detecting, method, runDetect, viewMode, onFocusLookalike, setActiveSlickId } = useSpillState();
-  const [mode, setMode] = useState < "case" | "upload" > ("case");
-  const [selectedId, setSelectedId] = useState < string | null > (null);
+  const [mode, setMode] = useState<"case" | "upload">("case");
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [caseOilClassify, setCaseOilClassify] = useState<OilClassifyResponse | null>(null);
+  const [caseOilClassifying, setCaseOilClassifying] = useState(false);
 
   const unetAvailable = true;
 
   const handleRun = (m: DetectionMethod) => {
     runDetect(m);
+  };
+
+  const classifyCaseSlick = (slickId: string) => {
+    if (!detection?.slicks) return;
+    const slick = detection.slicks.find(s => s.id === slickId);
+    if (!slick) return;
+
+    const rawContrast = slick.contrast_db ?? slick.backscatter?.contrast_db ?? 6.0;
+    const contrast_dB = -Math.abs(rawContrast);
+    const elongation = slick.geometry?.elongation ?? 2.0;
+    const thickness_proxy = Math.max(0.01, Math.min(1.0, 1.0 / (elongation * 0.5 + 0.5)));
+    const compactness = slick.geometry?.compactness ?? 0.5;
+    const area_growth_rate = Math.max(0.01, Math.min(1.0, 1.0 - compactness));
+    const variance_ratio = slick.backscatter?.variance_ratio ?? 0.7;
+    const weathering_indicator = Math.max(0.01, Math.min(1.0, 1.0 - variance_ratio));
+    const VV_VH_ratio = Math.max(1.0, Math.abs(contrast_dB) * 1.1);
+
+    // Exact thickness from the slick (e.g. from upload or fixture)
+    const thickness_um = slick.thickness_um != null
+      ? slick.thickness_um
+      : Math.max(2, Math.min(120, Math.abs(rawContrast) * 5.0));
+
+    setCaseOilClassify(null);
+    setCaseOilClassifying(true);
+    fetch("/api/classify-oil", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        contrast_dB, thickness_proxy, area_growth_rate,
+        weathering_indicator, VV_VH_ratio,
+        thickness_um,
+      }),
+    })
+      .then(res => res.ok ? res.json() : null)
+      .then(json => { if (json) setCaseOilClassify(json as OilClassifyResponse); })
+      .catch(() => null)
+      .finally(() => setCaseOilClassifying(false));
   };
 
   useEffect(() => {
@@ -607,12 +813,15 @@ export default function SatelliteIntelligence() {
         setSelectedId(id);
         onFocusLookalike(id);
         setActiveSlickId(id);
+        classifyCaseSlick(id);
       } else if (detection?.rejected_lookalikes?.length) {
         const id = detection.rejected_lookalikes[0].id;
         setSelectedId(id);
         onFocusLookalike(id);
+        setCaseOilClassify(null);
       } else {
         setSelectedId(null);
+        setCaseOilClassify(null);
       }
     }
   }, [detection]);
@@ -622,6 +831,9 @@ export default function SatelliteIntelligence() {
     onFocusLookalike(id);
     if (detection?.slicks?.some(s => s.id === id)) {
       setActiveSlickId(id);
+      classifyCaseSlick(id);
+    } else {
+      setCaseOilClassify(null);
     }
   };
 
@@ -633,7 +845,10 @@ export default function SatelliteIntelligence() {
       const cy = pts.length > 0 ? pts.reduce((sum, p) => sum + p[1], 0) / pts.length : 0;
       return {
         id: s.id, isLookalike: false, confidence: s.confidence, geometry: s.geometry,
-        centroid: [cx, cy] as [number, number], age: s.age, evidence: s.evidence
+        centroid: [cx, cy] as [number, number], age: s.age, evidence: s.evidence,
+        backscatter: s.backscatter,
+        thickness_um: s.thickness_um ?? undefined,
+        contrast_db: s.contrast_db ?? s.backscatter?.contrast_db,
       };
     }),
     ...detection.rejected_lookalikes.map((r) => {
@@ -733,9 +948,18 @@ export default function SatelliteIntelligence() {
                   </div>
                 ) : (
                   <div className="flex flex-col gap-6 animate-in fade-in slide-in-from-right-4 duration-500">
-                    <button onClick={() => setSelectedId(null)} className="self-start flex items-center gap-2 text-sm font-bold text-ink-500 hover:text-ink-800 transition-colors bg-ink-50 hover:bg-ink-100 px-4 py-2 rounded-lg border border-ink-200">
+                    <button onClick={() => { setSelectedId(null); setCaseOilClassify(null); }} className="self-start flex items-center gap-2 text-sm font-bold text-ink-500 hover:text-ink-800 transition-colors bg-ink-50 hover:bg-ink-100 px-4 py-2 rounded-lg border border-ink-200">
                       <ChevronRight className="w-4 h-4 rotate-180" /> Back to Analysis List
                     </button>
+                    {/* Oil Impact Panel — shown for confirmed slicks */}
+                    {!activeItem.isLookalike && (caseOilClassify || caseOilClassifying) && (
+                      <div>
+                        <h4 className="text-xs font-bold uppercase tracking-widest text-ink-500 mb-3 flex items-center gap-2">
+                          <Droplets className="w-3.5 h-3.5" /> Oil Physical Assessment & Routing
+                        </h4>
+                        <OilImpactPanel data={caseOilClassify} loading={caseOilClassifying} />
+                      </div>
+                    )}
                     <SlickDetailsPanel item={activeItem} />
                   </div>
                 )}

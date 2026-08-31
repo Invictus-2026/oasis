@@ -18,6 +18,7 @@ from app.api import (
     detection,
     drift,
     environment,
+    oil_classify,
     pipeline,
     report,
     scene,
@@ -45,7 +46,7 @@ app.add_middleware(
 
 for r in (case.router, detection.router, drift.router, attribution.router,
           report.router, pipeline.router, scene.router, upload.router,
-          environment.router, ais.router):
+          environment.router, ais.router, oil_classify.router):
     app.include_router(r)
 
 

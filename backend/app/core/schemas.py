@@ -179,6 +179,8 @@ class Slick(BaseModel):
     backscatter: BackscatterStats | None = None
     age: AgeEstimate | None = None
     evidence: DetectionEvidence | None = None
+    thickness_um: float | None = None
+    contrast_db: float | None = None
 
 
 class RejectedLookalike(BaseModel):
@@ -204,6 +206,43 @@ class DetectResponse(BaseModel):
     rejected_lookalikes: list[RejectedLookalike]
     processing: list[ProcessingStep]
     provenance: Provenance
+
+
+# --------------------------------------------------------------------------
+# POST /api/classify-oil  (Physics-based Oil Impact & Routing Assessment)
+# --------------------------------------------------------------------------
+
+
+class OilImpactAssessment(BaseModel):
+    """Evaporation potential and navigational hazard derived from physical properties."""
+    evaporation_potential: str
+    navigational_hazard: str
+    re_route_needed: bool
+
+
+class OilClassifyRequest(BaseModel):
+    """Physical SAR features for oil impact assessment."""
+    contrast_dB: float
+    thickness_proxy: float
+    area_growth_rate: float
+    weathering_indicator: float
+    VV_VH_ratio: float
+    thickness_um: float | None = Field(
+        default=None,
+        description="Actual physical film thickness in micrometres if available from the detector; "
+                    "overrides the proxy-derived estimate when present."
+    )
+
+
+class OilClassifyResponse(BaseModel):
+    """Physics-based evaporation and navigational routing assessment."""
+    predicted_type: str   # evaporation status label
+    impact: OilImpactAssessment
+    features_used: dict[str, float]
+    thickness_um: float | None = Field(
+        default=None, description="Film thickness in µm used for the assessment"
+    )
+
 
 
 # --------------------------------------------------------------------------
