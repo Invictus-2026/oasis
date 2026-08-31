@@ -152,3 +152,17 @@ export const attribute = (
 
 export const report = (caseId: string, slickId: string) =>
   call<ReportContent>("/api/report", { case_id: caseId, slick_id: slickId }, null);
+
+export const reroute = (req: import("./types").RerouteRequest) =>
+  call<import("./types").RerouteResponse>("/api/vessel/reroute", req, {
+    original_path: [req.start_point, req.end_point],
+    rerouted_path: [req.start_point, req.end_point],
+    distance_original_km: 100,
+    distance_rerouted_km: 100,
+    original_time_hours: 5.4,
+    rerouted_time_hours: 5.4,
+    extra_time_hours: 0,
+    extra_fuel_tons: 0,
+    is_rerouted: false,
+    processing_time_ms: 10
+  });

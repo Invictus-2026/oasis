@@ -23,6 +23,7 @@ from app.api import (
     report,
     scene,
     upload,
+    reroute,
 )
 from app.core import config
 
@@ -46,7 +47,7 @@ app.add_middleware(
 
 for r in (case.router, detection.router, drift.router, attribution.router,
           report.router, pipeline.router, scene.router, upload.router,
-          environment.router, ais.router, oil_classify.router):
+          environment.router, ais.router, oil_classify.router, reroute.router):
     app.include_router(r)
 
 

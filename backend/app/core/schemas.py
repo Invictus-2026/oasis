@@ -667,3 +667,29 @@ class PipelineResponse(BaseModel):
     forecast: ForecastResponse
     attribution: AttributeResponse
     total_duration_ms: float
+
+# --------------------------------------------------------------------------
+# Rerouting Simulation
+# --------------------------------------------------------------------------
+
+class RerouteRequest(BaseModel):
+    start_point: LonLat | None = None
+    end_point: LonLat | None = None
+    obstacles: list[GeoJSON] = Field(
+        description="Polygons representing the oil slick and forecast cones to avoid"
+    )
+    safety_margin_km: float = 2.0
+
+class RerouteResponse(BaseModel):
+    original_path: list[LonLat]
+    rerouted_path: list[LonLat]
+    distance_original_km: float
+    distance_rerouted_km: float
+    original_time_hours: float
+    rerouted_time_hours: float
+    extra_time_hours: float
+    extra_fuel_tons: float
+    is_rerouted: bool
+    exclusion_zone: GeoJSON | None = Field(None, description="The mathematical exclusion zone (buffered safe area) used by the engine")
+    processing_time_ms: float
+    error: str | None = Field(None, description="Error message if routing failed")

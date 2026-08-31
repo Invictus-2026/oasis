@@ -413,3 +413,24 @@ export interface OilClassifyResponse {
   reroute_plan?: ReRoutePlan | null;
 }
 
+export interface RerouteRequest {
+  start_point?: LonLat | null;
+  end_point?: LonLat | null;
+  obstacles: Geom[];
+  safety_margin_km?: number;
+}
+
+export interface RerouteResponse {
+  original_path: LonLat[];
+  rerouted_path: LonLat[];
+  distance_original_km: number;
+  distance_rerouted_km: number;
+  original_time_hours: number;
+  rerouted_time_hours: number;
+  extra_time_hours: number;
+  extra_fuel_tons: number;
+  is_rerouted: boolean;
+  exclusion_zone?: Geom | null;
+  processing_time_ms: number;
+  error?: string | null;
+}
