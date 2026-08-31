@@ -8,6 +8,7 @@ import SatelliteIntelligence from "./pages/SatelliteIntelligence";
 import VesselIntelligence from "./pages/VesselIntelligence";
 import DriftIntelligence from "./pages/DriftIntelligence";
 import Attribution from "./pages/Attribution";
+import RerouteSimulation from "./pages/RerouteSimulation";
 import Reports from "./pages/Reports";
 import DataSources from "./pages/DataSources";
 
@@ -24,6 +25,7 @@ export default function App() {
             <Route path="vessel" element={<VesselIntelligence />} />
             <Route path="drift" element={<DriftIntelligence />} />
             <Route path="attribution" element={<Attribution />} />
+            <Route path="reroute" element={<RerouteSimulation />} />
             <Route path="reports" element={<Reports />} />
             <Route path="alerts" element={<Placeholder title="Alerts" />} />
             <Route path="data" element={<DataSources />} />

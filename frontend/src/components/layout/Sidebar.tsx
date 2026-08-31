@@ -22,6 +22,7 @@ const navItems = [
   { name: "Vessel Intelligence", path: "/vessel", icon: Ship },
   { name: "Drift Intelligence", path: "/drift", icon: Wind },
   { name: "Attribution", path: "/attribution", icon: Target },
+  { name: "Reroute Simulation", path: "/reroute", icon: Ship },
   { name: "Reports", path: "/reports", icon: FileText },
   { name: "Alerts", path: "/alerts", icon: Bell },
   { name: "Data Sources", path: "/data", icon: Database },

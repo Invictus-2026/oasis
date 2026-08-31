@@ -122,6 +122,8 @@ export interface Slick {
   backscatter?: BackscatterStats | null;
   age: AgeEstimate | null;
   evidence?: DetectionEvidence | null;
+  thickness_um?: number | null;
+  contrast_db?: number | null;
 }
 
 export interface RejectedLookalike {
@@ -339,3 +341,96 @@ export interface CustomImageOverlay {
   name?: string;
 }
 
+// --------------------------------------------------------------------------
+// POST /api/classify-oil & Re-routing
+// --------------------------------------------------------------------------
+
+export interface OilImpactAssessment {
+  evaporation_potential: string;
+  navigational_hazard: string;
+  re_route_needed: boolean;
+}
+
+export interface ReRouteWaypoint {
+  name: string;
+  lat: number;
+  lon: number;
+  course_to_steer_deg: number;
+  leg_distance_nm: number;
+  instructions: string;
+}
+
+export interface ReRouteOption {
+  id: string;
+  name: string;
+  is_recommended: boolean;
+  distance_nm: number;
+  direct_distance_nm: number;
+  extra_distance_nm: number;
+  extra_distance_pct: number;
+  transit_time_min: number;
+  direct_time_min: number;
+  time_delay_min: number;
+  fuel_extra_mt: number;
+  min_clearance_nm: number;
+  plume_clearance_desc?: string;
+  waypoints: ReRouteWaypoint[];
+  geojson_path: GeoJSON.LineString;
+  geojson_direct: GeoJSON.LineString;
+  geojson_exclusion_zone: GeoJSON.Polygon;
+}
+
+export interface ReRoutePlan {
+  status: string;
+  reason: string;
+  recommended_option_id: string;
+  vessel_speed_kts: number;
+  options: ReRouteOption[];
+  guidance_summary: string;
+}
+
+export interface OilClassifyRequest {
+  contrast_dB: number;
+  thickness_proxy: number;
+  area_growth_rate: number;
+  weathering_indicator: number;
+  VV_VH_ratio: number;
+  thickness_um?: number;
+  center_lon?: number;
+  center_lat?: number;
+  length_km?: number;
+  width_km?: number;
+  orientation_deg?: number;
+  mock_wind_dir_deg?: number;
+  drift_heading_deg?: number;
+}
+
+export interface OilClassifyResponse {
+  predicted_type: string;
+  impact: OilImpactAssessment;
+  features_used: Record<string, number>;
+  thickness_um: number | null;
+  reroute_plan?: ReRoutePlan | null;
+}
+
+export interface RerouteRequest {
+  start_point?: LonLat | null;
+  end_point?: LonLat | null;
+  obstacles: Geom[];
+  safety_margin_km?: number;
+}
+
+export interface RerouteResponse {
+  original_path: LonLat[];
+  rerouted_path: LonLat[];
+  distance_original_km: number;
+  distance_rerouted_km: number;
+  original_time_hours: number;
+  rerouted_time_hours: number;
+  extra_time_hours: number;
+  extra_fuel_tons: number;
+  is_rerouted: boolean;
+  exclusion_zone?: Geom | null;
+  processing_time_ms: number;
+  error?: string | null;
+}

@@ -12,6 +12,7 @@ import type {
   HindcastResponse,
   ProcessingStep,
   ReportContent,
+  ReRouteOption,
 } from "../api/types";
 import { type LayerVisibility } from "../components/MapView";
 import { type ViewMode } from "../lib/viewMode";
@@ -74,6 +75,12 @@ interface SpillContextType {
   injectAdHocDetection: (det: DetectResponse, overlay?: CustomImageOverlay) => void;
   removeCustomOverlay: (id: string) => void;
 
+  activeReRouteOption: ReRouteOption | null;
+  setActiveReRouteOption: (opt: ReRouteOption | null) => void;
+
+  rerouteResult: import("../api/types").RerouteResponse | null;
+  simulateReroute: () => Promise<void>;
+
   // Legacy compatibility, though components will migrate off this
   frameIndex: number;
   frames: number;
@@ -102,6 +109,7 @@ export function SpillProvider({ children }: { children: ReactNode }) {
   const [attribution, setAttribution] = useState < AttributeResponse | null > (null);
   const [report, setReport] = useState < ReportContent | null > (null);
   const [customOverlays, setCustomOverlays] = useState < CustomImageOverlay[] > ([]);
+  const [rerouteResult, setRerouteResult] = useState < import("../api/types").RerouteResponse | null > (null);
 
   const [method, setMethod] = useState < DetectionMethod > ("classical");
   const [detecting, setDetecting] = useState(false);
@@ -123,6 +131,8 @@ export function SpillProvider({ children }: { children: ReactNode }) {
   const [layers, setLayers] = useState < LayerVisibility > ({
     sar: true, slick: true, lookalikes: true, cone: true, particles: true, forecast: true, tracks: true,
   });
+
+  const [activeReRouteOption, setActiveReRouteOption] = useState<ReRouteOption | null>(null);
 
   // The drift bearing of the bundled case: WNW, matching the slick axis traced
   // off the SAR scene (carrier in the south-east -> slick head in the bay).
@@ -519,6 +529,59 @@ export function SpillProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
+  const simulateReroute = useCallback(async () => {
+    if (!forecast || !forecast.centroid_path || forecast.centroid_path.type !== "LineString") return;
+    try {
+      // Determine bounds of the entire spill incident (origin to forecast)
+      let minLon = 180, maxLon = -180, minLat = 90, maxLat = -90;
+      
+      const updateBounds = (lon: number, lat: number) => {
+        if (lon < minLon) minLon = lon;
+        if (lon > maxLon) maxLon = lon;
+        if (lat < minLat) minLat = lat;
+        if (lat > maxLat) maxLat = lat;
+      };
+
+      if (hindcast?.origin_estimate) updateBounds(hindcast.origin_estimate.point[0], hindcast.origin_estimate.point[1]);
+      if (forecast?.centroid_path?.type === "LineString") {
+        const coords = forecast.centroid_path.coordinates as [number, number][];
+        if (coords.length > 0) updateBounds(coords[coords.length - 1][0], coords[coords.length - 1][1]);
+      }
+      
+      // If we couldn't establish a good range, fallback to detection center
+      if (minLon === 180) {
+         const center_point = (forecast.centroid_path as any).coordinates[0];
+         minLon = center_point[0] - 0.2; maxLon = center_point[0] + 0.2;
+         minLat = center_point[1] - 0.4; maxLat = center_point[1] + 0.4;
+      }
+
+      // Create a diagonal incoming ship path that perfectly intersects the incident
+      const start_point: [number, number] = [minLon - 0.1, minLat - 0.2];
+      const end_point: [number, number] = [maxLon + 0.1, maxLat + 0.2];
+
+      const obstacles: import("geojson").Geometry[] = [];
+      if (detection?.slicks) {
+        obstacles.push(...detection.slicks.map((s) => s.polygon));
+      }
+      if (forecast?.cone) {
+        obstacles.push(...forecast.cone.filter(c => c.percentile === 90).map(c => c.polygon));
+      }
+      if (hindcast?.cone) {
+        obstacles.push(...hindcast.cone.filter(c => c.percentile === 90).map(c => c.polygon));
+      }
+      
+      const res = await api.reroute({
+        start_point,
+        end_point,
+        obstacles,
+        safety_margin_km: 2.0
+      });
+      setRerouteResult(res);
+    } catch (e) {
+      console.error(e);
+    }
+  }, [forecast, hindcast, detection]);
+
   const steps: ProcessingStep[] = [
     ...(detection?.processing ?? []),
     ...(hindcast?.processing ?? []),
@@ -536,6 +599,8 @@ export function SpillProvider({ children }: { children: ReactNode }) {
         attribution,
         report,
         customOverlays,
+        rerouteResult,
+        simulateReroute,
         method,
         detecting,
         drifting,
@@ -583,6 +648,8 @@ export function SpillProvider({ children }: { children: ReactNode }) {
         randomizeWind,
         injectAdHocDetection,
         removeCustomOverlay,
+        activeReRouteOption,
+        setActiveReRouteOption,
       }}
     >
       {children}
