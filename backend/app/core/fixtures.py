@@ -209,6 +209,8 @@ def detect_response(method: DetectionMethod = DetectionMethod.classical) -> Dete
             ),
         ),
         evidence=DetectionEvidence(contrast=0.81, variance=0.77, shape=0.68, edge=0.54),
+        thickness_um=45.0,
+        contrast_db=8.4,
     )
 
     lookalikes = [

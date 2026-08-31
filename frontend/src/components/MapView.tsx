@@ -8,6 +8,7 @@ import type {
   DetectResponse,
   ForecastResponse,
   HindcastResponse,
+  ReRouteOption,
 } from "../api/types";
 import { C } from "../lib/theme";
 
@@ -39,6 +40,10 @@ interface Props {
   mockWindDir?: number;
   customOverlays?: CustomImageOverlay[];
   offlineMap?: boolean;
+  reRouteOption?: ReRouteOption | null;
+  rerouteResult?: import("../api/types").RerouteResponse | null;
+  onMapClick?: (lngLat: [number, number]) => void;
+  simWaypoints?: Array<[number, number]>;
 }
 
 const EMPTY: GeoJSON.FeatureCollection = { type: "FeatureCollection", features: [] };
@@ -142,6 +147,10 @@ export default function MapView({
   caseMeta, detection, hindcast, forecast, attribution,
   layers, hindcastIndex, forecastIndex, selectedMmsi, onSelectVessel, focusRequest, activeSlickId, mockWindDir,
   customOverlays = [],
+  reRouteOption,
+  rerouteResult,
+  onMapClick,
+  simWaypoints = [],
 }: Props) {
   const container = useRef < HTMLDivElement > (null);
   const map = useRef < maplibregl.Map | null > (null);
@@ -166,6 +175,9 @@ export default function MapView({
 
   const onSelect = useRef(onSelectVessel);
   onSelect.current = onSelectVessel;
+  
+  const onMapClickRef = useRef(onMapClick);
+  onMapClickRef.current = onMapClick;
 
   const tracksAnim = useRef<{ key: string; start: number | null; raf: number | null }>({ key: "", start: null, raf: null });
   const originGrowAnim = useRef<{ key: string; start: number | null; raf: number | null }>({ key: "", start: null, raf: null });
@@ -184,35 +196,44 @@ export default function MapView({
     m.addControl(new maplibregl.NavigationControl({ showCompass: true }), "bottom-right");
     m.addControl(new maplibregl.ScaleControl({ unit: "metric" }), "bottom-left");
 
-    // MapLibre measures the container once at construction. Inside a flex
-    // layout that measurement can land before the browser has resolved the
-    // final height, and the canvas silently falls back to 400x300 — a map that
-    // renders correctly into a corner too small to see. Observing the container
-    // and resizing keeps the canvas correct on first paint and on every window
-    // resize during a demo.
     const ro = new ResizeObserver(() => m.resize());
     ro.observe(container.current!);
     resizeObs.current = ro;
 
-    // Surface style/render failures instead of leaving a silently blank canvas.
     m.on("error", (e) => console.error("[SpillTrace] map error:", e?.error ?? e));
 
     m.on("load", () => {
       for (const id of ["graticule", "frame", "cone90", "cone50", "originRegion90",
         "originRegion50", "lookalikes", "slick",
         "particles", "forecastCone", "forecastPath", "tracks", "origin",
-        "gap", "connector", "windField", "currentField"]) {
+        "gap", "connector", "windField", "currentField",
+        "rerouteExclusion", "rerouteDirect", "reroutePath", "rerouteWaypoints",
+        "simOriginalPath", "simReroutedPath", "simBoatIcon", "simClickWaypoints",
+        "exclusionZone"]
+      ) {
         m.addSource(id, { type: "geojson", data: EMPTY });
       }
 
-
-
-      const shipSvg = `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="black" stroke-width="2" xmlns="http://www.w3.org/2000/svg"><path d="M2 12l2-6 8-2 8 2 2 6-4 10H6L2 12z" fill="#f87171"/></svg>`;
+      const shipSvg = `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="black" stroke-width="2" xmlns="http://www.w3.org/2000/svg"><path d="M2 12l2-6 8-2 8 2 2 6-4 10H6L2 12z" fill="#10b981"/></svg>`;
       const img = new Image(24, 24);
       img.onload = () => {
-        if (!m.hasImage("boat-icon")) m.addImage("boat-icon", img);
+        if (!m.hasImage("green-boat-icon")) m.addImage("green-boat-icon", img);
       };
       img.src = "data:image/svg+xml;charset=utf-8," + encodeURIComponent(shipSvg);
+
+      const redShipSvg = `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="black" stroke-width="2" xmlns="http://www.w3.org/2000/svg"><path d="M2 12l2-6 8-2 8 2 2 6-4 10H6L2 12z" fill="#f87171"/></svg>`;
+      const imgRed = new Image(24, 24);
+      imgRed.onload = () => {
+        if (!m.hasImage("boat-icon")) m.addImage("boat-icon", imgRed);
+      };
+      imgRed.src = "data:image/svg+xml;charset=utf-8," + encodeURIComponent(redShipSvg);
+
+      const pinSvg = `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="black" stroke-width="2" xmlns="http://www.w3.org/2000/svg"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" fill="#3b82f6"/><circle cx="12" cy="10" r="3" fill="white"/></svg>`;
+      const imgPin = new Image(24, 24);
+      imgPin.onload = () => {
+        if (!m.hasImage("blue-pin-icon")) m.addImage("blue-pin-icon", imgPin);
+      };
+      imgPin.src = "data:image/svg+xml;charset=utf-8," + encodeURIComponent(pinSvg);
 
       // Graticules
       m.addLayer({
@@ -376,12 +397,85 @@ export default function MapView({
         }
       });
 
+      // ── Re-Routing Alternate Navigation Layers ─────────────────────
+      m.addLayer({
+        id: "rerouteExclusion-fill", source: "rerouteExclusion", type: "fill",
+        paint: { "fill-color": "rgba(239, 68, 68, 0.08)" }
+      });
+      m.addLayer({
+        id: "rerouteExclusion-line", source: "rerouteExclusion", type: "line",
+        paint: { "line-color": "#ef4444", "line-width": 1.5, "line-dasharray": [3, 2], "line-opacity": 0.8 }
+      });
+      m.addLayer({
+        id: "rerouteDirect-line", source: "rerouteDirect", type: "line",
+        paint: { "line-color": "#ef4444", "line-width": 2, "line-dasharray": [2, 2], "line-opacity": 0.75 }
+      });
+      m.addLayer({
+        id: "reroutePath-glow", source: "reroutePath", type: "line",
+        paint: { "line-color": "#10b981", "line-width": 10, "line-blur": 6, "line-opacity": 0.5 }
+      });
+      m.addLayer({
+        id: "exclusionZone-fill", source: "exclusionZone", type: "fill",
+        paint: { "fill-color": "#ef4444", "fill-opacity": 0.15 }
+      });
+      m.addLayer({
+        id: "exclusionZone-line", source: "exclusionZone", type: "line",
+        paint: { "line-color": "#dc2626", "line-width": 1.5, "line-dasharray": [4, 4] }
+      });
+      m.addLayer({
+        id: "simOriginalPath-line", source: "simOriginalPath", type: "line",
+        paint: { "line-color": "#ef4444", "line-width": 2, "line-dasharray": [2, 2], "line-opacity": 0.8 }
+      });
+      m.addLayer({
+        id: "simReroutedPath-line", source: "simReroutedPath", type: "line",
+        paint: { "line-color": "#10b981", "line-width": 3, "line-opacity": 0.9 }
+      });
+      m.addLayer({
+        id: "simBoatIcon-symbol", source: "simBoatIcon", type: "symbol",
+        layout: {
+          "icon-image": "green-boat-icon",
+          "icon-size": 0.6,
+          "icon-allow-overlap": true,
+          "icon-ignore-placement": true,
+        },
+      });
+      m.addLayer({
+        id: "simClickWaypoints-symbol", source: "simClickWaypoints", type: "symbol",
+        layout: {
+          "icon-image": "blue-pin-icon",
+          "icon-size": 0.8,
+          "icon-offset": [0, -12], // offset up so the pin tip points at the coord
+          "icon-allow-overlap": true,
+        },
+      });
+      m.addLayer({
+        id: "reroutePath-line", source: "reroutePath", type: "line",
+        paint: { "line-color": "#059669", "line-width": 3.5 }
+      });
+      m.addLayer({
+        id: "rerouteWaypoints-circle", source: "rerouteWaypoints", type: "circle",
+        paint: {
+          "circle-radius": 6,
+          "circle-color": "#10b981",
+          "circle-stroke-color": "#ffffff",
+          "circle-stroke-width": 2.5
+        }
+      });
+
       m.on("click", "tracks-line", (e) => {
         const mmsi = e.features?.[0]?.properties?.mmsi;
         if (mmsi) onSelect.current(String(mmsi));
       });
       m.on("mouseenter", "tracks-line", () => { m.getCanvas().style.cursor = "pointer"; });
       m.on("mouseleave", "tracks-line", () => { m.getCanvas().style.cursor = ""; });
+
+      m.on("click", (e) => {
+        // Only trigger if we didn't click on a track
+        const features = m.queryRenderedFeatures(e.point, { layers: ["tracks-line"] });
+        if (!features.length) {
+          onMapClickRef.current?.([e.lngLat.lng, e.lngLat.lat]);
+        }
+      });
 
       setReady(true);
       m.triggerRepaint();
@@ -830,6 +924,127 @@ export default function MapView({
         : [],
     });
   }, [ready, attribution, selectedMmsi, hindcast, layers.tracks]);
+
+  // ── Re-Routing Alternate Detour Path Synchronization ─────────────
+  useEffect(() => {
+    if (!ready) return;
+    if (!reRouteOption) {
+      setData("rerouteExclusion", EMPTY);
+      setData("rerouteDirect", EMPTY);
+      setData("reroutePath", EMPTY);
+      setData("rerouteWaypoints", EMPTY);
+      return;
+    }
+
+    setData("rerouteExclusion", {
+      type: "FeatureCollection",
+      features: [{ type: "Feature", properties: {}, geometry: reRouteOption.geojson_exclusion_zone }]
+    });
+
+    setData("rerouteDirect", {
+      type: "FeatureCollection",
+      features: [{ type: "Feature", properties: { label: "Direct Hazard Line" }, geometry: reRouteOption.geojson_direct }]
+    });
+
+    setData("reroutePath", {
+      type: "FeatureCollection",
+      features: [{ type: "Feature", properties: { label: reRouteOption.name }, geometry: reRouteOption.geojson_path }]
+    });
+
+    setData("rerouteWaypoints", {
+      type: "FeatureCollection",
+      features: reRouteOption.waypoints.map(w => ({
+        type: "Feature",
+        properties: { name: w.name, course: `${w.course_to_steer_deg}°`, instructions: w.instructions },
+        geometry: { type: "Point", coordinates: [w.lon, w.lat] }
+      }))
+    });
+  }, [ready, reRouteOption]);
+
+  useEffect(() => {
+    if (!ready) return;
+    if (!rerouteResult) {
+      setData("simOriginalPath", EMPTY);
+      setData("simReroutedPath", EMPTY);
+      setData("simBoatIcon", EMPTY);
+      setData("exclusionZone", EMPTY);
+      return;
+    }
+    setData("simOriginalPath", {
+      type: "FeatureCollection",
+      features: [{
+        type: "Feature",
+        properties: {},
+        geometry: { type: "LineString", coordinates: rerouteResult.original_path }
+      }]
+    });
+    setData("simReroutedPath", {
+      type: "FeatureCollection",
+      features: [{
+        type: "Feature",
+        properties: {},
+        geometry: { type: "LineString", coordinates: rerouteResult.rerouted_path }
+      }]
+    });
+    if (rerouteResult.exclusion_zone) {
+      setData("exclusionZone", {
+        type: "FeatureCollection",
+        features: [{
+          type: "Feature",
+          properties: {},
+          geometry: rerouteResult.exclusion_zone
+        }]
+      });
+    } else {
+      setData("exclusionZone", EMPTY);
+    }
+
+    // Animate the boat
+    let raf: number;
+    let startTs: number | null = null;
+    const DURATION = 3000; // 3 seconds
+
+    const renderAnim = (progress: number) => {
+      const pt = getLineEnd({ type: "LineString", coordinates: rerouteResult.rerouted_path }, progress);
+      if (pt) {
+        setData("simBoatIcon", {
+          type: "FeatureCollection",
+          features: [{
+            type: "Feature",
+            properties: {},
+            geometry: { type: "Point", coordinates: pt }
+          }]
+        });
+      }
+    };
+
+    const step = (ts: number) => {
+      if (!startTs) startTs = ts;
+      const progress = Math.min(1, (ts - startTs) / DURATION);
+      renderAnim(progress);
+      if (progress < 1) {
+        raf = requestAnimationFrame(step);
+      }
+    };
+
+    raf = requestAnimationFrame(step);
+
+    return () => {
+      if (raf) cancelAnimationFrame(raf);
+    };
+  }, [ready, rerouteResult]);
+
+  useEffect(() => {
+    if (!ready) return;
+    setData("simClickWaypoints", {
+      type: "FeatureCollection",
+      features: simWaypoints.map(pt => ({
+        type: "Feature",
+        properties: {},
+        geometry: { type: "Point", coordinates: pt }
+      }))
+    });
+  }, [ready, simWaypoints]);
 
   const handledFocusNonce = useRef<number | null>(null);
 

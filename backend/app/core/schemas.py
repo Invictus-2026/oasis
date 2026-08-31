@@ -179,6 +179,8 @@ class Slick(BaseModel):
     backscatter: BackscatterStats | None = None
     age: AgeEstimate | None = None
     evidence: DetectionEvidence | None = None
+    thickness_um: float | None = None
+    contrast_db: float | None = None
 
 
 class RejectedLookalike(BaseModel):
@@ -204,6 +206,91 @@ class DetectResponse(BaseModel):
     rejected_lookalikes: list[RejectedLookalike]
     processing: list[ProcessingStep]
     provenance: Provenance
+
+
+# --------------------------------------------------------------------------
+# POST /api/classify-oil  (Physics-based Oil Impact & Routing Assessment)
+# --------------------------------------------------------------------------
+
+
+class OilImpactAssessment(BaseModel):
+    """Evaporation potential and navigational hazard derived from physical properties."""
+    evaporation_potential: str
+    navigational_hazard: str
+    re_route_needed: bool
+
+
+class ReRouteWaypoint(BaseModel):
+    name: str
+    lat: float
+    lon: float
+    course_to_steer_deg: float
+    leg_distance_nm: float
+    instructions: str
+
+
+class ReRouteOption(BaseModel):
+    id: str
+    name: str
+    is_recommended: bool
+    distance_nm: float
+    direct_distance_nm: float
+    extra_distance_nm: float
+    extra_distance_pct: float
+    transit_time_min: float
+    direct_time_min: float
+    time_delay_min: float
+    fuel_extra_mt: float
+    min_clearance_nm: float
+    plume_clearance_desc: str = ""
+    waypoints: list[ReRouteWaypoint]
+    geojson_path: GeoJSON
+    geojson_direct: GeoJSON
+    geojson_exclusion_zone: GeoJSON
+
+
+class ReRoutePlan(BaseModel):
+    status: str
+    reason: str
+    recommended_option_id: str
+    vessel_speed_kts: float = 14.0
+    options: list[ReRouteOption]
+    guidance_summary: str
+
+
+class OilClassifyRequest(BaseModel):
+    """Physical SAR features for oil impact assessment."""
+    contrast_dB: float
+    thickness_proxy: float
+    area_growth_rate: float
+    weathering_indicator: float
+    VV_VH_ratio: float
+    thickness_um: float | None = Field(
+        default=None,
+        description="Actual physical film thickness in micrometres if available from the detector; "
+                    "overrides the proxy-derived estimate when present."
+    )
+    center_lon: float | None = Field(default=None, description="Slick centroid longitude for route diversion geometry")
+    center_lat: float | None = Field(default=None, description="Slick centroid latitude for route diversion geometry")
+    length_km: float | None = Field(default=None, description="Major axis extent in km")
+    width_km: float | None = Field(default=None, description="Minor axis extent in km")
+    orientation_deg: float | None = Field(default=None, description="Slick orientation angle in degrees")
+    mock_wind_dir_deg: float | None = Field(default=None, description="Wind direction in degrees from north")
+    drift_heading_deg: float | None = Field(default=None, description="Forecast oil drift vector heading in degrees")
+
+
+class OilClassifyResponse(BaseModel):
+    """Physics-based evaporation and navigational routing assessment."""
+    predicted_type: str   # evaporation status label
+    impact: OilImpactAssessment
+    features_used: dict[str, float]
+    thickness_um: float | None = Field(
+        default=None, description="Film thickness in µm used for the assessment"
+    )
+    reroute_plan: ReRoutePlan | None = Field(
+        default=None, description="Optimized nautical diversion routes and waypoints when re-routing is required"
+    )
+
 
 
 # --------------------------------------------------------------------------
@@ -580,3 +667,29 @@ class PipelineResponse(BaseModel):
     forecast: ForecastResponse
     attribution: AttributeResponse
     total_duration_ms: float
+
+# --------------------------------------------------------------------------
+# Rerouting Simulation
+# --------------------------------------------------------------------------
+
+class RerouteRequest(BaseModel):
+    start_point: LonLat | None = None
+    end_point: LonLat | None = None
+    obstacles: list[GeoJSON] = Field(
+        description="Polygons representing the oil slick and forecast cones to avoid"
+    )
+    safety_margin_km: float = 2.0
+
+class RerouteResponse(BaseModel):
+    original_path: list[LonLat]
+    rerouted_path: list[LonLat]
+    distance_original_km: float
+    distance_rerouted_km: float
+    original_time_hours: float
+    rerouted_time_hours: float
+    extra_time_hours: float
+    extra_fuel_tons: float
+    is_rerouted: bool
+    exclusion_zone: GeoJSON | None = Field(None, description="The mathematical exclusion zone (buffered safe area) used by the engine")
+    processing_time_ms: float
+    error: str | None = Field(None, description="Error message if routing failed")
