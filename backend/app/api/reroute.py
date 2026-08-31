@@ -37,7 +37,24 @@ def reroute_vessel(req: RerouteRequest):
     else:
         start_pt, end_pt, original_line = None, None, None
         distance_orig_km = 0.0
-    
+
+    SPEED_KMH = 27.78  # 15 knots
+    original_time = distance_orig_km / SPEED_KMH
+
+    # If classification physics model determined no rerouting is required (safe / evaporative oil)
+    if not req.re_route_needed:
+        return RerouteResponse(
+            original_path=[req.start_point, req.end_point] if has_points else [],
+            rerouted_path=[req.start_point, req.end_point] if has_points else [],
+            distance_original_km=distance_orig_km,
+            distance_rerouted_km=distance_orig_km,
+            original_time_hours=original_time,
+            rerouted_time_hours=original_time,
+            extra_time_hours=0.0,
+            extra_fuel_tons=0.0,
+            is_rerouted=False,
+            processing_time_ms=(time.time() - t0) * 1000
+        )
     # Process obstacles
     polys = []
     for obs in req.obstacles:

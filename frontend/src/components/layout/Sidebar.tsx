@@ -18,15 +18,15 @@ const navItems = [
   { name: "Overview", path: "/", icon: LayoutDashboard },
   { name: "Maritime Map", path: "/map", icon: MapIcon },
   { name: "Satellite Intelligence", path: "/satellite", icon: Satellite },
-  { name: "Vessel Intelligence", path: "/vessel", icon: Ship },
+  // { name: "Vessel Intelligence", path: "/vessel", icon: Ship },
   { name: "Drift Intelligence", path: "/drift", icon: Wind },
   { name: "Attribution", path: "/attribution", icon: Target },
   { name: "Reroute Simulation", path: "/reroute", icon: Ship },
   { name: "Reports", path: "/reports", icon: FileText },
   { name: "Alerts", path: "/alerts", icon: Bell },
   { name: "Data Sources", path: "/data", icon: Database },
-  { name: "Models", path: "/models", icon: Cpu },
-  { name: "Settings", path: "/settings", icon: Settings },
+  // { name: "Models", path: "/models", icon: Cpu },
+  // { name: "Settings", path: "/settings", icon: Settings },
 ];
 
 export default function Sidebar() {

@@ -418,6 +418,7 @@ export interface RerouteRequest {
   end_point?: LonLat | null;
   obstacles: Geom[];
   safety_margin_km?: number;
+  re_route_needed?: boolean;
 }
 
 export interface RerouteResponse {

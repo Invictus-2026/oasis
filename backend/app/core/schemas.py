@@ -679,6 +679,7 @@ class RerouteRequest(BaseModel):
         description="Polygons representing the oil slick and forecast cones to avoid"
     )
     safety_margin_km: float = 2.0
+    re_route_needed: bool = True
 
 class RerouteResponse(BaseModel):
     original_path: list[LonLat]

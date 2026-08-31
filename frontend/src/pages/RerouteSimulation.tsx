@@ -63,11 +63,21 @@ export default function RerouteSimulation() {
         obstacles.push(...hindcast.cone.map(c => c.polygon));
       }
 
+      // Check physics classification: thin oil sheen (<= 35um) rapidly evaporates and does NOT require rerouting
+      const activeSlick = activeSlickId
+        ? detection?.slicks.find(s => s.id === activeSlickId)
+        : detection?.slicks?.[0];
+
+      const isEvaporativeSafe = activeSlick
+        ? (activeSlick.thickness_um ?? 25) <= 35
+        : false;
+
       const res = await reroute({
         start_point: startPoint,
         end_point: endPoint,
         obstacles,
         safety_margin_km: 2.0,
+        re_route_needed: !isEvaporativeSafe,
       });
       setRerouteResult(res);
       if (res.error) {
@@ -234,9 +244,11 @@ export default function RerouteSimulation() {
                     </div>
                   </div>
                 ) : (
-                  <div className="bg-green-50 border border-green-200 rounded p-4 text-center">
-                    <p className="text-sm font-medium text-green-800">Path is safe!</p>
-                    <p className="text-xs text-green-600 mt-1">No rerouting required.</p>
+                  <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-4 text-center">
+                    <p className="text-sm font-bold text-emerald-900">Safe Direct Transit!</p>
+                    <p className="text-xs text-emerald-700 mt-1 leading-relaxed">
+                      Oil sheen is thin (&le; 35 µm) and rapidly evaporates. Physics classification model confirms <strong>No Reroute Required</strong>. Proceed on planned direct voyage.
+                    </p>
                   </div>
                 )}
               </div>

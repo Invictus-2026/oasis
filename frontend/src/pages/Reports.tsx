@@ -529,7 +529,11 @@ export default function Reports() {
                       <Badge color="amber">{(selectedSlickObj.confidence * 100).toFixed(0)}% Conf</Badge>
                       <Badge color="gray">{selectedSlickObj.method}</Badge>
                     </div>
-                  </div>
+                        Oil Slick
+                        59.4 km²
+                        79% Confclassical
+                        Oil Slick
+1.9 km  </div>
                   <div className="rounded-lg border border-ink-200 bg-ink-50/50 p-2.5 min-w-0">
                     <div className="text-[9px] font-bold uppercase tracking-wider text-ink-500 mb-0.5">Dimensions (L × W)</div>
                     <div className="text-sm font-bold text-ink-900 tabular-nums">
