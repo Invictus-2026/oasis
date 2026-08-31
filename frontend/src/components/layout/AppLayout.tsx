@@ -25,7 +25,7 @@ export default function AppLayout() {
               
               {/* The active intelligence page as a sliding side panel */}
               {!isMapOnly && (
-                <div className="w-[450px] lg:w-[550px] xl:w-[650px] shrink-0 bg-white/95 backdrop-blur-md shadow-[-10px_0_30px_rgba(0,0,0,0.05)] border-l border-ink-200 overflow-y-auto flex flex-col z-20 animate-in slide-in-from-right duration-300">
+                <div className="w-[450px] lg:w-[550px] xl:w-[650px] shrink-0 bg-white/95 backdrop-blur-md shadow-[-10px_0_30px_rgba(0,0,0,0.05)] border-l border-ink-200 overflow-y-auto overflow-x-hidden flex flex-col z-20 animate-in slide-in-from-right duration-300 min-w-0 max-w-full">
                    <Outlet />
                 </div>
               )}

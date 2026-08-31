@@ -108,11 +108,12 @@ body {
 
 /* ── Page Layout Consistency ─────────────────────── */
 .page-shell {
-  padding: 2rem 1.5rem;
+  padding: 1.5rem 1rem;
   max-width: 72rem;
   margin: 0 auto;
   height: 100%;
   overflow-y: auto;
+  overflow-x: hidden;
 }
 
 .page-header {
