@@ -1,4 +1,4 @@
-# Oasis
+# OASIS [Oil Analytics and Ship Intelligence System]
 
 Oil-spill detection, drift hindcast/forecast and AIS-based vessel attribution.
 
