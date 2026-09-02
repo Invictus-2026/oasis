@@ -1,7 +1,6 @@
 import { NavLink } from "react-router-dom";
 import {
   LayoutDashboard,
-  AlertTriangle,
   Map as MapIcon,
   Satellite,
   Ship,
@@ -10,8 +9,6 @@ import {
   FileText,
   Bell,
   Database,
-  Cpu,
-  Settings,
 } from "lucide-react";
 
 const navItems = [

@@ -6,7 +6,7 @@ import { ViewModeProvider } from "../lib/viewMode";
 import { utc } from "../lib/format";
 import {
   FileText, ShieldAlert, Clock, Anchor, Layers,
-  ChevronDown, ChevronRight, CheckCircle2, AlertTriangle, Circle,
+  ChevronDown, ChevronRight, CheckCircle2, AlertTriangle,
   BookOpen, Database, Cpu, Map, Users,
 } from "lucide-react";
 import type { ProcessingStep, VesselCandidate } from "../api/types";
@@ -119,7 +119,7 @@ function CandidateRow({ c }: { c: VesselCandidate }) {
 
 // ── main component ─────────────────────────────────────────────
 export default function Reports() {
-  const { caseMeta, steps, report, reporting, detection, hindcast, forecast, attribution, runReport, viewMode } = useSpillState();
+  const { caseMeta, steps, report, detection, hindcast, forecast, attribution, viewMode } = useSpillState();
 
   const [selectedSlick, setSelectedSlick] = useState<string | null>(null);
 
@@ -206,7 +206,9 @@ export default function Reports() {
     ];
 
     if (classification) {
-      propsBody.push(["Estimated Thickness", `${classification.thickness_um.toFixed(1)} µm`]);
+      if (classification.thickness_um != null) {
+        propsBody.push(["Estimated Thickness", `${classification.thickness_um.toFixed(1)} µm`]);
+      }
       propsBody.push(["Classification Type", classification.predicted_type]);
       propsBody.push(["Evaporation Potential", classification.impact.evaporation_potential]);
       propsBody.push(["Navigational Hazard", classification.impact.navigational_hazard]);
@@ -562,10 +564,10 @@ export default function Reports() {
                 </div>
 
                 {/* Secondary list of all slicks for quick comparison */}
-                {detection.slicks.length > 1 && (
+                {detection?.slicks && detection.slicks.length > 1 && (
                   <div className="pt-2 border-t border-ink-100 flex items-center justify-between text-xs text-ink-500">
                     <span>Other slicks in scene: {detection.slicks.length - 1}</span>
-                    <span>Ruled out: {detection.rejected_lookalikes.length} look-alikes</span>
+                    <span>Ruled out: {detection.rejected_lookalikes?.length ?? 0} look-alikes</span>
                   </div>
                 )}
               </div>

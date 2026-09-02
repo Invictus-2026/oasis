@@ -164,12 +164,12 @@ export function SpillProvider({ children }: { children: ReactNode }) {
     api.getCase().then(setCaseMeta);
 
     // Try restoring from localStorage first
-    localStorage.removeItem("spilltrace_state");   // pre-v2 geometry
     const savedState = localStorage.getItem(STATE_KEY);
     if (savedState) {
       try {
-        const { detection: d, hindcast: h, forecast: f, attribution: a, mockWindDir: mw, customOverlays: co } = JSON.parse(savedState);
+        const { detection: d, hindcast: h, forecast: f, attribution: a, mockWindDir: mw, customOverlays: co, activeSlickId: actId } = JSON.parse(savedState);
         if (d) setDetection(d);
+        if (actId) setActiveSlickId(actId);
         if (h) {
           setHindcast(h);
           setHindcastIndex(h.particles_timeline.length - 1);
@@ -209,13 +209,17 @@ export function SpillProvider({ children }: { children: ReactNode }) {
     return off;
   }, []);
 
-  // Save state to localStorage whenever it changes
+  // Save state to localStorage whenever it changes so custom picture uploads stay permanently across refresh
   useEffect(() => {
     if (detection) {
-      const state = { detection, hindcast, forecast, attribution, mockWindDir, customOverlays };
-      localStorage.setItem("spilltrace_state", JSON.stringify(state));
+      const state = { detection, hindcast, forecast, attribution, mockWindDir, customOverlays, activeSlickId };
+      try {
+        localStorage.setItem(STATE_KEY, JSON.stringify(state));
+      } catch (err) {
+        console.warn("Failed to save state to localStorage", err);
+      }
     }
-  }, [detection, hindcast, forecast, attribution, mockWindDir, customOverlays]);
+  }, [detection, hindcast, forecast, attribution, mockWindDir, customOverlays, activeSlickId]);
 
   const hindcastFrames = hindcast?.particles_timeline.length ?? 0;
   const forecastFrames = forecast?.particles_timeline.length ?? 0;

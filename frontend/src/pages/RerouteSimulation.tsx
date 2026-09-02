@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 import { useSpillState } from "../context/SpillContext";
 import MapView from "../components/MapView";
 import { ViewModeProvider } from "../lib/viewMode";
@@ -125,7 +125,7 @@ export default function RerouteSimulation() {
           <div className="pointer-events-none absolute right-4 top-4 z-10">
             <div className="pointer-events-auto flex items-center bg-white/95 backdrop-blur-sm p-1 rounded shadow-md border border-ink-200">
               <button
-                onClick={() => runHindcast(undefined, true)}
+                onClick={() => runHindcast()}
                 disabled={!!drifting}
                 className="flex items-center gap-2 px-3 py-1.5 rounded bg-ink-50 hover:bg-blue-50 border border-ink-200 hover:border-blue-200 transition-colors text-sm text-ink-700 disabled:opacity-50 mr-1"
               >
@@ -134,7 +134,7 @@ export default function RerouteSimulation() {
               </button>
 
               <button
-                onClick={() => runForecast(undefined, true)}
+                onClick={() => runForecast()}
                 disabled={!!drifting}
                 className="flex items-center gap-2 px-3 py-1.5 rounded bg-ink-50 hover:bg-purple-50 border border-ink-200 hover:border-purple-200 transition-colors text-sm text-ink-700 disabled:opacity-50"
               >

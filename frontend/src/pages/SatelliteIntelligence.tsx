@@ -649,6 +649,9 @@ function AdHocUpload() {
       if (data.oil_regions.length > 0) setSelectedId("slick-0");
       else if (data.rejected_lookalikes.length > 0) setSelectedId("lookalike-0");
 
+      // Auto-project to SpillContext so the custom image & spill detection are permanently saved across page refreshes
+      handleProjectToMap(data);
+
       // ── Physical Oil Impact & Evaporation Assessment ──────────
       if (data.oil_regions.length > 0) {
         const r = data.oil_regions[0];
@@ -805,15 +808,16 @@ function AdHocUpload() {
     }
   };
 
-  const handleProjectToMap = () => {
-    if (!result || result.oil_regions.length === 0) return;
-    const primaryRegion = result.oil_regions[0];
+  const handleProjectToMap = (resOverride?: UploadResponse) => {
+    const resData = resOverride || result;
+    if (!resData || resData.oil_regions.length === 0) return;
+    const primaryRegion = resData.oil_regions[0];
     const polygon = primaryRegion.polygon;
     if (!polygon) { setError("No georeferenced geometry available."); return; }
 
     const slickId = "adhoc-" + Date.now();
-    const imgWidth = result.width;
-    const imgHeight = result.height;
+    const imgWidth = resData.width;
+    const imgHeight = resData.height;
     const centerLon = caseMeta?.center[0] ?? -89.85125;
     const centerLat = caseMeta?.center[1] ?? 28.47625;
     const kmPerDegLon = 111.32 * Math.cos((centerLat * Math.PI) / 180);
@@ -824,7 +828,11 @@ function AdHocUpload() {
 
     let overlayDataUrl = imgUrl || "";
     if (canvasRef.current) {
-      try { overlayDataUrl = canvasRef.current.toDataURL("image/png"); } catch { }
+      try {
+        overlayDataUrl = canvasRef.current.toDataURL("image/jpeg", 0.75);
+      } catch {
+        try { overlayDataUrl = canvasRef.current.toDataURL("image/png"); } catch { }
+      }
     }
 
     const customOverlay: CustomImageOverlay = {
@@ -841,16 +849,16 @@ function AdHocUpload() {
 
     injectAdHocDetection({
       slicks: [{
-        id: slickId, polygon, confidence: primaryRegion.confidence, method: result.method,
+        id: slickId, polygon, confidence: primaryRegion.confidence, method: resData.method,
         geometry: primaryRegion.morphology, backscatter: primaryRegion.backscatter, age: null, evidence: null,
         thickness_um: primaryRegion.thickness_um,
         contrast_db: primaryRegion.contrast_db,
       }],
-      rejected_lookalikes: result.rejected_lookalikes.map((rl, idx) => ({
+      rejected_lookalikes: resData.rejected_lookalikes.map((rl, idx) => ({
         id: `lookalike-${slickId}-${idx}`, polygon: rl.polygon || { type: "Polygon", coordinates: [] },
         confidence: rl.confidence ?? 0.0, reason: rl.reason,
       })),
-      processing: result.processing,
+      processing: resData.processing,
       provenance: { model_version: "custom-upload", params: { gsd }, generated_at: new Date().toISOString(), inputs: [file?.name ?? "custom"], notes: "Injected from custom upload" },
     }, customOverlay);
 
