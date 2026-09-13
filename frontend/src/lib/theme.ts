@@ -14,4 +14,10 @@ export const C = {
   vesselDim: "rgba(16, 185, 129, 0.18)",
   suspect: "#ef4444",
   forecast: "#9333ea",
+  /** Ambient shipping lanes — background texture, so it stays well below the
+   *  data layers in contrast. Deliberately a mid slate: the lanes cross both
+   *  the pale ocean fill and the dark SAR raster, and a darker tone
+   *  disappears entirely over the imagery. */
+  lane: "#94a3b8",
+  laneDark: "#4c6a9c",
 } as const;
