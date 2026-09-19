@@ -11,6 +11,7 @@ import Attribution from "./pages/Attribution";
 import RerouteSimulation from "./pages/RerouteSimulation";
 import Reports from "./pages/Reports";
 import DataSources from "./pages/DataSources";
+import Alerts from "./pages/Alerts";
 
 export default function App() {
   return (
@@ -27,7 +28,7 @@ export default function App() {
             <Route path="attribution" element={<Attribution />} />
             <Route path="reroute" element={<RerouteSimulation />} />
             <Route path="reports" element={<Reports />} />
-            <Route path="alerts" element={<Placeholder title="Alerts" />} />
+            <Route path="alerts" element={<Alerts />} />
             <Route path="data" element={<DataSources />} />
             <Route path="models" element={<Placeholder title="Models" />} />
             <Route path="settings" element={<Placeholder title="Settings" />} />
