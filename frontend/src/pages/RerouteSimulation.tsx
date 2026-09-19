@@ -7,17 +7,6 @@ import Timeline from "../components/Timeline";
 import { reroute } from "../api/client";
 import type { RerouteResponse } from "../api/types";
 
-/** Great-circle distance in km, for estimating a plausible transit horizon. */
-function haversineKm([lon1, lat1]: [number, number], [lon2, lat2]: [number, number]): number {
-  const R = 6371;
-  const dLat = ((lat2 - lat1) * Math.PI) / 180;
-  const dLon = ((lon2 - lon1) * Math.PI) / 180;
-  const a =
-    Math.sin(dLat / 2) ** 2 +
-    Math.cos((lat1 * Math.PI) / 180) * Math.cos((lat2 * Math.PI) / 180) * Math.sin(dLon / 2) ** 2;
-  return 2 * R * Math.asin(Math.sqrt(a));
-}
-
 export default function RerouteSimulation() {
   const {
     caseMeta,
@@ -78,21 +67,13 @@ export default function RerouteSimulation() {
         // Historical hindcast regions are not future obstacles. All current spills
         // remain included regardless of which spill is selected on the map.
         //
-        // The forecast can span a much longer horizon (up to 72h) than any
-        // plausible transit — a spill's position 3 days out is not a real
-        // collision risk for a voyage that takes a few hours, but treating
-        // the whole multi-day drift smear as one permanent obstacle forces
-        // absurdly large detours around it. Cap obstacle cones to roughly
-        // double the direct transit time (plus a margin for the detour
-        // itself running longer), so only positions the ship could actually
-        // reach in time are avoided.
-        const speedKmh = Number(speed) * 1.852;
-        const horizonHours = startPoint && endPoint && speedKmh > 0
-          ? (haversineKm(startPoint, endPoint) / speedKmh) * 2 + 6
-          : Infinity;
+        // Every forecast cone frame is treated as a permanent obstacle,
+        // covering the full visible drift corridor end to end — a route must
+        // never touch any part of the rendered plume, not just whatever
+        // portion it could physically reach in time.
         const obstacles = [
           ...(detection?.slicks.map(s => s.polygon) ?? []),
-          ...(forecast?.cone.filter(c => c.t_offset_hours <= horizonHours).map(c => c.polygon) ?? []),
+          ...(forecast?.cone.map(c => c.polygon) ?? []),
         ];
         const res = await reroute({
           start_point: startPoint, end_point: endPoint, obstacles,
