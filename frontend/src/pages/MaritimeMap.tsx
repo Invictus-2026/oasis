@@ -40,7 +40,7 @@ export default function MaritimeMap() {
   return (
     <ViewModeProvider value={viewMode}>
       <div className="relative w-full h-full flex flex-col bg-ink-50">
-        <header className="px-6 py-4 border-b border-ink-200 flex justify-between items-center bg-white z-10 shrink-0 shadow-sm">
+        <header className="px-5 py-4 border-b border-ink-200 flex flex-wrap gap-3 justify-between items-center bg-white z-10 shrink-0 shadow-sm">
           <div>
             <h2 className="text-lg font-bold text-ink-900 tracking-tight">Maritime Map</h2>
             <p className="text-xs text-ink-500 mt-0.5">Central operational command map</p>
@@ -61,7 +61,7 @@ export default function MaritimeMap() {
           </div>
         </header>
 
-        <div className="flex-1 relative min-h-0 bg-[#e5e9f0]"> {/* Slightly blueish map bg placeholder */}
+        <div className="flex-1 relative min-h-0 bg-ink-100"> {/* Slightly blueish map bg placeholder */}
           <ErrorBoundary label="Map">
             <MapView
               caseMeta={caseMeta}

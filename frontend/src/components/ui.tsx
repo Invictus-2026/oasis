@@ -16,10 +16,10 @@ export function Panel({ title, subtitle, children, right, provenance }: {
   title: string; subtitle?: string; children: ReactNode; right?: ReactNode; provenance?: Provenance | null;
 }) {
   return (
-    <section className="rounded border border-ink-200 bg-white shadow-sm">
-      <header className="flex items-baseline justify-between gap-3 border-b border-ink-100 px-3 py-1.5 bg-ink-50 rounded-t">
-        <div className="flex items-baseline gap-2">
-          <h2 className="text-[11px] font-bold uppercase tracking-[0.14em] text-ink-700">{title}</h2>
+    <section className="rounded-2xl border border-ink-200 bg-white shadow-sm">
+      <header className="flex flex-wrap items-center justify-between gap-3 border-b border-ink-200 px-5 py-4">
+        <div className="flex flex-wrap items-baseline gap-2">
+          <h2 className="text-sm font-semibold text-ink-900">{title}</h2>
           {isFixture(provenance) && (
             <span className="text-[9px] font-medium uppercase tracking-wider text-ink-400" title="Served from bundled fixtures, not a live computation">
               · fixture
@@ -29,7 +29,7 @@ export function Panel({ title, subtitle, children, right, provenance }: {
         </div>
         {right}
       </header>
-      <div className="px-3 py-2.5">{children}</div>
+      <div className="px-5 py-4">{children}</div>
     </section>
   );
 }
@@ -83,12 +83,12 @@ export function Button({ children, onClick, disabled, busy, tone = "default" }: 
   children: ReactNode; onClick?: () => void; disabled?: boolean; busy?: boolean;
   tone?: "default" | "primary";
 }) {
-  const base = "inline-flex items-center justify-center gap-1.5 rounded border px-2.5 py-1.5 text-xs font-bold " +
+  const base = "inline-flex items-center justify-center gap-2 rounded-lg border px-4 py-2.5 text-sm font-semibold " +
     "transition-[background-color,border-color,box-shadow,transform] duration-150 ease-out-soft " +
     "active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-40 disabled:active:scale-100";
   const tones = {
     default: "border-ink-200 bg-white text-ink-700 hover:border-ink-300 hover:bg-ink-50",
-    primary: "border-blue-500 bg-blue-50 text-blue-700 hover:bg-blue-100 shadow-sm",
+    primary: "action-primary",
   }[tone];
   return (
     <button className={`${base} ${tones}`} onClick={onClick} disabled={disabled || busy}>

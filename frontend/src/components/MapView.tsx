@@ -167,9 +167,9 @@ export default function MapView({
   useEffect(() => {
     if (!ready || !map.current) return;
     // Rich oceanic colors for offline map
-    const mapBgColor = theme === "dark" ? "#06132b" : "#e0f2fe";
+    const mapBgColor = theme === "dark" ? "#181e1b" : "#e5eee5";
     map.current.setPaintProperty("bg", "background-color", mapBgColor);
-    map.current.setPaintProperty("graticule-line", "line-color", theme === "dark" ? "#1e3a8a" : "#93c5fd");
+    map.current.setPaintProperty("graticule-line", "line-color", theme === "dark" ? "#45554a" : "#b6cbb9");
     map.current.setPaintProperty("graticule-line", "line-opacity", theme === "dark" ? 0.6 : 0.5);
     map.current.setPaintProperty("shippingLanes-line", "line-color", theme === "dark" ? C.laneDark : C.lane);
     map.current.setPaintProperty("shippingLanes-line", "line-opacity", theme === "dark" ? 0.8 : 0.7);

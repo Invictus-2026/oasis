@@ -1,38 +1,24 @@
 import { Outlet, useLocation } from "react-router-dom";
+import { useState } from "react";
+import { Map, PanelRightClose } from "lucide-react";
 import Sidebar from "./Sidebar";
 import Topbar from "./Topbar";
 import MaritimeMap from "../../pages/MaritimeMap";
-
 export default function AppLayout() {
-  const location = useLocation();
-  const isMapOnly = location.pathname === "/map";
-
-  return (
-    <div className="flex flex-col h-screen bg-ink-50 font-sans text-ink-900 overflow-hidden">
-      <Topbar />
-      <div className="flex flex-1 overflow-hidden relative">
-        <Sidebar />
-        <main className="app-main min-w-0 flex-1 relative overflow-hidden flex bg-ink-50">
-          {/* If it's a full page route that provides its own map (like reroute), just render the Outlet full screen */}
-          {location.pathname === "/reroute" ? (
-             <Outlet />
-          ) : (
-            <>
-              {/* The map flexes to fill whatever space is left */}
-              <div className={`overview-map flex-1 relative min-w-0 z-0 ${!isMapOnly ? "has-panel" : ""}`}>
-                 <MaritimeMap />
-              </div>
-              
-              {/* The active intelligence page as a sliding side panel */}
-              {!isMapOnly && (
-                <div className="intelligence-panel w-[450px] lg:w-[550px] xl:w-[650px] shrink-0 bg-white/95 backdrop-blur-md shadow-[-10px_0_30px_rgba(0,0,0,0.05)] border-l border-ink-200 overflow-y-auto overflow-x-hidden flex flex-col z-20 animate-in slide-in-from-right duration-300 min-w-0 max-w-full">
-                   <Outlet />
-                </div>
-              )}
-            </>
-          )}
-        </main>
-      </div>
+  const { pathname } = useLocation();
+  const [showMap, setShowMap] = useState(false);
+  const intelligence = ['/satellite', '/drift', '/attribution'].includes(pathname);
+  return <div className="workspace-app">
+    <a href="#main-content" className="skip-link">Skip to content</a>
+    <Topbar/>
+    <div className="workspace-body"><Sidebar/>
+      <main id="main-content" className={`workspace-main ${pathname === '/reroute' || pathname === '/map' ? 'map-workspace' : ''}`}>
+        {intelligence && <div className="workspace-viewbar"><span>Analysis workspace</span><button onClick={() => setShowMap(v => !v)} aria-pressed={showMap}>{showMap ? <PanelRightClose size={16}/> : <Map size={16}/>} {showMap ? 'Focus on analysis' : 'Show map alongside'}</button></div>}
+        <div className={`workspace-content ${intelligence && showMap ? 'with-context-map' : ''}`}>
+          {intelligence && showMap && <div className="context-map"><MaritimeMap/></div>}
+          <div className="workspace-page">{pathname === '/map' ? <MaritimeMap/> : <Outlet/>}</div>
+        </div>
+      </main>
     </div>
-  );
+  </div>;
 }
