@@ -4,13 +4,14 @@ import { useSpillState } from "../context/SpillContext";
 import { ViewModeProvider } from "../lib/viewMode";
 import { bearingLabel, deg, hours, km, ratio } from "../lib/format";
 import { generateMockUploadDetection } from "../lib/mockDetector";
+import { buildAdHocDetection } from "../lib/uploadProjection";
 import {
   Satellite, Search, Layers, Zap, BrainCircuit, Maximize,
   Clock, EyeOff, AlertTriangle, ChevronDown, ChevronRight,
   UploadCloud, FileImage, MapPin, CheckCircle2, ArrowRight, Activity, Crosshair,
   Wind, Ship, FlameKindling, Droplets, Compass, Route, ExternalLink, ShieldCheck
 } from "lucide-react";
-import type { DetectionMethod, UploadResponse, UploadRegion, CustomImageOverlay, SlickGeometry, AgeEstimate, DetectionEvidence, BackscatterStats, OilClassifyResponse, ReRouteOption } from "../api/types";
+import type { DetectionMethod, UploadResponse, UploadRegion, SlickGeometry, AgeEstimate, DetectionEvidence, BackscatterStats, OilClassifyResponse, ReRouteOption } from "../api/types";
 
 function Badge({ children, color = "gray" }: { children: React.ReactNode; color?: string }) {
   const map: Record<string, string> = {
@@ -811,20 +812,6 @@ function AdHocUpload() {
   const handleProjectToMap = (resOverride?: UploadResponse) => {
     const resData = resOverride || result;
     if (!resData || resData.oil_regions.length === 0) return;
-    const primaryRegion = resData.oil_regions[0];
-    const polygon = primaryRegion.polygon;
-    if (!polygon) { setError("No georeferenced geometry available."); return; }
-
-    const slickId = "adhoc-" + Date.now();
-    const imgWidth = resData.width;
-    const imgHeight = resData.height;
-    const centerLon = caseMeta?.center[0] ?? -89.85125;
-    const centerLat = caseMeta?.center[1] ?? 28.47625;
-    const kmPerDegLon = 111.32 * Math.cos((centerLat * Math.PI) / 180);
-    const degLonPerPx = (gsd / 1000.0) / kmPerDegLon;
-    const degLatPerPx = (gsd / 1000.0) / 110.574;
-    const halfW = (imgWidth / 2.0) * degLonPerPx;
-    const halfH = (imgHeight / 2.0) * degLatPerPx;
 
     let overlayDataUrl = imgUrl || "";
     if (canvasRef.current) {
@@ -835,34 +822,11 @@ function AdHocUpload() {
       }
     }
 
-    const customOverlay: CustomImageOverlay = {
-      id: slickId, imageUrl: overlayDataUrl,
-      coordinates: [
-        [centerLon - halfW, centerLat + halfH],
-        [centerLon + halfW, centerLat + halfH],
-        [centerLon + halfW, centerLat - halfH],
-        [centerLon - halfW, centerLat - halfH],
-      ],
-      bbox: { west: centerLon - halfW, south: centerLat - halfH, east: centerLon + halfW, north: centerLat + halfH },
-      name: file?.name || "Custom Upload Scene",
-    };
+    const built = buildAdHocDetection(resData, { gsd, fileName: file?.name, caseMeta, overlayImageUrl: overlayDataUrl });
+    if (!built) { setError("No georeferenced geometry available."); return; }
 
-    injectAdHocDetection({
-      slicks: [{
-        id: slickId, polygon, confidence: primaryRegion.confidence, method: resData.method,
-        geometry: primaryRegion.morphology, backscatter: primaryRegion.backscatter, age: null, evidence: null,
-        thickness_um: primaryRegion.thickness_um,
-        contrast_db: primaryRegion.contrast_db,
-      }],
-      rejected_lookalikes: resData.rejected_lookalikes.map((rl, idx) => ({
-        id: `lookalike-${slickId}-${idx}`, polygon: rl.polygon || { type: "Polygon", coordinates: [] },
-        confidence: rl.confidence ?? 0.0, reason: rl.reason,
-      })),
-      processing: resData.processing,
-      provenance: { model_version: "custom-upload", params: { gsd }, generated_at: new Date().toISOString(), inputs: [file?.name ?? "custom"], notes: "Injected from custom upload" },
-    }, customOverlay);
-
-    setActiveSlickId(slickId);
+    injectAdHocDetection(built.detection, built.overlay);
+    setActiveSlickId(built.detection.slicks[0].id);
     setProjected(true);
   };
 
