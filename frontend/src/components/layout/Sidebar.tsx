@@ -1,3 +1,4 @@
+import { useCallback, useEffect, useRef, useState } from "react";
 import { NavLink } from "react-router-dom";
 import {
   LayoutDashboard,
@@ -27,9 +28,49 @@ const navItems = [
   // { name: "Settings", path: "/settings", icon: Settings },
 ];
 
+const MIN_WIDTH = 256;
+const MAX_WIDTH = 480;
+const DEFAULT_WIDTH = 288;
+const WIDTH_KEY = "spilltrace_sidebar_width";
+
 export default function Sidebar() {
+  const [width, setWidth] = useState(() => {
+    const saved = Number(localStorage.getItem(WIDTH_KEY));
+    return saved >= MIN_WIDTH && saved <= MAX_WIDTH ? saved : DEFAULT_WIDTH;
+  });
+  const [resizing, setResizing] = useState(false);
+  const startX = useRef(0);
+  const startWidth = useRef(width);
+
+  const onMouseMove = useCallback((e: MouseEvent) => {
+    const next = Math.min(MAX_WIDTH, Math.max(MIN_WIDTH, startWidth.current + (e.clientX - startX.current)));
+    setWidth(next);
+  }, []);
+
+  const onMouseUp = useCallback(() => {
+    setResizing(false);
+    document.removeEventListener("mousemove", onMouseMove);
+    document.removeEventListener("mouseup", onMouseUp);
+  }, [onMouseMove]);
+
+  useEffect(() => {
+    localStorage.setItem(WIDTH_KEY, String(width));
+  }, [width]);
+
+  const onMouseDown = (e: React.MouseEvent) => {
+    e.preventDefault();
+    startX.current = e.clientX;
+    startWidth.current = width;
+    setResizing(true);
+    document.addEventListener("mousemove", onMouseMove);
+    document.addEventListener("mouseup", onMouseUp);
+  };
+
   return (
-    <aside className="w-64 bg-white border-r border-ink-200 flex flex-col h-full shrink-0">
+    <aside
+      style={{ width }}
+      className={`relative bg-white border-r border-ink-200 flex flex-col h-full shrink-0 ${resizing ? "" : "transition-[width] duration-100"}`}
+    >
       <div className="flex-1 overflow-y-auto py-4">
         <nav className="space-y-1 px-3">
           {navItems.map((item) => (
@@ -53,6 +94,13 @@ export default function Sidebar() {
         <div className="mt-6 pt-5 mx-3 border-t border-ink-200">
           <UploadPanel />
         </div>
+      </div>
+
+      <div
+        onMouseDown={onMouseDown}
+        className={`absolute top-0 right-0 h-full w-1.5 cursor-col-resize group ${resizing ? "bg-blue-400/40" : ""}`}
+      >
+        <div className="h-full w-px bg-transparent group-hover:bg-blue-400/60 mx-auto" />
       </div>
     </aside>
   );
