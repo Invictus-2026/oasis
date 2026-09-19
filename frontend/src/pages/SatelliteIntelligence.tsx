@@ -521,12 +521,12 @@ function SidebarList({ items, selectedId, onSelect }: { items: UnifiedSlick[]; s
             <button
               key={s.id}
               onClick={() => onSelect(s.id)}
-              className={`w-full text-left p-3 rounded-lg border transition-all ${selectedId === s.id
+              className={`w-full text-left p-5 rounded-xl border transition-all ${selectedId === s.id
                   ? "bg-amber-50 border-amber-300 shadow-sm ring-1 ring-amber-300"
                   : "bg-white border-ink-200 hover:border-amber-200 hover:bg-amber-50/30"
                 }`}
             >
-              <div className="flex justify-between items-center mb-1">
+              <div className="flex flex-wrap gap-3 justify-between items-center mb-2">
                 <span className="font-bold text-ink-900 text-sm">Slick #{i + 1}</span>
                 <Badge color="amber">{(s.confidence * 100).toFixed(0)}% CONF</Badge>
               </div>
@@ -546,16 +546,16 @@ function SidebarList({ items, selectedId, onSelect }: { items: UnifiedSlick[]; s
             <button
               key={s.id}
               onClick={() => onSelect(s.id)}
-              className={`w-full text-left p-3 rounded-lg border transition-all ${selectedId === s.id
+              className={`w-full text-left p-5 rounded-xl border transition-all ${selectedId === s.id
                   ? "bg-ink-100 border-ink-300 shadow-sm ring-1 ring-ink-300"
                   : "bg-white border-ink-200 hover:border-ink-300 hover:bg-ink-50"
                 }`}
             >
-              <div className="flex justify-between items-center mb-1">
+              <div className="flex flex-wrap gap-3 justify-between items-center mb-2">
                 <span className="font-bold text-ink-900 text-sm">Look-alike #{i + 1}</span>
                 <span className="text-xs text-ink-400 font-mono">{(s.confidence * 100).toFixed(0)}% CONF</span>
               </div>
-              <div className="text-[10px] text-ink-500 line-clamp-1 mt-1">{s.reason}</div>
+              <div className="text-sm leading-relaxed text-ink-600 mt-3">{s.reason}</div>
             </button>
           ))}
           {lookalikes.length === 0 && <div className="text-sm text-ink-400 italic px-2">No look-alikes found.</div>}
@@ -1126,7 +1126,7 @@ export default function SatelliteIntelligence() {
 
   return (
     <ViewModeProvider value={viewMode}>
-      <div className="page-shell">
+      <div className="page-shell satellite-page">
         <header className="page-header flex flex-col md:flex-row md:items-start justify-between gap-4">
           <div>
             <div className="flex items-center gap-2 mb-1">
@@ -1147,7 +1147,7 @@ export default function SatelliteIntelligence() {
         ) : (
           <div className="mt-6">
 
-            <div className="flex items-center justify-between mb-6 bg-ink-50 p-2 rounded-lg border border-ink-200">
+            <div className="flex flex-wrap gap-4 items-center justify-between mb-6 bg-ink-50 p-4 rounded-lg border border-ink-200">
               <span className="text-xs font-bold uppercase tracking-wider text-ink-500 px-3 flex items-center gap-2"><Crosshair className="w-4 h-4" /> Live Map Analysis</span>
               <div className="flex gap-2">
                 <button

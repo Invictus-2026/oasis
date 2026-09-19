@@ -22,7 +22,7 @@ function Badge({ children, color = "gray" }: { children: React.ReactNode; color?
     green:  "bg-emerald-50 text-emerald-700 border-emerald-200",
   };
   return (
-    <span className={`inline-flex items-center rounded border px-2 py-0.5 text-[10px] font-bold tracking-tight ${map[color] ?? map.gray}`}>
+    <span className={`inline-flex items-center rounded border px-2.5 py-1 text-[11px] font-bold tracking-tight ${map[color] ?? map.gray}`}>
       {children}
     </span>
   );
@@ -36,13 +36,13 @@ function SectionCard({ title, icon, children, defaultOpen = true }: {
     <div className="bg-white rounded-xl border border-ink-200 shadow-sm overflow-hidden min-w-0">
       <button
         onClick={() => setOpen(o => !o)}
-        className="w-full flex items-center gap-2.5 px-4 py-3 bg-ink-50/60 border-b border-ink-100 hover:bg-ink-100/50 transition-colors text-left"
+        className="w-full flex items-center gap-2.5 px-6 py-5 bg-ink-50/60 border-b border-ink-100 hover:bg-ink-100/50 transition-colors text-left"
       >
         <span className="text-blue-600 shrink-0">{icon}</span>
-        <span className="flex-1 text-sm font-bold text-ink-800 truncate">{title}</span>
+        <span className="flex-1 text-sm font-bold text-ink-800 break-words">{title}</span>
         {open ? <ChevronDown className="w-4 h-4 text-ink-400 shrink-0" /> : <ChevronRight className="w-4 h-4 text-ink-400 shrink-0" />}
       </button>
-      {open && <div className="p-4 bg-white min-w-0">{children}</div>}
+      {open && <div className="p-6 bg-white min-w-0">{children}</div>}
     </div>
   );
 }
@@ -53,8 +53,8 @@ function StepRow({ step, index }: { step: ProcessingStep; index: number }) {
       <span className="w-4 h-4 rounded-full bg-blue-100 text-blue-700 flex items-center justify-center font-bold text-[10px] shrink-0">
         {index + 1}
       </span>
-      <span className="flex-1 text-ink-800 font-medium truncate">{step.name}</span>
-      {step.detail && <span className="text-ink-400 truncate max-w-[180px] text-[11px]">{step.detail}</span>}
+      <span className="flex-1 text-ink-800 font-medium break-words">{step.name}</span>
+      {step.detail && <span className="text-ink-400 break-words max-w-[180px] text-[11px]">{step.detail}</span>}
       <span className="font-mono text-[11px] text-ink-500 shrink-0">{step.duration_ms.toFixed(0)} ms</span>
     </div>
   );
@@ -63,15 +63,15 @@ function StepRow({ step, index }: { step: ProcessingStep; index: number }) {
 function CandidateRow({ c }: { c: VesselCandidate }) {
   const isDark = c.flags.includes("DARK_VESSEL");
   return (
-    <div className={`rounded-lg p-3.5 border transition-all min-w-0 ${isDark ? "border-red-200 bg-red-50/30" : "border-ink-200 bg-white"}`}>
-      <div className="flex items-center justify-between gap-3 min-w-0">
-        <div className="flex items-center gap-2.5 min-w-0">
+    <div className={`report-candidate rounded-xl p-6 border transition-all min-w-0 ${isDark ? "border-red-200 bg-red-50/30" : "border-ink-200 bg-white"}`}>
+      <div className="flex items-center justify-between gap-5 min-w-0">
+        <div className="flex items-center gap-5 min-w-0">
           <span className={`w-7 h-7 rounded-lg flex items-center justify-center text-xs font-black shrink-0 ${isDark ? "bg-red-100 text-red-700" : "bg-ink-100 text-ink-700"}`}>
             #{c.rank}
           </span>
           <div className="min-w-0">
-            <div className="text-sm font-bold text-ink-900 truncate">{c.name || "Unknown Vessel"}</div>
-            <div className="text-[11px] text-ink-500 font-mono truncate">MMSI: {c.mmsi} · {c.vessel_type || "N/A"}</div>
+            <div className="text-sm font-bold text-ink-900 break-words">{c.name || "Unknown Vessel"}</div>
+            <div className="text-[11px] text-ink-500 font-mono break-words">MMSI: {c.mmsi} · {c.vessel_type || "N/A"}</div>
           </div>
         </div>
         <div className="text-right shrink-0">
@@ -80,7 +80,7 @@ function CandidateRow({ c }: { c: VesselCandidate }) {
         </div>
       </div>
       
-      <div className="mt-2 flex flex-wrap gap-1.5">
+      <div className="mt-4 flex flex-wrap gap-2">
         {isDark && <Badge color="red">DARK VESSEL</Badge>}
         {c.flags.filter(f => f !== "DARK_VESSEL").map(f => (
           <Badge key={f} color="amber">{f.replace(/_/g, " ")}</Badge>
@@ -88,20 +88,20 @@ function CandidateRow({ c }: { c: VesselCandidate }) {
         <Badge color="gray">{c.closest_approach_km.toFixed(1)} km approach</Badge>
       </div>
       
-      <p className="mt-2 text-xs leading-normal text-ink-600">{c.narrative}</p>
+      <p className="mt-4 text-sm leading-relaxed text-ink-600">{c.narrative}</p>
       
       {/* Score bars */}
-      <div className="mt-3 grid grid-cols-3 sm:grid-cols-6 gap-2 min-w-0">
+      <div className="report-score-grid">
         {([
           "origin_proximity", "temporal_compatibility", "trajectory_consistency",
           "behaviour_anomaly", "ais_gap", "counterfactual_similarity",
         ] as const).map(k => {
           const val = c.breakdown[k];
           return (
-            <div key={k} className="flex flex-col gap-0.5 min-w-0">
-              <div className="flex justify-between items-center text-[9px]">
-                 <span className="uppercase font-bold text-ink-400 truncate">{k.replace(/_/g, " ")}</span>
-                 <span className="font-mono text-ink-700 font-bold">{val === null ? "-" : (val * 100).toFixed(0)}</span>
+            <div key={k} className="report-score-factor">
+              <div className="report-score-label">
+                 <span className="font-medium text-ink-600">{k.replace(/_/g, " ")}</span>
+                 <span className="font-mono text-ink-900 font-semibold whitespace-nowrap shrink-0">{val === null ? "-" : (val * 100).toFixed(0)}</span>
               </div>
               <div className="h-1 rounded-full bg-ink-100 overflow-hidden w-full">
                 <div
@@ -403,16 +403,16 @@ export default function Reports() {
 
   return (
     <ViewModeProvider value={viewMode}>
-      <div className="page-shell bg-white overflow-x-hidden max-w-full">
+      <div className="page-shell reports-page">
         {/* ── Page Header ── */}
         <header className="page-header print:hidden mb-4 border-b border-ink-100 pb-3">
-          <div className="flex flex-col gap-3">
+          <div className="flex flex-col gap-5">
             <div className="flex items-start justify-between gap-3">
               <div className="min-w-0">
                 <h2 className="text-xl font-black text-ink-900 tracking-tight">
                   Investigation Report
                 </h2>
-                <p className="text-xs text-ink-500 truncate">
+                <p className="text-xs text-ink-500 break-words">
                   {caseMeta ? `${caseMeta.name} · ${caseMeta.scene_id}` : "Loading case metadata…"}
                 </p>
               </div>
@@ -428,7 +428,7 @@ export default function Reports() {
 
             {/* Spill Selector Pills / Buttons */}
             {detection && detection.slicks.length > 0 ? (
-              <div className="flex items-center gap-1.5 pt-2 border-t border-ink-100/60 overflow-x-auto min-w-0">
+              <div className="flex items-center gap-1.5 pt-2 border-t border-ink-100/60 flex-wrap min-w-0">
                 <span className="text-[10px] font-bold text-ink-400 uppercase tracking-wider shrink-0 mr-1">Spills:</span>
                 {detection.slicks.map((s, i) => {
                   const isSelected = selectedSlick === s.id;
@@ -461,10 +461,10 @@ export default function Reports() {
 
         {/* ── Report View ── */}
         {selectedSlick && (
-          <div className="print:p-4 flex-1 overflow-y-auto p-4 max-w-4xl mx-auto w-full overflow-x-hidden">
+          <div className="report-body print:p-4 w-full">
 
         {/* ── Status bar ── */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-4">
+        <div className="report-stat-grid mb-4">
           {[
             { label: "Detection", done: !!detection, icon: <Layers className="w-4 h-4" /> },
             { label: "Drift / Origin", done: !!hindcast, icon: <Map className="w-4 h-4" /> },
@@ -474,7 +474,7 @@ export default function Reports() {
             <div key={s.label} className={`flex items-center gap-2 rounded-lg border px-3 py-2 transition-all min-w-0 ${s.done ? "border-emerald-200 bg-emerald-50/60" : "border-ink-200 bg-white"}`}>
               <span className={`p-1.5 rounded-md shrink-0 ${s.done ? "bg-emerald-100 text-emerald-700" : "bg-ink-100 text-ink-500"}`}>{s.icon}</span>
               <div className="min-w-0 flex-1">
-                <div className="text-xs font-bold text-ink-900 truncate">{s.label}</div>
+                <div className="text-xs font-bold text-ink-900 break-words">{s.label}</div>
                 <div className={`text-[9px] uppercase tracking-wider font-semibold ${s.done ? "text-emerald-700" : "text-ink-400"}`}>
                   {s.done ? "Complete" : "Pending"}
                 </div>
@@ -493,12 +493,12 @@ export default function Reports() {
           </div>
         )}
 
-        <div className="flex flex-col gap-3">
+        <div className="flex flex-col gap-5">
 
           {/* Case Overview */}
           <SectionCard title="Case Overview" icon={<BookOpen className="w-4 h-4" />}>
             {caseMeta ? (
-              <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+              <div className="report-stat-grid">
                 {[
                   ["Case ID", caseMeta.id],
                   ["Scene ID", caseMeta.scene_id],
@@ -509,7 +509,7 @@ export default function Reports() {
                 ].map(([label, val]) => (
                   <div key={label} className="min-w-0">
                     <div className="text-[9px] font-bold uppercase tracking-wider text-ink-400 mb-0.5">{label}</div>
-                    <div className="text-xs font-semibold text-ink-900 truncate" title={val}>{val}</div>
+                    <div className="text-xs font-semibold text-ink-900 break-words" title={val}>{val}</div>
                   </div>
                 ))}
               </div>
@@ -521,10 +521,10 @@ export default function Reports() {
           {/* Stage 1 — Selected Slick Detection & Physical Properties */}
           <SectionCard title={`Stage 1 — Detection (${selectedSlickObj ? `Slick #${slickIndex + 1}` : "Summary"})`} icon={<ShieldAlert className="w-4 h-4" />} defaultOpen={!!detection}>
             {selectedSlickObj ? (
-              <div className="flex flex-col gap-3">
+              <div className="flex flex-col gap-5">
                 {/* Highlight summary for selected slick */}
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-                  <div className="rounded-lg border border-amber-300 bg-amber-50/70 p-2.5 min-w-0">
+                <div className="report-stat-grid">
+                  <div className="rounded-lg border border-amber-300 bg-amber-50/70 p-5 min-w-0">
                     <div className="text-[9px] font-bold uppercase tracking-wider text-amber-800 mb-0.5">Slick #{slickIndex + 1} Area</div>
                     <div className="text-xl font-black text-amber-950 tabular-nums">{selectedSlickObj.geometry.area_km2.toFixed(2)} <span className="text-xs font-normal text-amber-800">km²</span></div>
                     <div className="mt-1 flex flex-wrap gap-1">
@@ -536,14 +536,14 @@ export default function Reports() {
                         79% Confclassical
                         Oil Slick
 1.9 km  </div>
-                  <div className="rounded-lg border border-ink-200 bg-ink-50/50 p-2.5 min-w-0">
+                  <div className="rounded-lg border border-ink-200 bg-ink-50/50 p-5 min-w-0">
                     <div className="text-[9px] font-bold uppercase tracking-wider text-ink-500 mb-0.5">Dimensions (L × W)</div>
                     <div className="text-sm font-bold text-ink-900 tabular-nums">
                       {selectedSlickObj.geometry.length_km.toFixed(1)} km × {selectedSlickObj.geometry.width_km.toFixed(1)} km
                     </div>
                     <div className="text-[10px] text-ink-500 mt-1 font-mono">Aspect: {selectedSlickObj.geometry.aspect_ratio.toFixed(1)}:1</div>
                   </div>
-                  <div className="rounded-lg border border-ink-200 bg-ink-50/50 p-2.5 min-w-0">
+                  <div className="rounded-lg border border-ink-200 bg-ink-50/50 p-5 min-w-0">
                     <div className="text-[9px] font-bold uppercase tracking-wider text-ink-500 mb-0.5">Thickness & Contrast</div>
                     <div className="text-sm font-bold text-ink-900 tabular-nums">
                       {selectedSlickObj.thickness_um?.toFixed(1) ?? (12.5 + slickIndex * 15.0).toFixed(1)} µm
@@ -552,7 +552,7 @@ export default function Reports() {
                       Contrast: {selectedSlickObj.backscatter?.contrast_db?.toFixed(1) ?? selectedSlickObj.contrast_db?.toFixed(1) ?? (3.2 + slickIndex * 0.8).toFixed(1)} dB
                     </div>
                   </div>
-                  <div className="rounded-lg border border-ink-200 bg-ink-50/50 p-2.5 min-w-0">
+                  <div className="rounded-lg border border-ink-200 bg-ink-50/50 p-5 min-w-0">
                     <div className="text-[9px] font-bold uppercase tracking-wider text-ink-500 mb-0.5">Evaporation & Reroute</div>
                     <div className={`text-xs font-bold ${selectedSlickObj.geometry.area_km2 > 20 ? "text-red-700" : "text-amber-700"}`}>
                       {selectedSlickObj.geometry.area_km2 > 20 ? "Reroute Required" : "Advisory Only"}
@@ -579,16 +579,16 @@ export default function Reports() {
           {/* Origin / Hindcast summary for Selected Slick */}
           <SectionCard title={`Stage 2 — Drift Origin (Slick #${slickIndex + 1})`} icon={<Map className="w-4 h-4" />} defaultOpen={!!hindcast}>
             {hindcast ? (
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+              <div className="report-stat-grid">
                 {[
                   ["Estimated origin", `${(hindcast.origin_estimate.point[0] + slickIndex * 0.01).toFixed(3)}°, ${(hindcast.origin_estimate.point[1] + slickIndex * 0.01).toFixed(3)}°`],
                   ["Uncertainty radius", `${(hindcast.origin_estimate.uncertainty_radius_km * (1 + slickIndex * 0.2)).toFixed(1)} km`],
                   ["Release time", utc(hindcast.origin_estimate.time_utc)],
                   ["Time window", `${hindcast.origin_estimate.time_window_hours[0].toFixed(0)}–${hindcast.origin_estimate.time_window_hours[1].toFixed(0)}h`],
                 ].map(([label, val]) => (
-                  <div key={label} className="rounded-lg border border-blue-200 bg-blue-50/40 p-3 min-w-0">
+                  <div key={label} className="rounded-lg border border-blue-200 bg-blue-50/40 p-5 min-w-0">
                     <div className="text-[9px] font-bold uppercase tracking-wider text-blue-600 mb-1">{label}</div>
-                    <div className="text-xs font-semibold text-ink-900 font-mono truncate" title={val}>{val}</div>
+                    <div className="text-xs font-semibold text-ink-900 font-mono break-words" title={val}>{val}</div>
                   </div>
                 ))}
               </div>
@@ -608,10 +608,10 @@ export default function Reports() {
               ) : (
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                   {forecast.impact_flags.map(f => (
-                    <div key={f.name} className="flex items-start gap-2.5 rounded-lg border border-red-200 bg-red-50/40 p-3 min-w-0">
+                    <div key={f.name} className="flex items-start gap-2.5 rounded-lg border border-red-200 bg-red-50/40 p-5 min-w-0">
                       <AlertTriangle className="w-4 h-4 text-red-600 shrink-0 mt-0.5" />
                       <div className="min-w-0">
-                        <div className="text-xs font-bold text-red-900 truncate">{f.name}</div>
+                        <div className="text-xs font-bold text-red-900 break-words">{f.name}</div>
                         <div className="text-[11px] text-red-700 font-medium">
                           ETA {(f.eta_hours + slickIndex * 1.5).toFixed(1)}h · {(f.distance_km + slickIndex * 2.0).toFixed(1)} km
                         </div>
@@ -628,8 +628,8 @@ export default function Reports() {
           {/* Candidate vessels */}
           <SectionCard title={`Stage 3 — Vessel Attribution (Slick #${slickIndex + 1})`} icon={<Users className="w-4 h-4" />} defaultOpen={!!attribution}>
             {attribution ? (
-              <div className="flex flex-col gap-3">
-                <div className="flex items-center gap-3 text-[11px] font-bold tracking-wider uppercase text-ink-500 mb-1">
+              <div className="flex flex-col gap-5">
+                <div className="flex flex-wrap items-center gap-3 text-[11px] font-bold tracking-wider uppercase text-ink-500 mb-1">
                   <span>{attribution.total_vessels_in_region} vessels in region</span>
                   <span className="text-ink-300">→</span>
                   <span className="font-bold text-ink-900">{attribution.after_filter} candidates for Slick #{slickIndex + 1}</span>
@@ -649,7 +649,7 @@ export default function Reports() {
                   <li key={s.name} className="flex items-start gap-4 p-4 rounded-xl border border-ink-50 bg-ink-50/30">
                     <Badge color={s.is_synthetic ? "amber" : "blue"}>{s.is_synthetic ? "SYNTHETIC" : s.kind.toUpperCase()}</Badge>
                     <div className="flex-1 min-w-0">
-                      <div className="text-sm font-bold text-ink-900 truncate">{s.name}</div>
+                      <div className="text-sm font-bold text-ink-900 break-words">{s.name}</div>
                       {s.note && <p className="text-xs text-ink-500 mt-1 leading-relaxed">{s.note}</p>}
                     </div>
                     {s.licence && <span className="text-[10px] uppercase tracking-widest text-ink-400 shrink-0">{s.licence}</span>}

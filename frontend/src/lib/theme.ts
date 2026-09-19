@@ -19,5 +19,5 @@ export const C = {
    *  the pale ocean fill and the dark SAR raster, and a darker tone
    *  disappears entirely over the imagery. */
   lane: "#94a3b8",
-  laneDark: "#738579",
+  laneDark: "#758398",
 } as const;

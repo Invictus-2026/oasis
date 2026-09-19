@@ -6,7 +6,7 @@ import Topbar from "./Topbar";
 import MaritimeMap from "../../pages/MaritimeMap";
 export default function AppLayout() {
   const { pathname } = useLocation();
-  const [showMap, setShowMap] = useState(false);
+  const [showMap, setShowMap] = useState(true);
   const intelligence = ['/satellite', '/drift', '/attribution'].includes(pathname);
   return <div className="workspace-app">
     <a href="#main-content" className="skip-link">Skip to content</a>
