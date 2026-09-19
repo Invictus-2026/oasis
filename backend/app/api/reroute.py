@@ -55,6 +55,15 @@ def reroute_vessel(req: RerouteRequest):
             return result("unavailable", "Invalid hazard geometry: no route can be assessed.", path=[], error="Invalid hazard geometry")
     area = unary_union(polygons) if polygons else Polygon()
     if not area.is_empty:
+        # A forecast obstacle set is many overlapping per-timestep cone
+        # polygons (one per frame, each with its own contour) -- their union
+        # can carry thousands of vertices even though the actual SHAPE is
+        # simple, which used to blow straight through the routing graph's
+        # node cap and silently bail out with "too complex" on every real
+        # forecast. Simplifying trims redundant vertices from a boundary
+        # that's already only an approximation; 300m tolerance is tiny next
+        # to the multi-km safety margin already buffered in above.
+        area = area.simplify(0.3, preserve_topology=True)
         zone = mapping(transform(unproject, area))
     if not has_points:
         return result("pending", "Select a start and destination to compare arrival with spill clearance.")
@@ -104,7 +113,7 @@ def reroute_vessel(req: RerouteRequest):
         nodes += list(p.exterior.coords[:-1])
         for interior in p.interiors:
             nodes += list(interior.coords[:-1])
-    if len(nodes) > 1200:
+    if len(nodes) > 3000:
         return result("unavailable", "Hazard geometry is too complex for this simulation.", path=[], error="Geometry limit")
     graph = [[] for _ in nodes]
     for i, a in enumerate(nodes):
