@@ -1,240 +1,109 @@
+"""Conservative simulation routing with an explicit, user-supplied clearance scenario."""
+import heapq
+import math
 import time
-from fastapi import APIRouter
+from fastapi import APIRouter, HTTPException
+from shapely.geometry import Point, LineString, Polygon, shape, mapping
+from shapely.ops import unary_union, transform
 from app.core.schemas import RerouteRequest, RerouteResponse
-from shapely.geometry import Point, LineString, Polygon, MultiPolygon
-from shapely.ops import unary_union
-import numpy as np
 
 router = APIRouter()
 
-KM_PER_DEG = 111.32
-
-def create_polygon(geojson: dict):
-    # Extracts the coordinates from a GeoJSON dict and creates a shapely Polygon or MultiPolygon
-    geom = geojson
-    if geojson.get("type") == "Feature":
-        geom = geojson.get("geometry", {})
-        
-    if geom.get("type") == "Polygon":
-        return Polygon(geom["coordinates"][0])
-    elif geom.get("type") == "MultiPolygon":
-        polys = [Polygon(p[0]) for p in geom["coordinates"]]
-        return MultiPolygon(polys)
-    return Polygon()
-
 @router.post("/api/vessel/reroute", response_model=RerouteResponse)
 def reroute_vessel(req: RerouteRequest):
-    t0 = time.time()
-    
-    has_points = req.start_point is not None and req.end_point is not None
-    if has_points:
-        start_pt = Point(req.start_point[0], req.start_point[1])
-        end_pt = Point(req.end_point[0], req.end_point[1])
-        original_line = LineString([start_pt, end_pt])
-        # Calculate original distance in km
-        dist_deg = start_pt.distance(end_pt)
-        distance_orig_km = dist_deg * KM_PER_DEG
-    else:
-        start_pt, end_pt, original_line = None, None, None
-        distance_orig_km = 0.0
+    started = time.time()
+    points = [req.start_point, req.end_point]
+    has_points = all(p is not None for p in points)
+    for p in points:
+        if p is not None and (not all(math.isfinite(v) for v in p) or not -180 <= p[0] <= 180 or not -85 <= p[1] <= 85):
+            raise HTTPException(422, "Coordinates must be finite, within ±180° longitude and ±85° latitude.")
+    lat = sum(p[1] for p in points if p is not None) / max(1, sum(p is not None for p in points))
+    scale_x = 111.32 * math.cos(math.radians(lat))
+    project = lambda x, y, z=None: (x * scale_x, y * 111.32)
+    unproject = lambda x, y, z=None: (x / scale_x, y / 111.32)
+    speed = req.vessel_speed_knots * 1.852
+    line = LineString([project(*p) for p in points]) if has_points else None
+    distance = line.length if line is not None else 0.0
+    zone = None
+    arrival = None
 
-    SPEED_KMH = 27.78  # 15 knots
-    original_time = distance_orig_km / SPEED_KMH
-
-    # If classification physics model determined no rerouting is required (safe / evaporative oil)
-    if not req.re_route_needed:
+    def result(decision, reason, path=None, error=None):
+        coords = path if path is not None else (points if has_points else [])
+        length = LineString([project(*p) for p in coords]).length if len(coords) > 1 else distance
         return RerouteResponse(
-            original_path=[req.start_point, req.end_point] if has_points else [],
-            rerouted_path=[req.start_point, req.end_point] if has_points else [],
-            distance_original_km=distance_orig_km,
-            distance_rerouted_km=distance_orig_km,
-            original_time_hours=original_time,
-            rerouted_time_hours=original_time,
-            extra_time_hours=0.0,
-            extra_fuel_tons=0.0,
-            is_rerouted=False,
-            processing_time_ms=(time.time() - t0) * 1000
-        )
-    # Process obstacles
-    polys = []
-    for obs in req.obstacles:
+            decision=decision, reason=reason, hazard_arrival_hours=arrival,
+            clearance_hours=req.clearance_hours, clearance_buffer_hours=req.clearance_buffer_hours,
+            original_path=points if has_points else [], rerouted_path=coords,
+            distance_original_km=distance, distance_rerouted_km=length,
+            original_time_hours=distance / speed, rerouted_time_hours=length / speed,
+            extra_time_hours=max(0, length-distance) / speed,
+            extra_fuel_tons=max(0, length-distance) / speed,
+            is_rerouted=decision == "reroute", exclusion_zone=zone,
+            processing_time_ms=(time.time()-started)*1000, error=error)
+
+    polygons = []
+    for obstacle in req.obstacles:
         try:
-            poly = create_polygon(obs)
-            if not poly.is_empty:
-                # Buffer(0) is a well-known trick to clean up invalid self-intersecting geometries
-                cleaned_poly = poly.buffer(0)
-                polys.append(cleaned_poly)
+            geom = shape(obstacle.get("geometry", obstacle))
+            if geom.geom_type not in ("Polygon", "MultiPolygon") or geom.is_empty:
+                raise ValueError("Expected a nonempty polygon")
+            geom = transform(project, geom).buffer(0)
+            if geom.is_empty:
+                raise ValueError("Empty geometry")
+            polygons.append(geom.buffer(req.safety_margin_km))
         except Exception:
-            pass
-            
-    SPEED_KMH = 27.78  # 15 knots
-    original_time = distance_orig_km / SPEED_KMH
-
-    if not polys:
-        # No valid obstacles
-        return RerouteResponse(
-            original_path=[req.start_point, req.end_point] if has_points else [],
-            rerouted_path=[req.start_point, req.end_point] if has_points else [],
-            distance_original_km=distance_orig_km,
-            distance_rerouted_km=distance_orig_km,
-            original_time_hours=original_time,
-            rerouted_time_hours=original_time,
-            extra_time_hours=0.0,
-            extra_fuel_tons=0.0,
-            is_rerouted=False,
-            processing_time_ms=(time.time() - t0) * 1000
-        )
-        
-    combined_obstacle = unary_union(polys)
-    
-    # Convert safety margin to degrees (approximate)
-    margin_deg = req.safety_margin_km / KM_PER_DEG
-    
-    # Group into connected clusters and convex_hull them individually!
-    # This prevents creating a giant 100km barrier across unrelated distant spills.
-    base_area = combined_obstacle.buffer(margin_deg).simplify(0.005, preserve_topology=True)
-    if base_area.geom_type == 'MultiPolygon':
-        safe_area = MultiPolygon([geom.convex_hull for geom in base_area.geoms])
-    else:
-        safe_area = base_area.convex_hull
-    
-    from shapely.geometry import mapping
-    exclusion_geojson = mapping(safe_area)
-    
+            return result("unavailable", "Invalid hazard geometry: no route can be assessed.", path=[], error="Invalid hazard geometry")
+    area = unary_union(polygons) if polygons else Polygon()
+    if not area.is_empty:
+        zone = mapping(transform(unproject, area))
     if not has_points:
-        return RerouteResponse(
-            original_path=[],
-            rerouted_path=[],
-            distance_original_km=0.0,
-            distance_rerouted_km=0.0,
-            original_time_hours=0.0,
-            rerouted_time_hours=0.0,
-            extra_time_hours=0.0,
-            extra_fuel_tons=0.0,
-            is_rerouted=False,
-            exclusion_zone=exclusion_geojson,
-            processing_time_ms=(time.time() - t0) * 1000
-        )
-
-    if safe_area.contains(start_pt) or safe_area.contains(end_pt):
-        return RerouteResponse(
-            original_path=[req.start_point, req.end_point],
-            rerouted_path=[req.start_point, req.end_point],
-            distance_original_km=distance_orig_km,
-            distance_rerouted_km=distance_orig_km,
-            original_time_hours=original_time,
-            rerouted_time_hours=original_time,
-            extra_time_hours=0.0,
-            extra_fuel_tons=0.0,
-            is_rerouted=False,
-            exclusion_zone=exclusion_geojson,
-            processing_time_ms=(time.time() - t0) * 1000,
-            error="Selected point is inside the hazard barrier."
-        )
-
-    # Check if original path intersects the safe area
-    if not original_line.intersects(safe_area):
-        return RerouteResponse(
-            original_path=[req.start_point, req.end_point],
-            rerouted_path=[req.start_point, req.end_point],
-            distance_original_km=distance_orig_km,
-            distance_rerouted_km=distance_orig_km,
-            original_time_hours=original_time,
-            rerouted_time_hours=original_time,
-            extra_time_hours=0.0,
-            extra_fuel_tons=0.0,
-            is_rerouted=False,
-            exclusion_zone=exclusion_geojson,
-            processing_time_ms=(time.time() - t0) * 1000
-        )
-        
-    # Extract the actual polygon(s) we intersect to avoid MultiPolygon exterior errors
-    if safe_area.geom_type == 'MultiPolygon':
-        intersected_polys = [p for p in safe_area.geoms if original_line.intersects(p)]
-        if len(intersected_polys) > 1:
-            routing_poly = unary_union(intersected_polys).convex_hull
-        elif len(intersected_polys) == 1:
-            routing_poly = intersected_polys[0]
-        else:
-            routing_poly = safe_area.convex_hull
-    else:
-        routing_poly = safe_area
-        
-    # Simple routing algorithm: find the mathematically shortest tangent path
-    # by taking the convex hull of the routing_poly AND the start/end points!
-    # The perimeter of this hull perfectly outlines the two shortest paths around the polygon.
-    try:
-        from shapely.geometry import MultiPoint
-        from shapely.ops import substring
-        
-        hull_with_points = unary_union([routing_poly, start_pt, end_pt]).convex_hull
-        hull_boundary = LineString(hull_with_points.exterior.coords)
-        
-        d1 = hull_boundary.project(start_pt)
-        d2 = hull_boundary.project(end_pt)
-        
-        is_swapped = False
-        if d1 > d2:
-            d1, d2 = d2, d1
-            is_swapped = True
-            
-        path1 = substring(hull_boundary, d1, d2)
-        
-        part1 = substring(hull_boundary, d1, 0)
-        part2 = substring(hull_boundary, hull_boundary.length, d2)
-        path2_coords = list(part1.coords) + list(part2.coords)[1:]
-        path2 = LineString(path2_coords)
-        
-        if path1.length < path2.length:
-            best_detour = list(path1.coords)
-        else:
-            best_detour = list(path2.coords)
-            
-        if is_swapped:
-            best_detour.reverse()
-            
-        rerouted_coords = best_detour
-        
-        # Smooth the detour using Chaikin's corner cutting algorithm (2 iterations)
-        for _ in range(2):
-            if len(rerouted_coords) < 3:
-                break
-            smoothed = [rerouted_coords[0]]
-            for i in range(len(rerouted_coords) - 1):
-                p1 = rerouted_coords[i]
-                p2 = rerouted_coords[i+1]
-                q = (0.75 * p1[0] + 0.25 * p2[0], 0.75 * p1[1] + 0.25 * p2[1])
-                r = (0.25 * p1[0] + 0.75 * p2[0], 0.25 * p1[1] + 0.75 * p2[1])
-                smoothed.extend([q, r])
-            smoothed.append(rerouted_coords[-1])
-            rerouted_coords = smoothed
-            
-    except Exception as e:
-        print(f"Routing error: {e}")
-        rerouted_coords = [
-            (req.start_point[0], req.start_point[1]),
-            (req.end_point[0], req.end_point[1])
-        ]
-        
-    rerouted_line = LineString(rerouted_coords)
-    distance_rerouted_km = rerouted_line.length * KM_PER_DEG
-    
-    SPEED_KMH = 27.78  # 15 knots
-    FUEL_TONS_PER_HOUR = 1.0
-    
-    original_time = distance_orig_km / SPEED_KMH
-    rerouted_time = distance_rerouted_km / SPEED_KMH
-    
-    return RerouteResponse(
-        original_path=[req.start_point, req.end_point],
-        rerouted_path=[list(c) for c in rerouted_coords],
-        distance_original_km=distance_orig_km,
-        distance_rerouted_km=distance_rerouted_km,
-        original_time_hours=original_time,
-        rerouted_time_hours=rerouted_time,
-        extra_time_hours=rerouted_time - original_time,
-        extra_fuel_tons=(rerouted_time - original_time) * FUEL_TONS_PER_HOUR,
-        is_rerouted=True,
-        exclusion_zone=exclusion_geojson,
-        processing_time_ms=(time.time() - t0) * 1000
-    )
+        return result("pending", "Select a start and destination to compare arrival with spill clearance.")
+    if distance == 0:
+        return result("unavailable", "Start and destination must be different.", path=[], error="Identical waypoints")
+    if not polygons:
+        return result("unavailable", "No spill geometry is available. Detect spills before assessing a route.", path=[], error="No hazard data")
+    intersection = line.intersection(area)
+    if intersection.is_empty:
+        return result("direct_clear", "The direct route does not cross any supplied spill or forecast region, including the safety margin.")
+    # First entry, not destination ETA, determines whether the ship encounters oil.
+    from shapely.ops import nearest_points
+    entry = nearest_points(Point(line.coords[0]), intersection)[1]
+    arrival = line.project(entry) / speed
+    if req.clearance_hours is not None and arrival > req.clearance_hours + req.clearance_buffer_hours:
+        return result("direct_after_clearance", f"The ship reaches the first hazard in {arrival:.2f} h, after the assumed clearance at {req.clearance_hours:.2f} h plus a {req.clearance_buffer_hours:.2f} h uncertainty buffer. No detour is needed under this scenario; confirm clearance before transit.")
+    if area.covers(Point(line.coords[0])) or area.covers(Point(line.coords[-1])):
+        return result("unavailable", "A waypoint is inside the hazard boundary and clearance before entry is not established. Move it outside the boundary.", path=[], error="Waypoint inside hazard")
+    # Visibility graph around buffered cluster hulls. No smoothing: corner cutting can enter oil.
+    parts = list(area.geoms) if area.geom_type == "MultiPolygon" else [area]
+    routing_area = unary_union([p.convex_hull for p in parts])
+    parts = list(routing_area.geoms) if routing_area.geom_type == "MultiPolygon" else [routing_area]
+    nodes = [line.coords[0], line.coords[-1]] + [c for p in parts for c in p.exterior.coords[:-1]]
+    if len(nodes) > 1200:
+        return result("unavailable", "Hazard geometry is too complex for this simulation.", path=[], error="Geometry limit")
+    graph = [[] for _ in nodes]
+    for i, a in enumerate(nodes):
+        for j in range(i):
+            segment = LineString([a, nodes[j]])
+            if segment.relate_pattern(routing_area, "F********"):
+                graph[i].append((j, segment.length))
+                graph[j].append((i, segment.length))
+    queue, costs, previous = [(0.0, 0)], {0: 0.0}, {}
+    while queue:
+        cost, node = heapq.heappop(queue)
+        if node == 1:
+            break
+        if cost > costs[node]:
+            continue
+        for nxt, weight in graph[node]:
+            value = cost + weight
+            if value < costs.get(nxt, float("inf")):
+                costs[nxt], previous[nxt] = value, node
+                heapq.heappush(queue, (value, nxt))
+    if 1 not in costs:
+        return result("unavailable", "No spill-avoiding path could be calculated. Adjust the waypoints.", path=[], error="No route found")
+    indices = [1]
+    while indices[-1] != 0:
+        indices.append(previous[indices[-1]])
+    path = [list(unproject(*nodes[i])) for i in reversed(indices)]
+    explanation = "Clearance time is unknown, so the spill remains an obstacle." if req.clearance_hours is None else f"Assumed clearance plus buffer is {req.clearance_hours + req.clearance_buffer_hours:.2f} h, which is not before entry."
+    return result("reroute", f"The direct route enters a hazard in {arrival:.2f} h. {explanation} The detour avoids all supplied hazard regions and their safety margins.", path=path)

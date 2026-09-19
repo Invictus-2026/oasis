@@ -85,7 +85,7 @@ function Track({ label, color, frames, index, playing, disabled, onPlay, onScrub
   }
 
   return (
-    <div className={`flex flex-col gap-1 flex-1 ${disabled ? "opacity-40" : ""}`}>
+    <div className={`flex min-w-0 flex-col gap-1 flex-1 ${disabled ? "opacity-40" : ""}`}>
       <div className={`text-[10px] font-bold uppercase tracking-widest ${colorMap.label}`}>{label}</div>
       <div className="flex items-center gap-2">
         {/* Play button */}
@@ -193,7 +193,7 @@ export default function Timeline() {
       </div>
 
       {/* Two tracks */}
-      <div className="flex items-start gap-4">
+      <div className="flex flex-wrap items-start gap-4">
         <Track
           label="Backtrack"
           color="blue"

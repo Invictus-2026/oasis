@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useSpillState } from "../context/SpillContext";
 import MapView from "../components/MapView";
 import { ViewModeProvider } from "../lib/viewMode";
@@ -48,56 +48,48 @@ export default function RerouteSimulation() {
     }
   };
 
-  const calculateReroute = async () => {
-    setIsSimulating(true);
-
-    try {
-      const obstacles: import("geojson").Geometry[] = [];
-      if (detection?.slicks) {
-        obstacles.push(...detection.slicks.map((s) => s.polygon));
-      }
-      if (forecast?.cone) {
-        obstacles.push(...forecast.cone.map(c => c.polygon));
-      }
-      if (hindcast?.cone) {
-        obstacles.push(...hindcast.cone.map(c => c.polygon));
-      }
-
-      // Check physics classification: thin oil sheen (<= 35um) rapidly evaporates and does NOT require rerouting
-      const activeSlick = activeSlickId
-        ? detection?.slicks.find(s => s.id === activeSlickId)
-        : detection?.slicks?.[0];
-
-      const isEvaporativeSafe = activeSlick
-        ? (activeSlick.thickness_um ?? 25) <= 35
-        : false;
-
-      const res = await reroute({
-        start_point: startPoint,
-        end_point: endPoint,
-        obstacles,
-        safety_margin_km: 2.0,
-        re_route_needed: !isEvaporativeSafe,
-      });
-      setRerouteResult(res);
-      if (res.error) {
-        alert(res.error);
-      }
-    } catch (e) {
-      console.error("Routing failed:", e);
-    } finally {
-      setIsSimulating(false);
-    }
-  };
+  const [speed, setSpeed] = useState("15");
+  const [clearance, setClearance] = useState("");
+  const [buffer, setBuffer] = useState("2");
+  const [routingError, setRoutingError] = useState<string | null>(null);
+  const requestId = useRef(0);
+  const inputsValid = Number(speed) > 0 && Number(speed) <= 60 && Number(buffer) >= 0 && Number(buffer) <= 168 && buffer !== "" && (clearance === "" || (Number(clearance) >= 0 && Number(clearance) <= 8760));
 
   useEffect(() => {
-    calculateReroute();
-  }, [startPoint, endPoint, detection, forecast, hindcast]);
+    const id = ++requestId.current;
+    setRerouteResult(null);
+    setRoutingError(null);
+    setIsSimulating(false);
+    if (!inputsValid) return;
+    const timer = setTimeout(async () => {
+      setIsSimulating(true);
+      try {
+        // Historical hindcast regions are not future obstacles. All current spills
+        // remain included regardless of which spill is selected on the map.
+        const obstacles = [
+          ...(detection?.slicks.map(s => s.polygon) ?? []),
+          ...(forecast?.cone.map(c => c.polygon) ?? []),
+        ];
+        const res = await reroute({
+          start_point: startPoint, end_point: endPoint, obstacles,
+          safety_margin_km: 2, vessel_speed_knots: Number(speed),
+          clearance_hours: clearance === "" ? null : Number(clearance),
+          clearance_buffer_hours: Number(buffer),
+        });
+        if (requestId.current === id) setRerouteResult(res);
+      } catch (error) {
+        if (requestId.current === id) setRoutingError(error instanceof Error ? error.message : "Unable to calculate route. Try again.");
+      } finally {
+        if (requestId.current === id) setIsSimulating(false);
+      }
+    }, 250);
+    return () => { clearTimeout(timer); requestId.current++; };
+  }, [startPoint, endPoint, detection, forecast, speed, clearance, buffer, inputsValid]);
 
   return (
     <ViewModeProvider value="analyst">
-      <div className="flex h-full w-full bg-ink-50">
-        <div className="flex-1 relative min-h-0 bg-[#e5e9f0]">
+      <div className="reroute-layout">
+        <div className="reroute-map relative bg-ink-100">
           <MapView
             caseMeta={caseMeta}
             detection={detection}
@@ -122,7 +114,7 @@ export default function RerouteSimulation() {
             <LayerToggles layers={layers} onToggle={toggleLayer} />
           </div>
 
-          <div className="pointer-events-none absolute right-4 top-4 z-10">
+          <div className="pointer-events-none absolute right-4 bottom-28 z-10">
             <div className="pointer-events-auto flex items-center bg-white/95 backdrop-blur-sm p-1 rounded shadow-md border border-ink-200">
               <button
                 onClick={() => runHindcast()}
@@ -151,18 +143,18 @@ export default function RerouteSimulation() {
         </div>
 
         {/* Sidebar */}
-        <div className="w-[400px] border-l border-ink-200 bg-white shadow-[-4px_0_15px_-3px_rgba(0,0,0,0.05)] z-20 flex flex-col">
+        <div className="reroute-panel bg-white z-20 flex flex-col">
           <div className="p-6 border-b border-ink-100">
             <h2 className="text-xl font-semibold text-ink-900 mb-1">Reroute Simulation</h2>
-            <p className="text-sm text-ink-500">Plan safe trajectories around active spill regions.</p>
+            <p className="text-sm text-ink-500">Compare arrival time with spill persistence before choosing a detour.</p>
           </div>
 
-          <div className="flex-1 overflow-y-auto p-6 space-y-6">
+          <div className="reroute-panel-body p-5 space-y-6">
             <div className="space-y-4">
               <h3 className="text-sm font-semibold text-ink-900 uppercase tracking-wider">Instructions</h3>
               <p className="text-sm text-ink-700 bg-blue-50 border border-blue-100 rounded p-4">
                 Click on the map to place a <strong>Start Point</strong>, then click again to place a <strong>Destination Point</strong>. 
-                The system will automatically calculate the safest route avoiding active spills.
+                The route updates automatically. A third click starts a new voyage.
               </p>
             </div>
 
@@ -183,8 +175,9 @@ export default function RerouteSimulation() {
             </div>
 
             <div className="space-y-4">
-              <h3 className="text-sm font-semibold text-ink-900 uppercase tracking-wider">Active Spills</h3>
+              <h3 className="text-sm font-semibold text-ink-900 uppercase tracking-wider">Spill map focus</h3>
               <div className="space-y-2">
+                <p className="text-xs text-ink-600">Map focus only. Routing checks all detected spills.</p>
                 <button
                   onClick={() => setActiveSlickId(null)}
                   className="w-full text-left px-3 py-2 text-sm rounded bg-ink-50 hover:bg-ink-100 border border-ink-200 transition-colors text-ink-900 font-medium"
@@ -208,52 +201,40 @@ export default function RerouteSimulation() {
               </div>
             </div>
 
+            <section className="space-y-4 border-t border-ink-200 pt-5">
+              <h3 className="text-sm font-semibold text-ink-900">Arrival & clearance assumptions</h3>
+              <label className="route-field">Vessel speed (knots)
+                <input type="number" min="1" max="60" value={speed} onChange={e => setSpeed(e.target.value)} />
+              </label>
+              <label className="route-field">All regions clear in (hours from departure)
+                <input type="number" min="0" max="8760" placeholder="Unknown — keep avoiding oil" value={clearance} onChange={e => setClearance(e.target.value)} />
+              </label>
+              <label className="route-field">Clearance uncertainty buffer (hours)
+                <input type="number" min="0" max="168" value={buffer} onChange={e => setBuffer(e.target.value)} />
+              </label>
+              <p className="text-sm text-ink-600 leading-relaxed">Clearance is a simulation assumption for every supplied spill and forecast region, not a measured evaporation forecast. Leave it unknown unless you have a supported estimate. Thin oil alone does not establish clearance.</p>
+              {!inputsValid && <p role="alert" className="text-sm text-red-600">Enter speed above 0 and up to 60 knots, clearance from 0–8760 hours, and a buffer from 0–168 hours.</p>}
+              <button className="route-reset" onClick={() => { setStartPoint(null); setEndPoint(null); setRerouteResult(null); }}>Reset waypoints</button>
+            </section>
+            {routingError && <p role="alert" className="rounded-lg border border-red-200 p-4 text-sm text-red-600">{routingError}</p>}
             {rerouteResult && (
-              <div className="space-y-4 pt-4 border-t border-ink-200">
-                <h3 className="text-sm font-semibold text-ink-900 uppercase tracking-wider">Routing Analysis</h3>
-                {rerouteResult.is_rerouted ? (
-                  <div className="space-y-3">
-                    <div className="bg-red-50 border border-red-100 rounded p-3 flex justify-between items-center">
-                      <span className="text-sm font-medium text-red-800">Original Distance</span>
-                      <span className="text-sm font-bold text-red-900">{rerouteResult.distance_original_km.toFixed(1)} km</span>
-                    </div>
-                    <div className="bg-green-50 border border-green-100 rounded p-3 flex justify-between items-center">
-                      <span className="text-sm font-medium text-green-800">Rerouted Distance</span>
-                      <span className="text-sm font-bold text-green-900">{rerouteResult.distance_rerouted_km.toFixed(1)} km</span>
-                    </div>
-
-                    <div className="mt-4 space-y-2">
-                      <div className="flex justify-between items-center text-sm">
-                        <span className="text-ink-600">Extra Distance:</span>
-                        <span className="font-semibold text-ink-900">
-                          {(rerouteResult.distance_rerouted_km - rerouteResult.distance_original_km).toFixed(1)} km
-                        </span>
-                      </div>
-                      <div className="flex justify-between items-center text-sm">
-                        <span className="text-ink-600">Extra Time (+15 kts):</span>
-                        <span className="font-semibold text-ink-900">
-                          {rerouteResult.extra_time_hours.toFixed(2)} hrs
-                        </span>
-                      </div>
-                      <div className="flex justify-between items-center text-sm">
-                        <span className="text-ink-600">Est. Extra Fuel:</span>
-                        <span className="font-semibold text-ink-900">
-                          {rerouteResult.extra_fuel_tons.toFixed(2)} tons
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                ) : (
-                  <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-4 text-center">
-                    <p className="text-sm font-bold text-emerald-900">Safe Direct Transit!</p>
-                    <p className="text-xs text-emerald-700 mt-1 leading-relaxed">
-                      Oil sheen is thin (&le; 35 µm) and rapidly evaporates. Physics classification model confirms <strong>No Reroute Required</strong>. Proceed on planned direct voyage.
-                    </p>
-                  </div>
-                )}
-              </div>
+              <section aria-live="polite" className="space-y-4 border-t border-ink-200 pt-5">
+                <div className="route-decision" data-decision={rerouteResult.decision}>
+                  <h3 className="font-semibold text-ink-900">{({ reroute: "Reroute recommended", direct_clear: "No reroute: route avoids oil", direct_after_clearance: "No reroute under clearance assumption", pending: "Choose your waypoints", unavailable: "Route cannot be assessed" } as Record<string, string>)[rerouteResult.decision] ?? "Routing analysis"}</h3>
+                  <p className="mt-2 text-sm leading-relaxed text-ink-700">{rerouteResult.reason}</p>
+                </div>
+                {startPoint && endPoint && !rerouteResult.error && <dl className="route-metrics">
+                  <div><dt>Direct distance</dt><dd>{rerouteResult.distance_original_km.toFixed(1)} km</dd></div>
+                  <div><dt>Selected distance</dt><dd>{rerouteResult.distance_rerouted_km.toFixed(1)} km</dd></div>
+                  <div><dt>First hazard arrival</dt><dd>{rerouteResult.hazard_arrival_hours == null ? "No crossing" : `${rerouteResult.hazard_arrival_hours.toFixed(2)} h`}</dd></div>
+                  <div><dt>Extra travel time</dt><dd>{rerouteResult.extra_time_hours.toFixed(2)} h</dd></div>
+                  <div><dt>Extra distance</dt><dd>{(rerouteResult.distance_rerouted_km - rerouteResult.distance_original_km).toFixed(1)} km</dd></div>
+                  <div><dt>Extra fuel estimate</dt><dd>{rerouteResult.extra_fuel_tons.toFixed(2)} t</dd></div>
+                </dl>}
+                <p className="text-xs leading-relaxed text-ink-600">Simulation only: constant speed, 2 km spill margin and fuel use of 1 t/h. Forecast regions are treated conservatively as a combined area. This planner does not check land, depth or shipping restrictions. Recheck spill observations before transit.</p>
+              </section>
             )}
-            
+
             {isSimulating && (
               <div className="pt-4 flex justify-center">
                 <span className="text-sm font-medium text-blue-600 animate-pulse">Calculating optimal route...</span>

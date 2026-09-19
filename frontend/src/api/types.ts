@@ -419,9 +419,17 @@ export interface RerouteRequest {
   obstacles: Geom[];
   safety_margin_km?: number;
   re_route_needed?: boolean;
+  vessel_speed_knots?: number;
+  clearance_hours?: number | null;
+  clearance_buffer_hours?: number;
 }
 
 export interface RerouteResponse {
+  decision: string;
+  reason: string;
+  hazard_arrival_hours?: number | null;
+  clearance_hours?: number | null;
+  clearance_buffer_hours: number;
   original_path: LonLat[];
   rerouted_path: LonLat[];
   distance_original_km: number;
