@@ -10,6 +10,7 @@ import {
   Bell,
   Database,
 } from "lucide-react";
+import UploadPanel from "./UploadPanel";
 
 const navItems = [
   { name: "Overview", path: "/", icon: LayoutDashboard },
@@ -48,6 +49,10 @@ export default function Sidebar() {
             </NavLink>
           ))}
         </nav>
+
+        <div className="mt-6 pt-5 mx-3 border-t border-ink-200">
+          <UploadPanel />
+        </div>
       </div>
     </aside>
   );
