@@ -1,6 +1,6 @@
 import { useState } from "react";
 import type { LayerVisibility } from "./MapView";
-import { ChevronDown, ChevronRight } from "lucide-react";
+import { ChevronDown, ChevronRight, ChevronUp, Layers } from "lucide-react";
 import { C } from "../lib/theme";
 
 const LAYER_GROUPS = [
@@ -48,17 +48,33 @@ export default function LayerToggles({
     VESSELS: true,
     ENVIRONMENT: true,
   });
+  const [panelOpen, setPanelOpen] = useState(true);
 
   const toggleGroup = (title: string) => {
     setOpenGroups((prev) => ({ ...prev, [title]: !prev[title] }));
   };
 
+  if (!panelOpen) {
+    return (
+      <button
+        onClick={() => setPanelOpen(true)}
+        className="pointer-events-auto flex items-center gap-2 rounded-lg border border-ink-200 bg-white shadow-md px-3 py-2.5 text-xs font-bold text-ink-700 tracking-wider hover:bg-ink-50 transition-colors"
+      >
+        <Layers className="w-3.5 h-3.5 text-ink-500" /> LAYERS
+      </button>
+    );
+  }
+
   return (
     <div className="pointer-events-auto rounded-lg border border-ink-200 bg-white shadow-md w-56 overflow-hidden">
-      <div className="bg-ink-50 px-3 py-2.5 border-b border-ink-200">
+      <button
+        onClick={() => setPanelOpen(false)}
+        className="flex w-full items-center justify-between bg-ink-50 px-3 py-2.5 border-b border-ink-200 hover:bg-ink-100 transition-colors"
+      >
         <h3 className="text-xs font-bold text-ink-700 tracking-wider">LAYERS</h3>
-      </div>
-      
+        <ChevronUp className="w-3.5 h-3.5 text-ink-400" />
+      </button>
+
       <div>
         {LAYER_GROUPS.map((group) => (
           <div key={group.title} className="border-b border-ink-100 last:border-b-0">
