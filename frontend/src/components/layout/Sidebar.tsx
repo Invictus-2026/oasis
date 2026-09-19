@@ -1,27 +1,120 @@
+import { useCallback, useEffect, useRef, useState } from "react";
 import { NavLink } from "react-router-dom";
-import { LayoutDashboard, Map, Satellite, Wind, Target, Ship, FileText, Bell, Database, ArrowUpRight, Compass } from "lucide-react";
-const groups = [
-  { label: 'WORKSPACE', items: [
-    { name: 'Overview', path: '/', icon: LayoutDashboard },
-    { name: 'Maritime map', path: '/map', icon: Map },
-  ]},
-  { label: 'INTELLIGENCE', items: [
-    { name: 'Satellite', path: '/satellite', icon: Satellite },
-    { name: 'Drift analysis', path: '/drift', icon: Wind },
-    { name: 'Attribution', path: '/attribution', icon: Target },
-    { name: 'Route planner', path: '/reroute', icon: Ship },
-  ]},
-  { label: 'RESOURCES', items: [
-    { name: 'Reports', path: '/reports', icon: FileText },
-    { name: 'Alerts', path: '/alerts', icon: Bell },
-    { name: 'Data sources', path: '/data', icon: Database },
-  ]},
+import {
+  LayoutDashboard,
+  Map as MapIcon,
+  Satellite,
+  Ship,
+  Wind,
+  Target,
+  FileText,
+  Bell,
+  Database,
+} from "lucide-react";
+import UploadPanel from "./UploadPanel";
+
+const navItems = [
+  { name: "Overview", path: "/", icon: LayoutDashboard },
+  { name: "Maritime Map", path: "/map", icon: MapIcon },
+  { name: "Satellite Intelligence", path: "/satellite", icon: Satellite },
+  // { name: "Vessel Intelligence", path: "/vessel", icon: Ship },
+  { name: "Drift Intelligence", path: "/drift", icon: Wind },
+  { name: "Attribution", path: "/attribution", icon: Target },
+  { name: "Reroute Simulation", path: "/reroute", icon: Ship },
+  { name: "Reports", path: "/reports", icon: FileText },
+  { name: "Alerts", path: "/alerts", icon: Bell },
+  { name: "Data Sources", path: "/data", icon: Database },
+  // { name: "Models", path: "/models", icon: Cpu },
+  // { name: "Settings", path: "/settings", icon: Settings },
 ];
+
+const MIN_WIDTH = 256;
+const MAX_WIDTH = 480;
+const DEFAULT_WIDTH = 288;
+const WIDTH_KEY = "spilltrace_sidebar_width";
+
 export default function Sidebar() {
-  return <aside className="workspace-sidebar">
-    <div className="workspace-label"><span className="workspace-avatar"><Compass size={20}/></span><div><strong>Maritime operations</strong><small>Analysis workspace</small></div></div>
-    <nav aria-label="Main navigation">{groups.map(group => <div className="nav-group" key={group.label}><p>{group.label}</p>{group.items.map(item => <NavLink key={item.path} to={item.path} end={item.path === '/'} title={item.name} aria-label={item.name} className={({isActive}) => `workspace-nav-link ${isActive ? 'is-active' : ''}`}><item.icon size={19}/><span>{item.name}</span></NavLink>)}</div>)}</nav>
-    <div className="sidebar-note"><span className="eyebrow">FROM DETECTION TO DECISION</span><p>A clearer view of<br/>what’s on the water.</p><NavLink to="/reroute">Plan a voyage <ArrowUpRight size={16}/></NavLink></div>
-    <div className="sidebar-footer"><span className="status-dot"/> SpillTrace <span>v0.1</span></div>
-  </aside>;
+  const [width, setWidth] = useState(() => {
+    const saved = Number(localStorage.getItem(WIDTH_KEY));
+    return saved >= MIN_WIDTH && saved <= MAX_WIDTH ? saved : DEFAULT_WIDTH;
+  });
+  const [resizing, setResizing] = useState(false);
+  const [compact, setCompact] = useState(() => window.matchMedia("(max-width: 1200px)").matches);
+  const startX = useRef(0);
+  const startWidth = useRef(width);
+
+  useEffect(() => {
+    const mq = window.matchMedia("(max-width: 1200px)");
+    const onChange = (e: MediaQueryListEvent) => setCompact(e.matches);
+    mq.addEventListener("change", onChange);
+    return () => mq.removeEventListener("change", onChange);
+  }, []);
+
+  const onMouseMove = useCallback((e: MouseEvent) => {
+    const next = Math.min(MAX_WIDTH, Math.max(MIN_WIDTH, startWidth.current + (e.clientX - startX.current)));
+    setWidth(next);
+  }, []);
+
+  const onMouseUp = useCallback(() => {
+    setResizing(false);
+    document.removeEventListener("mousemove", onMouseMove);
+    document.removeEventListener("mouseup", onMouseUp);
+  }, [onMouseMove]);
+
+  useEffect(() => {
+    localStorage.setItem(WIDTH_KEY, String(width));
+  }, [width]);
+
+  const onMouseDown = (e: React.MouseEvent) => {
+    e.preventDefault();
+    startX.current = e.clientX;
+    startWidth.current = width;
+    setResizing(true);
+    document.addEventListener("mousemove", onMouseMove);
+    document.addEventListener("mouseup", onMouseUp);
+  };
+
+  return (
+    <aside
+      style={compact ? undefined : { width }}
+      className={`app-sidebar relative bg-white border-r border-ink-200 flex flex-col h-full shrink-0 ${resizing ? "" : "transition-[width] duration-100"}`}
+    >
+      <div className="flex-1 overflow-y-auto py-4">
+        <nav className="space-y-1 px-3">
+          {navItems.map((item) => (
+            <NavLink
+              key={item.name}
+              to={item.path}
+              title={item.name}
+              className={({ isActive }) =>
+                `flex items-center gap-3 px-3 py-2.5 rounded-md text-sm font-medium transition-colors ${
+                  isActive
+                    ? "bg-blue-50 text-blue-700"
+                    : "text-ink-600 hover:bg-ink-50 hover:text-ink-900"
+                }`
+              }
+            >
+              <item.icon className="h-5 w-5 shrink-0" />
+              <span>{item.name}</span>
+            </NavLink>
+          ))}
+        </nav>
+
+        {!compact && (
+          <div className="mt-6 pt-5 mx-3 border-t border-ink-200">
+            <UploadPanel />
+          </div>
+        )}
+      </div>
+
+      {!compact && (
+        <div
+          onMouseDown={onMouseDown}
+          className={`absolute top-0 right-0 h-full w-1.5 cursor-col-resize group ${resizing ? "bg-blue-400/40" : ""}`}
+        >
+          <div className="h-full w-px bg-transparent group-hover:bg-blue-400/60 mx-auto" />
+        </div>
+      )}
+    </aside>
+  );
 }
