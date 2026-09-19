@@ -1,6 +1,7 @@
 import { Outlet, useLocation } from "react-router-dom";
 import Sidebar from "./Sidebar";
 import Topbar from "./Topbar";
+import UploadSidebar from "./UploadSidebar";
 import MaritimeMap from "../../pages/MaritimeMap";
 
 export default function AppLayout() {
@@ -32,6 +33,7 @@ export default function AppLayout() {
             </>
           )}
         </main>
+        <UploadSidebar />
       </div>
     </div>
   );
