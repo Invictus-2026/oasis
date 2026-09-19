@@ -1,6 +1,6 @@
 import { useNavigate } from "react-router-dom";
-import { useRef, useState } from "react";
-import { UploadCloud, FileImage, AlertTriangle, CheckCircle2, Loader2 } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import { UploadCloud, FileImage, AlertTriangle, Info, CheckCircle2, Loader2 } from "lucide-react";
 import { useSpillState } from "../../context/SpillContext";
 import { generateMockUploadDetection } from "../../lib/mockDetector";
 import { buildAdHocDetection } from "../../lib/uploadProjection";
@@ -28,15 +28,25 @@ export default function UploadPanel() {
   const navigate = useNavigate();
 
   const [file, setFile] = useState<File | null>(null);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [gsd, setGsd] = useState(10.0);
   const [method, setMethod] = useState<DetectionMethod>("classical");
   const [running, setRunning] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
   const [done, setDone] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
+  useEffect(() => {
+    if (!file) { setPreviewUrl(null); return; }
+    const url = URL.createObjectURL(file);
+    setPreviewUrl(url);
+    return () => URL.revokeObjectURL(url);
+  }, [file]);
+
   const loadSample = async (sample: typeof SAMPLE_IMAGES[0]) => {
     setError(null);
+    setNotice(null);
     setDone(false);
     try {
       const res = await fetch(sample.path);
@@ -50,13 +60,13 @@ export default function UploadPanel() {
   };
 
   const runDetection = async () => {
-    if (!file) return;
+    if (!file || !previewUrl) return;
     setRunning(true);
     setError(null);
+    setNotice(null);
     setDone(false);
 
     try {
-      const imgUrl = URL.createObjectURL(file);
       let data: UploadResponse | null = null;
       try {
         const form = new FormData();
@@ -72,7 +82,7 @@ export default function UploadPanel() {
       } catch { }
 
       if (!data) {
-        const img = await loadImageElement(imgUrl);
+        const img = await loadImageElement(previewUrl);
         data = await generateMockUploadDetection(
           img,
           gsd,
@@ -81,9 +91,14 @@ export default function UploadPanel() {
         );
       }
 
-      const built = buildAdHocDetection(data, { gsd, fileName: file.name, caseMeta, overlayImageUrl: imgUrl });
+      if (data.oil_regions.length === 0) {
+        setNotice("No oil-like signature detected in this image. Try another image, or adjust GSD/detector and run again.");
+        return;
+      }
+
+      const built = buildAdHocDetection(data, { gsd, fileName: file.name, caseMeta, overlayImageUrl: previewUrl });
       if (!built) {
-        setError("No georeferenced regions detected in this image.");
+        setError("Detection succeeded but returned no georeferenced geometry.");
         return;
       }
 
@@ -119,10 +134,17 @@ export default function UploadPanel() {
                 setFile(e.target.files[0]);
                 setDone(false);
                 setError(null);
+                setNotice(null);
               }
             }}
           />
         </label>
+
+        {file && previewUrl && (
+          <div className="rounded-lg border border-ink-200 overflow-hidden bg-ink-900">
+            <img src={previewUrl} alt={file.name} className="w-full h-24 object-cover" />
+          </div>
+        )}
 
         {file && (
           <div className="text-xs font-semibold text-blue-700 bg-blue-50 p-2.5 rounded-lg border border-blue-200 flex items-center gap-2">
@@ -167,6 +189,12 @@ export default function UploadPanel() {
             <option value="unet">U-Net AI</option>
           </select>
         </div>
+
+        {notice && (
+          <div className="bg-amber-50 text-amber-700 p-2.5 rounded-lg text-xs border border-amber-200 flex items-start gap-2">
+            <Info className="w-3.5 h-3.5 shrink-0 mt-0.5" /> {notice}
+          </div>
+        )}
 
         {error && (
           <div className="bg-red-50 text-red-700 p-2.5 rounded-lg text-xs border border-red-200 flex items-center gap-2">
