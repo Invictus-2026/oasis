@@ -10,6 +10,7 @@ import type {
   HindcastResponse,
   ReRouteOption,
 } from "../api/types";
+import { buildLaneNetwork } from "../lib/laneNetwork";
 import { C } from "../lib/theme";
 
 export interface LayerVisibility {
@@ -170,6 +171,8 @@ export default function MapView({
     map.current.setPaintProperty("bg", "background-color", mapBgColor);
     map.current.setPaintProperty("graticule-line", "line-color", theme === "dark" ? "#1e3a8a" : "#93c5fd");
     map.current.setPaintProperty("graticule-line", "line-opacity", theme === "dark" ? 0.6 : 0.5);
+    map.current.setPaintProperty("shippingLanes-line", "line-color", theme === "dark" ? C.laneDark : C.lane);
+    map.current.setPaintProperty("shippingLanes-line", "line-opacity", theme === "dark" ? 0.8 : 0.7);
   }, [theme, ready]);
 
 
@@ -203,7 +206,7 @@ export default function MapView({
     m.on("error", (e) => console.error("[SpillTrace] map error:", e?.error ?? e));
 
     m.on("load", () => {
-      for (const id of ["graticule", "frame", "cone90", "cone50", "originRegion90",
+      for (const id of ["graticule", "shippingLanes", "frame", "cone90", "cone50", "originRegion90",
         "originRegion50", "lookalikes", "slick",
         "particles", "forecastCone", "forecastPath", "tracks", "origin",
         "gap", "connector", "windField", "currentField",
@@ -239,6 +242,18 @@ export default function MapView({
       m.addLayer({
         id: "graticule-line", source: "graticule", type: "line",
         paint: { "line-color": "#93c5fd", "line-width": 1, "line-opacity": 0.5 }
+      });
+
+      // Ambient shipping traffic. Deliberately hairline and low-contrast:
+      // this is texture that says "trafficked water", and it sits directly
+      // above the graticule so every spill layer added below draws over it.
+      m.addLayer({
+        id: "shippingLanes-line", source: "shippingLanes", type: "line",
+        paint: {
+          "line-color": C.lane,
+          "line-width": 0.5,
+          "line-opacity": 0.7,
+        }
       });
 
       m.addLayer({
@@ -1163,6 +1178,28 @@ export default function MapView({
     m.on("move", updateGridAndArrows);
     return () => { m.off("move", updateGridAndArrows); };
   }, [ready, mockWindDir]);
+
+  // ---- ambient shipping lanes --------------------------------------------
+  // Regenerated per viewport like the graticule, but on its own listener:
+  // lanes are pure backdrop and shouldn't depend on whether a page happens
+  // to supply wind. The network is deterministic, so redrawing on every move
+  // is idempotent — pan away and back and the same lanes are there.
+  useEffect(() => {
+    const m = map.current;
+    if (!ready || !m) return;
+
+    const updateLanes = () => {
+      const b = m.getBounds();
+      setData("shippingLanes", {
+        type: "FeatureCollection",
+        features: buildLaneNetwork(b.getWest(), b.getSouth(), b.getEast(), b.getNorth()),
+      });
+    };
+
+    updateLanes();
+    m.on("move", updateLanes);
+    return () => { m.off("move", updateLanes); };
+  }, [ready]);
 
   return (
     <>
