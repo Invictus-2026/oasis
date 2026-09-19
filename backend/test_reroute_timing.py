@@ -26,8 +26,18 @@ class RoutingTimingTests(unittest.TestCase):
     def test_no_crossing(self):
         self.assertEqual(self.route(start_point=[0,1],end_point=[2,1]).decision,'direct_clear')
     def test_unavailable(self):
-        for kw in [dict(start_point=[1.1,0]),dict(obstacles=[]),dict(obstacles=[{}])]:
+        for kw in [dict(obstacles=[]),dict(obstacles=[{}])]:
             self.assertEqual(self.route(**kw).decision,'unavailable')
+    def test_waypoint_inside_hazard_is_escaped_not_blocked(self):
+        # A waypoint dropped inside the hazard boundary used to be a hard
+        # dead end ('unavailable'). It should instead be nudged to the
+        # nearest clear point and still produce a real avoiding route that
+        # departs from the vessel's actual clicked position.
+        r=self.route(start_point=[1.1,0])
+        self.assertEqual(r.decision,'reroute')
+        self.assertTrue(r.is_rerouted)
+        self.assertEqual(tuple(r.rerouted_path[0]),(1.1,0))
+        self.assertEqual(tuple(r.rerouted_path[-1]),(2,0))
     def test_destination_eta_not_used(self):
         self.assertTrue(self.route(start_point=[.9,0],end_point=[20,0],clearance_hours=1).is_rerouted)
 if __name__=='__main__': unittest.main()

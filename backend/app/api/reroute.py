@@ -42,7 +42,6 @@ def reroute_vessel(req: RerouteRequest):
             processing_time_ms=(time.time()-started)*1000, error=error)
 
     polygons = []
-    raw_polygons = []
     for obstacle in req.obstacles:
         try:
             geom = shape(obstacle.get("geometry", obstacle))
@@ -51,16 +50,10 @@ def reroute_vessel(req: RerouteRequest):
             geom = transform(project, geom).buffer(0)
             if geom.is_empty:
                 raise ValueError("Empty geometry")
-            raw_polygons.append(geom)
             polygons.append(geom.buffer(req.safety_margin_km))
         except Exception:
             return result("unavailable", "Invalid hazard geometry: no route can be assessed.", path=[], error="Invalid hazard geometry")
     area = unary_union(polygons) if polygons else Polygon()
-    # The safety margin is precautionary padding around a hazard, not the
-    # hazard itself. A waypoint that merely falls within that padding (but
-    # is genuinely outside the actual spill/forecast polygon) should still be
-    # routable -- only a waypoint inside the real hazard is unrecoverable.
-    raw_area = unary_union(raw_polygons) if raw_polygons else Polygon()
     if not area.is_empty:
         zone = mapping(transform(unproject, area))
     if not has_points:
@@ -78,24 +71,35 @@ def reroute_vessel(req: RerouteRequest):
     arrival = line.project(entry) / speed
     if req.clearance_hours is not None and arrival > req.clearance_hours + req.clearance_buffer_hours:
         return result("direct_after_clearance", f"The ship reaches the first hazard in {arrival:.2f} h, after the assumed clearance at {req.clearance_hours:.2f} h plus a {req.clearance_buffer_hours:.2f} h uncertainty buffer. No detour is needed under this scenario; confirm clearance before transit.")
-    if raw_area.covers(Point(line.coords[0])) or raw_area.covers(Point(line.coords[-1])):
-        return result("unavailable", "A waypoint is inside the hazard boundary and clearance before entry is not established. Move it outside the boundary.", path=[], error="Waypoint inside hazard")
-    # A waypoint can legitimately sit inside the safety-margin padding while
-    # still being outside the real hazard (checked above) -- carve a small
-    # clearance disc around each endpoint out of the routing obstacle so the
-    # visibility graph can still depart from/arrive at it, without weakening
-    # avoidance anywhere else along the route.
-    endpoint_clearance = unary_union([
-        Point(line.coords[0]).buffer(req.safety_margin_km + 0.05),
-        Point(line.coords[-1]).buffer(req.safety_margin_km + 0.05),
-    ])
-    routing_area = area.difference(endpoint_clearance)
+    def escape(pt: Point) -> tuple[Point, bool]:
+        """A waypoint dropped inside the hazard+margin isn't a dead end: nudge
+        it to the nearest point just outside so a route can still depart from
+        (or arrive at) the vessel's actual position, rather than refusing
+        outright."""
+        if area.is_empty or not area.covers(pt):
+            return pt, False
+        boundary_pt = nearest_points(pt, area.boundary)[1]
+        dx, dy = boundary_pt.x - pt.x, boundary_pt.y - pt.y
+        dist = math.hypot(dx, dy) or 1.0
+        ux, uy = dx / dist, dy / dist
+        push = 0.1
+        moved = Point(boundary_pt.x + ux * push, boundary_pt.y + uy * push)
+        tries = 0
+        while area.covers(moved) and tries < 6:
+            push *= 2
+            moved = Point(boundary_pt.x + ux * push, boundary_pt.y + uy * push)
+            tries += 1
+        return moved, True
+
+    start_escaped, start_moved = escape(Point(line.coords[0]))
+    end_escaped, end_moved = escape(Point(line.coords[-1]))
+
     # Visibility graph directly on the real (possibly non-convex) obstacle
     # boundary -- NOT its convex hull. A convex hull silently re-fills any
-    # notch (like the endpoint-clearance bite above, or a genuine gap between
-    # two separate hazard clusters), which defeats both.
-    parts = [p for p in (list(routing_area.geoms) if routing_area.geom_type == "MultiPolygon" else [routing_area]) if not p.is_empty]
-    nodes = [line.coords[0], line.coords[-1]]
+    # genuine gap between separate hazard clusters, forcing detours around
+    # the whole combined blob instead of through an actual gap.
+    parts = [p for p in (list(area.geoms) if area.geom_type == "MultiPolygon" else [area]) if not p.is_empty]
+    nodes = [(start_escaped.x, start_escaped.y), (end_escaped.x, end_escaped.y)]
     for p in parts:
         nodes += list(p.exterior.coords[:-1])
         for interior in p.interiors:
@@ -106,7 +110,7 @@ def reroute_vessel(req: RerouteRequest):
     for i, a in enumerate(nodes):
         for j in range(i):
             segment = LineString([a, nodes[j]])
-            if segment.relate_pattern(routing_area, "F********"):
+            if segment.relate_pattern(area, "F********"):
                 graph[i].append((j, segment.length))
                 graph[j].append((i, segment.length))
     queue, costs, previous = [(0.0, 0)], {0: 0.0}, {}
@@ -126,6 +130,8 @@ def reroute_vessel(req: RerouteRequest):
     indices = [1]
     while indices[-1] != 0:
         indices.append(previous[indices[-1]])
-    path = [list(unproject(*nodes[i])) for i in reversed(indices)]
+    core_path = [list(unproject(*nodes[i])) for i in reversed(indices)]
+    path = ([points[0]] if start_moved else []) + core_path + ([points[-1]] if end_moved else [])
     explanation = "Clearance time is unknown, so the spill remains an obstacle." if req.clearance_hours is None else f"Assumed clearance plus buffer is {req.clearance_hours + req.clearance_buffer_hours:.2f} h, which is not before entry."
-    return result("reroute", f"The direct route enters a hazard in {arrival:.2f} h. {explanation} The detour avoids all supplied hazard regions and their safety margins.", path=path)
+    moved_note = " A waypoint placed inside the hazard boundary was nudged to the nearest clear point." if start_moved or end_moved else ""
+    return result("reroute", f"The direct route enters a hazard in {arrival:.2f} h. {explanation} The detour avoids all supplied hazard regions and their safety margins.{moved_note}", path=path)
