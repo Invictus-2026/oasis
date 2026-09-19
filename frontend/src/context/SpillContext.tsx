@@ -466,9 +466,16 @@ export function SpillProvider({ children }: { children: ReactNode }) {
         return det;
       }
 
-      // Shift the new slicks so they appear in a distinct region
-      const offsetLon = 1.5 * prev.slicks.length;
-      const offsetLat = 1.0 * prev.slicks.length;
+      // Shift each new upload into a distinct spot so it doesn't overlap
+      // the previous one, but wrap around a small fixed grid rather than
+      // growing without bound — an unbounded 1.5°/1.0° step per upload
+      // compounds fast (by the 8th upload it's ~10.5°/7° away, thousands of
+      // km outside the case bundle's actual current-field grid, where
+      // forecast/hindcast drift is physically meaningless). Wrapping keeps
+      // every ad-hoc slick within a few tenths of a degree of the real scene.
+      const gridIdx = prev.slicks.length % 9;
+      const offsetLon = 0.12 * ((gridIdx % 3) + 1);
+      const offsetLat = 0.09 * (Math.floor(gridIdx / 3) + 1);
 
       const shiftedSlicks = det.slicks.map(s => {
         if (s.polygon.type === "Polygon") {
