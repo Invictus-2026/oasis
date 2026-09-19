@@ -42,6 +42,7 @@ def reroute_vessel(req: RerouteRequest):
             processing_time_ms=(time.time()-started)*1000, error=error)
 
     polygons = []
+    raw_polygons = []
     for obstacle in req.obstacles:
         try:
             geom = shape(obstacle.get("geometry", obstacle))
@@ -50,10 +51,16 @@ def reroute_vessel(req: RerouteRequest):
             geom = transform(project, geom).buffer(0)
             if geom.is_empty:
                 raise ValueError("Empty geometry")
+            raw_polygons.append(geom)
             polygons.append(geom.buffer(req.safety_margin_km))
         except Exception:
             return result("unavailable", "Invalid hazard geometry: no route can be assessed.", path=[], error="Invalid hazard geometry")
     area = unary_union(polygons) if polygons else Polygon()
+    # The safety margin is precautionary padding around a hazard, not the
+    # hazard itself. A waypoint that merely falls within that padding (but
+    # is genuinely outside the actual spill/forecast polygon) should still be
+    # routable -- only a waypoint inside the real hazard is unrecoverable.
+    raw_area = unary_union(raw_polygons) if raw_polygons else Polygon()
     if not area.is_empty:
         zone = mapping(transform(unproject, area))
     if not has_points:
@@ -71,13 +78,28 @@ def reroute_vessel(req: RerouteRequest):
     arrival = line.project(entry) / speed
     if req.clearance_hours is not None and arrival > req.clearance_hours + req.clearance_buffer_hours:
         return result("direct_after_clearance", f"The ship reaches the first hazard in {arrival:.2f} h, after the assumed clearance at {req.clearance_hours:.2f} h plus a {req.clearance_buffer_hours:.2f} h uncertainty buffer. No detour is needed under this scenario; confirm clearance before transit.")
-    if area.covers(Point(line.coords[0])) or area.covers(Point(line.coords[-1])):
+    if raw_area.covers(Point(line.coords[0])) or raw_area.covers(Point(line.coords[-1])):
         return result("unavailable", "A waypoint is inside the hazard boundary and clearance before entry is not established. Move it outside the boundary.", path=[], error="Waypoint inside hazard")
-    # Visibility graph around buffered cluster hulls. No smoothing: corner cutting can enter oil.
-    parts = list(area.geoms) if area.geom_type == "MultiPolygon" else [area]
-    routing_area = unary_union([p.convex_hull for p in parts])
-    parts = list(routing_area.geoms) if routing_area.geom_type == "MultiPolygon" else [routing_area]
-    nodes = [line.coords[0], line.coords[-1]] + [c for p in parts for c in p.exterior.coords[:-1]]
+    # A waypoint can legitimately sit inside the safety-margin padding while
+    # still being outside the real hazard (checked above) -- carve a small
+    # clearance disc around each endpoint out of the routing obstacle so the
+    # visibility graph can still depart from/arrive at it, without weakening
+    # avoidance anywhere else along the route.
+    endpoint_clearance = unary_union([
+        Point(line.coords[0]).buffer(req.safety_margin_km + 0.05),
+        Point(line.coords[-1]).buffer(req.safety_margin_km + 0.05),
+    ])
+    routing_area = area.difference(endpoint_clearance)
+    # Visibility graph directly on the real (possibly non-convex) obstacle
+    # boundary -- NOT its convex hull. A convex hull silently re-fills any
+    # notch (like the endpoint-clearance bite above, or a genuine gap between
+    # two separate hazard clusters), which defeats both.
+    parts = [p for p in (list(routing_area.geoms) if routing_area.geom_type == "MultiPolygon" else [routing_area]) if not p.is_empty]
+    nodes = [line.coords[0], line.coords[-1]]
+    for p in parts:
+        nodes += list(p.exterior.coords[:-1])
+        for interior in p.interiors:
+            nodes += list(interior.coords[:-1])
     if len(nodes) > 1200:
         return result("unavailable", "Hazard geometry is too complex for this simulation.", path=[], error="Geometry limit")
     graph = [[] for _ in nodes]

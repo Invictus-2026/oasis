@@ -96,7 +96,12 @@ export default function RerouteSimulation() {
         ];
         const res = await reroute({
           start_point: startPoint, end_point: endPoint, obstacles,
-          safety_margin_km: 2, vessel_speed_knots: Number(speed),
+          // The forecast cone is a 90%-containment envelope, not the full
+          // particle spread shown on the map — a tight 2km margin let routes
+          // pass close enough to look like they were cutting through the
+          // visible plume. Widened so a computed route stays clear of what's
+          // actually rendered, not just the strict statistical boundary.
+          safety_margin_km: 6, vessel_speed_knots: Number(speed),
           clearance_hours: clearance === "" ? null : Number(clearance),
           clearance_buffer_hours: Number(buffer),
         });
