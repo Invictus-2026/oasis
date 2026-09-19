@@ -675,23 +675,32 @@ export default function MapView({
     });
   }, [ready, targetSlicks, layers.slick, layers.lookalikes, detection, activeSlickId]);
 
-  // ---- fly to isolated slick / custom upload ---------------------------
+  // ---- fly to isolated slick / custom upload, or fit all when none is
+  // isolated — otherwise an ad-hoc upload placed outside the case bbox
+  // (e.g. to avoid overlapping the case-study slick) stays out of view. ----
   useEffect(() => {
-    if (!ready || !map.current || !activeSlickId || activeSlickId === "all" || !detection) return;
-    const active = detection.slicks.find(s => s.id === activeSlickId);
-    if (active && active.polygon.type === "Polygon") {
-      const pts = active.polygon.coordinates[0] as [number, number][];
-      const lons = pts.map(p => p[0]);
-      const lats = pts.map(p => p[1]);
-      const minLon = Math.min(...lons);
-      const maxLon = Math.max(...lons);
-      const minLat = Math.min(...lats);
-      const maxLat = Math.max(...lats);
-      map.current.fitBounds(
-        [[minLon, minLat], [maxLon, maxLat]],
-        { padding: 100, maxZoom: 11, duration: 1200 }
-      );
-    }
+    if (!ready || !map.current || !detection || !detection.slicks.length) return;
+    const isolated = activeSlickId && activeSlickId !== "all"
+      ? detection.slicks.filter(s => s.id === activeSlickId)
+      : detection.slicks;
+    if (!isolated.length) return;
+
+    let minLon = Infinity, maxLon = -Infinity, minLat = Infinity, maxLat = -Infinity;
+    isolated.forEach(s => {
+      if (s.polygon.type !== "Polygon") return;
+      (s.polygon.coordinates[0] as [number, number][]).forEach(([lon, lat]) => {
+        minLon = Math.min(minLon, lon);
+        maxLon = Math.max(maxLon, lon);
+        minLat = Math.min(minLat, lat);
+        maxLat = Math.max(maxLat, lat);
+      });
+    });
+    if (minLon === Infinity) return;
+
+    map.current.fitBounds(
+      [[minLon, minLat], [maxLon, maxLat]],
+      { padding: 100, maxZoom: 11, duration: 1200 }
+    );
   }, [ready, activeSlickId, detection]);
 
   // ---- hindcast cone, particles, origin ---------------------------------
