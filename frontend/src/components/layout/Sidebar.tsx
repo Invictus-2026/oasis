@@ -39,8 +39,16 @@ export default function Sidebar() {
     return saved >= MIN_WIDTH && saved <= MAX_WIDTH ? saved : DEFAULT_WIDTH;
   });
   const [resizing, setResizing] = useState(false);
+  const [compact, setCompact] = useState(() => window.matchMedia("(max-width: 1200px)").matches);
   const startX = useRef(0);
   const startWidth = useRef(width);
+
+  useEffect(() => {
+    const mq = window.matchMedia("(max-width: 1200px)");
+    const onChange = (e: MediaQueryListEvent) => setCompact(e.matches);
+    mq.addEventListener("change", onChange);
+    return () => mq.removeEventListener("change", onChange);
+  }, []);
 
   const onMouseMove = useCallback((e: MouseEvent) => {
     const next = Math.min(MAX_WIDTH, Math.max(MIN_WIDTH, startWidth.current + (e.clientX - startX.current)));
@@ -68,8 +76,8 @@ export default function Sidebar() {
 
   return (
     <aside
-      style={{ width }}
-      className={`relative bg-white border-r border-ink-200 flex flex-col h-full shrink-0 ${resizing ? "" : "transition-[width] duration-100"}`}
+      style={compact ? undefined : { width }}
+      className={`app-sidebar relative bg-white border-r border-ink-200 flex flex-col h-full shrink-0 ${resizing ? "" : "transition-[width] duration-100"}`}
     >
       <div className="flex-1 overflow-y-auto py-4">
         <nav className="space-y-1 px-3">
@@ -77,6 +85,7 @@ export default function Sidebar() {
             <NavLink
               key={item.name}
               to={item.path}
+              title={item.name}
               className={({ isActive }) =>
                 `flex items-center gap-3 px-3 py-2.5 rounded-md text-sm font-medium transition-colors ${
                   isActive
@@ -86,22 +95,26 @@ export default function Sidebar() {
               }
             >
               <item.icon className="h-5 w-5 shrink-0" />
-              {item.name}
+              <span>{item.name}</span>
             </NavLink>
           ))}
         </nav>
 
-        <div className="mt-6 pt-5 mx-3 border-t border-ink-200">
-          <UploadPanel />
-        </div>
+        {!compact && (
+          <div className="mt-6 pt-5 mx-3 border-t border-ink-200">
+            <UploadPanel />
+          </div>
+        )}
       </div>
 
-      <div
-        onMouseDown={onMouseDown}
-        className={`absolute top-0 right-0 h-full w-1.5 cursor-col-resize group ${resizing ? "bg-blue-400/40" : ""}`}
-      >
-        <div className="h-full w-px bg-transparent group-hover:bg-blue-400/60 mx-auto" />
-      </div>
+      {!compact && (
+        <div
+          onMouseDown={onMouseDown}
+          className={`absolute top-0 right-0 h-full w-1.5 cursor-col-resize group ${resizing ? "bg-blue-400/40" : ""}`}
+        >
+          <div className="h-full w-px bg-transparent group-hover:bg-blue-400/60 mx-auto" />
+        </div>
+      )}
     </aside>
   );
 }

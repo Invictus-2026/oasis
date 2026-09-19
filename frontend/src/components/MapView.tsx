@@ -985,21 +985,13 @@ export default function MapView({
       setData("exclusionZone", EMPTY);
       return;
     }
-    setData("simOriginalPath", {
+    setData("simOriginalPath", rerouteResult.original_path.length < 2 ? EMPTY : {
       type: "FeatureCollection",
-      features: [{
-        type: "Feature",
-        properties: {},
-        geometry: { type: "LineString", coordinates: rerouteResult.original_path }
-      }]
+      features: [{ type: "Feature", properties: {}, geometry: { type: "LineString", coordinates: rerouteResult.original_path } }]
     });
-    setData("simReroutedPath", {
+    setData("simReroutedPath", rerouteResult.rerouted_path.length < 2 ? EMPTY : {
       type: "FeatureCollection",
-      features: [{
-        type: "Feature",
-        properties: {},
-        geometry: { type: "LineString", coordinates: rerouteResult.rerouted_path }
-      }]
+      features: [{ type: "Feature", properties: {}, geometry: { type: "LineString", coordinates: rerouteResult.rerouted_path } }]
     });
     if (rerouteResult.exclusion_zone) {
       setData("exclusionZone", {
@@ -1013,6 +1005,9 @@ export default function MapView({
     } else {
       setData("exclusionZone", EMPTY);
     }
+
+    setData("simBoatIcon", EMPTY);
+    if (rerouteResult.rerouted_path.length < 2) return;
 
     // Animate the boat
     let raf: number;

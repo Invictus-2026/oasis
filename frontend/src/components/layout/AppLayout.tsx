@@ -12,20 +12,20 @@ export default function AppLayout() {
       <Topbar />
       <div className="flex flex-1 overflow-hidden relative">
         <Sidebar />
-        <main className="flex-1 relative overflow-hidden flex bg-ink-50">
+        <main className="app-main min-w-0 flex-1 relative overflow-hidden flex bg-ink-50">
           {/* If it's a full page route that provides its own map (like reroute), just render the Outlet full screen */}
           {location.pathname === "/reroute" ? (
              <Outlet />
           ) : (
             <>
               {/* The map flexes to fill whatever space is left */}
-              <div className="flex-1 relative min-w-0 z-0">
+              <div className={`overview-map flex-1 relative min-w-0 z-0 ${!isMapOnly ? "has-panel" : ""}`}>
                  <MaritimeMap />
               </div>
               
               {/* The active intelligence page as a sliding side panel */}
               {!isMapOnly && (
-                <div className="w-[450px] lg:w-[550px] xl:w-[650px] shrink-0 bg-white/95 backdrop-blur-md shadow-[-10px_0_30px_rgba(0,0,0,0.05)] border-l border-ink-200 overflow-y-auto overflow-x-hidden flex flex-col z-20 animate-in slide-in-from-right duration-300 min-w-0 max-w-full">
+                <div className="intelligence-panel w-[450px] lg:w-[550px] xl:w-[650px] shrink-0 bg-white/95 backdrop-blur-md shadow-[-10px_0_30px_rgba(0,0,0,0.05)] border-l border-ink-200 overflow-y-auto overflow-x-hidden flex flex-col z-20 animate-in slide-in-from-right duration-300 min-w-0 max-w-full">
                    <Outlet />
                 </div>
               )}

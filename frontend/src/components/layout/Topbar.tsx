@@ -5,7 +5,7 @@ export default function Topbar() {
   const { theme, toggleTheme } = useTheme();
 
   return (
-    <header className="h-16 bg-white border-b border-ink-200 flex items-center justify-between px-6 shrink-0">
+    <header className="app-topbar h-16 bg-white border-b border-ink-200 flex items-center justify-between px-6 shrink-0">
       <div className="flex items-center gap-4">
         <h1 className="text-xl font-bold tracking-tight text-ink-900 flex items-center gap-2">
           <span className="text-blue-600">
@@ -32,7 +32,7 @@ export default function Topbar() {
       </div>
 
       <div className="flex items-center gap-4">
-        <div className="relative hidden md:block">
+        <div className="relative hidden xl:block">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-ink-400" />
           <input
             type="text"

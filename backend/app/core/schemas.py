@@ -678,10 +678,18 @@ class RerouteRequest(BaseModel):
     obstacles: list[GeoJSON] = Field(
         description="Polygons representing the oil slick and forecast cones to avoid"
     )
-    safety_margin_km: float = 2.0
-    re_route_needed: bool = True
+    safety_margin_km: float = Field(2.0, ge=0, le=100, allow_inf_nan=False)
+    re_route_needed: bool = True  # Legacy input; never bypass hazard checks.
+    vessel_speed_knots: float = Field(15.0, gt=0, le=60, allow_inf_nan=False)
+    clearance_hours: float | None = Field(None, ge=0, le=8760, allow_inf_nan=False)
+    clearance_buffer_hours: float = Field(2.0, ge=0, le=168, allow_inf_nan=False)
 
 class RerouteResponse(BaseModel):
+    decision: str = "pending"
+    reason: str = "Select a start and destination."
+    hazard_arrival_hours: float | None = None
+    clearance_hours: float | None = None
+    clearance_buffer_hours: float = 2.0
     original_path: list[LonLat]
     rerouted_path: list[LonLat]
     distance_original_km: float
