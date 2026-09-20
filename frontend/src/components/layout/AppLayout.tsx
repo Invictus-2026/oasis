@@ -13,20 +13,29 @@ export default function AppLayout() {
   return (
     <div className="flex flex-col h-screen bg-ink-50 font-sans text-ink-900 overflow-hidden">
       {broadcastAlert && (
-        <div className="shrink-0 bg-red-600 text-white px-4 py-2.5 flex items-center gap-3 shadow-md z-50 animate-in slide-in-from-top duration-300">
-          <AlertTriangle className="w-4 h-4 shrink-0" />
-          <span className="text-sm font-bold uppercase tracking-wide shrink-0">Active Alert</span>
-          <span className="text-sm truncate flex-1">{broadcastAlert.message.split("\n")[0]}</span>
-          <span className="text-xs text-red-200 shrink-0 hidden sm:inline">
-            {new Date(broadcastAlert.sentAt).toLocaleTimeString()}
-          </span>
-          <button
-            onClick={dismissBroadcastAlert}
-            className="shrink-0 rounded-full p-1 hover:bg-red-700 transition-colors"
-            aria-label="Dismiss alert"
-          >
-            <X className="w-4 h-4" />
-          </button>
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="w-full max-w-md mx-4 bg-white rounded-2xl shadow-2xl border-2 border-red-500 overflow-hidden animate-in zoom-in-95 slide-in-from-bottom-4 duration-300">
+            <div className="bg-red-600 text-white px-5 py-4 flex items-center gap-3">
+              <div className="w-9 h-9 rounded-full bg-white/15 flex items-center justify-center shrink-0">
+                <AlertTriangle className="w-5 h-5" />
+              </div>
+              <div>
+                <div className="text-sm font-black uppercase tracking-wider">Active Maritime Alert</div>
+                <div className="text-[11px] text-red-100">{new Date(broadcastAlert.sentAt).toLocaleString()}</div>
+              </div>
+            </div>
+            <div className="px-5 py-4">
+              <pre className="whitespace-pre-wrap font-sans text-sm text-ink-800 leading-relaxed">{broadcastAlert.message}</pre>
+            </div>
+            <div className="px-5 pb-5">
+              <button
+                onClick={dismissBroadcastAlert}
+                className="w-full flex items-center justify-center gap-2 bg-red-600 hover:bg-red-700 text-white font-bold text-sm py-2.5 rounded-lg transition-colors"
+              >
+                <X className="w-4 h-4" /> Acknowledge
+              </button>
+            </div>
+          </div>
         </div>
       )}
       <Topbar />
