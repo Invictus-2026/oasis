@@ -1,49 +1,118 @@
-@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Sans+Condensed:wght@400;500;600;700&display=swap");
 @import "tailwindcss";
 @import "maplibre-gl/dist/maplibre-gl.css";
 
 
-/* Ocean Sentinel — Light-theme operations palette */
+/* Ocean Sentinel — maritime operations palette: cool sea-navy neutrals,
+   a radar-signal cyan accent, and semantics tied to what the data IS
+   (crude-oil amber, distress-flare orange, AIS phosphor green, drift
+   indigo) rather than generic status-red/status-green. */
 @theme {
-  /* === SURFACE GRAYS (Light UI) === */
-  --color-ink-50:  #f8fafc;
-  --color-ink-100: #f1f5f9;
-  --color-ink-200: #e2e8f0;
-  --color-ink-300: #cbd5e1;
-  --color-ink-400: #94a3b8;
-  --color-ink-500: #64748b;
-  --color-ink-600: #475569;
-  --color-ink-700: #334155;
-  --color-ink-800: #1e293b;
-  --color-ink-900: #0f172a;
-  --color-ink-950: #020617;
+  /* === SURFACE GRAYS (Light UI) — sea-navy tinted, not neutral slate === */
+  --color-ink-50:  #f5f8f8;
+  --color-ink-100: #ebf1f1;
+  --color-ink-200: #dce6e7;
+  --color-ink-300: #c3d2d4;
+  --color-ink-400: #8fa3a8;
+  --color-ink-500: #61787e;
+  --color-ink-600: #445b62;
+  --color-ink-700: #2e4048;
+  --color-ink-800: #1a2b32;
+  --color-ink-900: #0b1a20;
+  --color-ink-950: #041014;
 
   /* Legacy dark-mode aliases — now remap to light equivalents */
-  --color-mute-400: #94a3b8;   /* → ink-400 */
-  --color-mute-300: #64748b;   /* → ink-500 */
-  --color-mute-200: #475569;   /* → ink-600 */
-  --color-mute-100: #334155;   /* → ink-700 */
+  --color-mute-400: #8fa3a8;   /* → ink-400 */
+  --color-mute-300: #61787e;   /* → ink-500 */
+  --color-mute-200: #445b62;   /* → ink-600 */
+  --color-mute-100: #2e4048;   /* → ink-700 */
 
-  /* === DATA LAYER COLORS (visible on light bg) === */
-  /* Oil slick — amber */
-  --color-slick-500: #d97706;
-  --color-slick-400: #f59e0b;
+  /* === PRIMARY ACCENT — radar/sonar signal cyan, replaces generic blue === */
+  --color-blue-50:  #ecfeff;
+  --color-blue-100: #cffafe;
+  --color-blue-200: #a5f3fc;
+  --color-blue-300: #67e8f9;
+  --color-blue-400: #22d3ee;
+  --color-blue-500: #06b6d4;
+  --color-blue-600: #0891b2;
+  --color-blue-700: #0e7490;
+  --color-blue-800: #155e75;
+  --color-blue-900: #164e63;
+  --color-blue-950: #083344;
+
+  /* === OIL / SLICK — crude-oil amber-brown, replaces generic warning-yellow === */
+  --color-amber-50:  #fdf6ec;
+  --color-amber-100: #faeacf;
+  --color-amber-200: #f3d19d;
+  --color-amber-300: #e9b369;
+  --color-amber-400: #dc9645;
+  --color-amber-500: #c97c2c;
+  --color-amber-600: #a8631e;
+  --color-amber-700: #855015;
+  --color-amber-800: #63390f;
+  --color-amber-900: #452709;
+  --color-amber-950: #2a1705;
+
+  /* === HAZARD / ALERT — maritime distress-flare orange, replaces generic red === */
+  --color-red-50:  #fff1ea;
+  --color-red-100: #ffdfcc;
+  --color-red-200: #ffbb99;
+  --color-red-300: #ff9a66;
+  --color-red-400: #ff7940;
+  --color-red-500: #ff5a1f;
+  --color-red-600: #e6470f;
+  --color-red-700: #bf3a0c;
+  --color-red-800: #942d09;
+  --color-red-900: #6b2007;
+  --color-red-950: #431305;
+
+  /* === VESSEL / AIS TRACKS — phosphor green, replaces generic emerald === */
+  --color-emerald-50:  #eafbf1;
+  --color-emerald-100: #cff6df;
+  --color-emerald-200: #9fedc0;
+  --color-emerald-300: #6be29e;
+  --color-emerald-400: #4fe08d;
+  --color-emerald-500: #3ddc84;
+  --color-emerald-600: #22b869;
+  --color-emerald-700: #1a8f53;
+  --color-emerald-800: #146c3f;
+  --color-emerald-900: #0e4d2d;
+  --color-emerald-950: #082e1b;
+
+  /* === DRIFT / FORECAST — current-flow indigo, replaces generic purple === */
+  --color-purple-50:  #eef0fd;
+  --color-purple-100: #dadffa;
+  --color-purple-200: #b3bcf5;
+  --color-purple-300: #8894ee;
+  --color-purple-400: #6a76e3;
+  --color-purple-500: #4c5fd5;
+  --color-purple-600: #3b4bb8;
+  --color-purple-700: #2f3c93;
+  --color-purple-800: #252f70;
+  --color-purple-900: #1b2350;
+  --color-purple-950: #111530;
+
+  /* === DATA LAYER COLORS (map paint, kept in sync with the scales above) === */
+  /* Oil slick */
+  --color-slick-500: #c97c2c;
+  --color-slick-400: #dc9645;
   /* Look-alikes */
-  --color-reject-500: #6b7a92;
-  /* Drift cone / hindcast — blue */
-  --color-cone-500: #2563eb;
-  --color-cone-400: #3b82f6;
-  /* Vessels — green */
-  --color-vessel-500: #059669;
-  --color-vessel-400: #10b981;
-  /* Suspicion / dark vessel — red */
-  --color-alert-500: #dc2626;
-  --color-alert-400: #ef4444;
-  /* Forecast — purple */
-  --color-forecast-500: #7c3aed;
+  --color-reject-500: #6b8288;
+  /* Drift cone / hindcast */
+  --color-cone-500: #0891b2;
+  --color-cone-400: #22d3ee;
+  /* Vessels */
+  --color-vessel-500: #22b869;
+  --color-vessel-400: #3ddc84;
+  /* Suspicion / dark vessel */
+  --color-alert-500: #e6470f;
+  --color-alert-400: #ff5a1f;
+  /* Forecast */
+  --color-forecast-500: #4c5fd5;
 
   /* === TYPOGRAPHY === */
-  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-sans: "IBM Plex Sans", ui-sans-serif, system-ui, sans-serif;
+  --font-heading: "IBM Plex Sans Condensed", ui-sans-serif, system-ui, sans-serif;
   --font-mono: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, monospace;
 
   /* Smooth ease for data instruments */
@@ -53,32 +122,34 @@
 /* ── Dark Theme Overrides ────────────────────────── */
 .dark {
   /* Invert the surface grays */
-  --color-ink-50:  #020617;
-  --color-ink-100: #0f172a;
-  --color-ink-200: #1e293b;
-  --color-ink-300: #334155;
-  --color-ink-400: #475569;
-  --color-ink-500: #64748b;
-  --color-ink-600: #94a3b8;
-  --color-ink-700: #cbd5e1;
-  --color-ink-800: #e2e8f0;
-  --color-ink-900: #f8fafc;
+  --color-ink-50:  #041014;
+  --color-ink-100: #0b1a20;
+  --color-ink-200: #1a2b32;
+  --color-ink-300: #2e4048;
+  --color-ink-400: #445b62;
+  --color-ink-500: #61787e;
+  --color-ink-600: #8fa3a8;
+  --color-ink-700: #c3d2d4;
+  --color-ink-800: #dce6e7;
+  --color-ink-900: #f5f8f8;
   --color-ink-950: #ffffff;
 
   /* Redefine white to be our dark surface color so bg-white/95 etc work automatically */
   --color-white: var(--color-ink-100);
 
-  /* Darken semantic surface colors (used in badges and alert cards) */
-  --color-blue-50: #172554;
-  --color-blue-100: #1e3a8a;
-  --color-purple-50: #3b0764;
-  --color-purple-100: #581c87;
-  --color-amber-50: #451a03;
-  --color-amber-100: #78350f;
-  --color-red-50: #450a0a;
-  --color-red-100: #7f1d1d;
-  --color-emerald-50: #022c22;
-  --color-emerald-100: #064e3b;
+  /* Darken semantic surface colors (used in badges and alert cards) —
+     deep tints of the SAME hues as the light-mode scales above, not the
+     old generic blue/purple/amber/red/emerald. */
+  --color-blue-50: #083344;
+  --color-blue-100: #0e4a5e;
+  --color-purple-50: #111530;
+  --color-purple-100: #1b2350;
+  --color-amber-50: #2a1705;
+  --color-amber-100: #452709;
+  --color-red-50: #431305;
+  --color-red-100: #6b2007;
+  --color-emerald-50: #082e1b;
+  --color-emerald-100: #0e4d2d;
   --color-orange-50: #431407;
   --color-orange-100: #7c2d12;
 }
@@ -104,6 +175,13 @@ body {
   font-size: 14px;
   line-height: 1.6;
   -webkit-font-smoothing: antialiased;
+}
+
+/* Condensed technical face for headings/titles — distinct from body copy,
+   in keeping with an instrument-panel rather than a marketing page. */
+h1, h2, h3, h4 {
+  font-family: var(--font-heading);
+  letter-spacing: -0.01em;
 }
 
 /* ── Page Layout Consistency ─────────────────────── */
