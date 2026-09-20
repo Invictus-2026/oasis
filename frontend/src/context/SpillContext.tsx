@@ -75,6 +75,10 @@ interface SpillContextType {
   injectAdHocDetection: (det: DetectResponse, overlay?: CustomImageOverlay) => void;
   removeCustomOverlay: (id: string) => void;
 
+  broadcastAlert: { message: string; sentAt: string } | null;
+  sendBroadcastAlert: (message: string) => void;
+  dismissBroadcastAlert: () => void;
+
   activeReRouteOption: ReRouteOption | null;
   setActiveReRouteOption: (opt: ReRouteOption | null) => void;
 
@@ -133,6 +137,11 @@ export function SpillProvider({ children }: { children: ReactNode }) {
   });
 
   const [activeReRouteOption, setActiveReRouteOption] = useState<ReRouteOption | null>(null);
+  const [broadcastAlert, setBroadcastAlert] = useState<{ message: string; sentAt: string } | null>(null);
+  const sendBroadcastAlert = useCallback((message: string) => {
+    setBroadcastAlert({ message, sentAt: new Date().toISOString() });
+  }, []);
+  const dismissBroadcastAlert = useCallback(() => setBroadcastAlert(null), []);
 
   // The drift bearing of the bundled case: WNW, matching the slick axis traced
   // off the SAR scene (carrier in the south-east -> slick head in the bay).
@@ -661,6 +670,9 @@ export function SpillProvider({ children }: { children: ReactNode }) {
         removeCustomOverlay,
         activeReRouteOption,
         setActiveReRouteOption,
+        broadcastAlert,
+        sendBroadcastAlert,
+        dismissBroadcastAlert,
       }}
     >
       {children}

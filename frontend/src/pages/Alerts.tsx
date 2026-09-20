@@ -4,7 +4,7 @@ import SpillSelector from "../components/SpillSelector";
 import { lonLat, bearingLabel } from "../lib/format";
 import {
   ShieldAlert, Anchor, Send, CheckCircle2, Loader2, Info,
-  Radio, Ship,
+  Radio, Ship, Megaphone,
 } from "lucide-react";
 
 interface Agency {
@@ -36,7 +36,7 @@ function slickCenter(slick: { polygon: any }): [number, number] {
 }
 
 export default function Alerts() {
-  const { detection, activeSlickId, setActiveSlickId, attribution, mockWindDir } = useSpillState();
+  const { detection, activeSlickId, setActiveSlickId, attribution, mockWindDir, sendBroadcastAlert } = useSpillState();
 
   const [draftOverride, setDraftOverride] = useState<string | null>(null);
   const [sentLog, setSentLog] = useState<SentEntry[]>([]);
@@ -91,17 +91,36 @@ export default function Alerts() {
     .slice()
     .sort((a, b) => a.closest_approach_km - b.closest_approach_km);
 
+  const alertEveryone = () => {
+    sendBroadcastAlert(message);
+    const now = new Date().toISOString();
+    const already = new Set(sentLog.map(e => e.key));
+    const newEntries: SentEntry[] = [
+      ...AGENCIES.filter(a => !already.has(a.id)).map(a => ({ key: a.id, name: a.name, kind: "agency" as const, sentAt: now })),
+      ...nearbyVessels.filter(v => !already.has(v.mmsi)).map(v => ({ key: v.mmsi, name: v.name || v.mmsi, kind: "vessel" as const, sentAt: now })),
+    ];
+    if (newEntries.length) setSentLog(prev => [...newEntries, ...prev]);
+  };
+
   return (
     <div className="page-shell flex flex-col h-full">
-      <header className="page-header shrink-0">
-        <div className="flex items-center gap-2 mb-1">
-          <button onClick={() => setActiveSlickId(null)} className="text-ink-400 hover:text-blue-600 transition-colors mr-1 text-sm font-bold">
-            ← Back
-          </button>
-          <ShieldAlert className="w-5 h-5 text-blue-600" />
-          <h2 className="!mb-0">Maritime Safety Alerts</h2>
+      <header className="page-header shrink-0 flex flex-col md:flex-row md:items-start justify-between gap-4">
+        <div>
+          <div className="flex items-center gap-2 mb-1">
+            <button onClick={() => setActiveSlickId(null)} className="text-ink-400 hover:text-blue-600 transition-colors mr-1 text-sm font-bold">
+              ← Back
+            </button>
+            <ShieldAlert className="w-5 h-5 text-blue-600" />
+            <h2 className="!mb-0">Maritime Safety Alerts</h2>
+          </div>
+          <p className="text-sm">Notify response agencies and nearby vessels about this spill.</p>
         </div>
-        <p className="text-sm">Notify response agencies and nearby vessels about this spill.</p>
+        <button
+          onClick={alertEveryone}
+          className="shrink-0 flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-bold text-white bg-red-600 hover:bg-red-700 active:scale-[0.98] shadow-sm transition-all"
+        >
+          <Megaphone className="w-4 h-4" /> Alert Everyone
+        </button>
       </header>
 
       <div className="flex-1 overflow-y-auto px-6 pb-6 space-y-5">
