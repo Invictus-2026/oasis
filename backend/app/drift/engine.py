@@ -113,23 +113,25 @@ def hindcast(bundle, slick_ring, age_hours: tuple[float, float], *,
     for t, pts in frames[::2]:
         for pct, frac in ((50, 0.50), (90, 0.90)):
             ring = cone_mod.containment_polygon(pts, frac)
-            if ring:
+            polygon = cone_mod.water_polygon(ring) if ring else None
+            if polygon:
                 cones.append(ConePolygon(
                     t_offset_hours=round(t, 2),
-                    polygon={"type": "Polygon", "coordinates": [ring]},
+                    polygon=polygon,
                     percentile=pct,  # type: ignore[arg-type]
                 ))
 
     origin_ring_90 = cone_mod.containment_polygon(pooled, 0.90)
     origin_ring_50 = cone_mod.containment_polygon(pooled, 0.50)
     for pct, ring in ((90, origin_ring_90), (50, origin_ring_50)):
-        if ring:
+        polygon = cone_mod.water_polygon(ring) if ring else None
+        if polygon:
             # Marked kind="origin" rather than sharing a timestamp with the last
             # animation frame: they are different objects and the UI draws the
             # origin region persistently once the run settles.
             cones.append(ConePolygon(
                 t_offset_hours=round(-age_max, 2),
-                polygon={"type": "Polygon", "coordinates": [ring]},
+                polygon=polygon,
                 percentile=pct,  # type: ignore[arg-type]
                 kind="origin",
             ))
@@ -209,10 +211,11 @@ def forecast(bundle, slick_ring, hours: float, *,
     cones = []
     for t, pts in frames:
         ring = cone_mod.containment_polygon(pts, 0.90)
-        if ring:
+        polygon = cone_mod.water_polygon(ring) if ring else None
+        if polygon:
             cones.append(ConePolygon(
                 t_offset_hours=round(t, 2),
-                polygon={"type": "Polygon", "coordinates": [ring]},
+                polygon=polygon,
                 percentile=90,
             ))
     path = [[round(float(p[:, 0].mean()), 5), round(float(p[:, 1].mean()), 5)] for _, p in frames]

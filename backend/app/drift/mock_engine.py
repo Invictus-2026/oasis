@@ -99,20 +99,22 @@ def hindcast(*, ring: list[list[float]] = MOCK_SLICK_RING, hours: float, n_parti
     for f in result.frames[::2]:
         for pct, frac in ((50, 0.50), (90, 0.90)):
             ring = cone_mod.containment_polygon(f.positions, frac)
-            if ring:
+            polygon = cone_mod.water_polygon(ring) if ring else None
+            if polygon:
                 cones.append(ConePolygon(
                     t_offset_hours=round(f.t_offset_hours, 2),
-                    polygon={"type": "Polygon", "coordinates": [ring]},
+                    polygon=polygon,
                     percentile=pct,  # type: ignore[arg-type]
                 ))
 
     origin_ring_90 = cone_mod.containment_polygon(pooled, 0.90)
     origin_ring_50 = cone_mod.containment_polygon(pooled, 0.50)
     for pct, ring in ((90, origin_ring_90), (50, origin_ring_50)):
-        if ring:
+        polygon = cone_mod.water_polygon(ring) if ring else None
+        if polygon:
             cones.append(ConePolygon(
                 t_offset_hours=round(-age_max, 2),
-                polygon={"type": "Polygon", "coordinates": [ring]},
+                polygon=polygon,
                 percentile=pct,  # type: ignore[arg-type]
                 kind="origin",
             ))
@@ -177,10 +179,11 @@ def forecast(*, ring: list[list[float]] = MOCK_SLICK_RING, hours: float, n_parti
     cones = []
     for f in result.frames:
         ring = cone_mod.containment_polygon(f.positions, 0.90)
-        if ring:
+        polygon = cone_mod.water_polygon(ring) if ring else None
+        if polygon:
             cones.append(ConePolygon(
                 t_offset_hours=round(f.t_offset_hours, 2),
-                polygon={"type": "Polygon", "coordinates": [ring]},
+                polygon=polygon,
                 percentile=90,
             ))
     path = [[round(float(f.positions[:, 0].mean()), 5), round(float(f.positions[:, 1].mean()), 5)]
