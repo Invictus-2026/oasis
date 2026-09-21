@@ -31,7 +31,7 @@ const navItems = [
 const MIN_WIDTH = 256;
 const MAX_WIDTH = 480;
 const DEFAULT_WIDTH = 288;
-const WIDTH_KEY = "spilltrace_sidebar_width";
+const WIDTH_KEY = "oasis_sidebar_width";
 
 export default function Sidebar() {
   const [width, setWidth] = useState(() => {

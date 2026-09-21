@@ -557,7 +557,7 @@
   }
  ],
  "provenance": {
-  "model_version": "spilltrace-0.1.0+fixture",
+  "model_version": "oasis-0.1.0+fixture",
   "params": {
    "method": "classical",
    "speckle": "lee_7x7",

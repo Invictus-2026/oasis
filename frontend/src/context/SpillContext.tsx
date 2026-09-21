@@ -23,7 +23,7 @@ const DEFAULT_WIND_DIR = 306;
 
 // Bump whenever the bundled fixtures move, so a browser holding a cached run
 // from the previous geometry doesn't paint stale layers over the SAR scene.
-const STATE_KEY = "spilltrace_state_v2";
+const STATE_KEY = "oasis_state_v2";
 
 interface SpillContextType {
   caseMeta: CaseMeta | null;

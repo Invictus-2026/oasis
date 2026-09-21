@@ -5,7 +5,7 @@ Oil-spill detection, drift hindcast/forecast and AIS-based vessel attribution.
 **Smart India Hackathon — PS SIH26143 (National Technical Research Organisation)**
 *Leveraging satellite imagery to determine oil spills at sea along with AIS data correlations to identify the vessel responsible.*
 
-SpillTrace takes a Sentinel-1 SAR scene and answers three questions in sequence:
+OASIS takes a Sentinel-1 SAR scene and answers three questions in sequence:
 **what** is the slick (detection and characterisation), **where and when** did it start
 (bidirectional Lagrangian drift), and **who** was plausibly there (AIS correlation and
 explainable scoring). Output is a ranked, confidence-scored candidate list with full

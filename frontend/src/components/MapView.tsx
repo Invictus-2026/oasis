@@ -200,7 +200,7 @@ export default function MapView({
     ro.observe(container.current!);
     resizeObs.current = ro;
 
-    m.on("error", (e) => console.error("[SpillTrace] map error:", e?.error ?? e));
+    m.on("error", (e) => console.error("[OASIS] map error:", e?.error ?? e));
 
     m.on("load", () => {
       for (const id of ["graticule", "frame", "cone90", "cone50", "originRegion90",

@@ -14503,7 +14503,7 @@
   }
  ],
  "provenance": {
-  "model_version": "spilltrace-0.1.0+fixture",
+  "model_version": "oasis-0.1.0+fixture",
   "params": {
    "hours": 30.0,
    "n_particles": 500,

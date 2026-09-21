@@ -11,12 +11,12 @@ const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 
 export function ThemeProvider({ children }: { children: ReactNode }) {
   const [theme, setTheme] = useState<Theme>(() => {
-    const saved = localStorage.getItem("spilltrace_theme");
+    const saved = localStorage.getItem("oasis_theme");
     return (saved as Theme) || "light";
   });
 
   useEffect(() => {
-    localStorage.setItem("spilltrace_theme", theme);
+    localStorage.setItem("oasis_theme", theme);
     if (theme === "dark") {
       document.documentElement.classList.add("dark");
     } else {

@@ -67,7 +67,7 @@
  },
  "disclaimer": "Constructed validation scenario. Real Sentinel-1 SAR imagery (Zenodo oil-spill dataset) and real AIS traffic (NOAA AccessAIS) are synthetically co-located onto a common region and time so the end-to-end pipeline can be validated against a known ground truth. The imagery and the vessel traffic are not from the same real-world incident.",
  "provenance": {
-  "model_version": "spilltrace-0.1.0+fixture",
+  "model_version": "oasis-0.1.0+fixture",
   "params": {
    "stage": "case",
    "case_id": "gom-2023-06-15"

@@ -14,7 +14,7 @@ RAW_DIR = DATA_DIR / "raw"
 CASE_DIR = DATA_DIR / "case"
 WEIGHTS_DIR = REPO_ROOT / "ml" / "weights"
 
-MODEL_VERSION = "spilltrace-0.1.0"
+MODEL_VERSION = "oasis-0.1.0"
 
 # --------------------------------------------------------------------------
 # The frozen case study (Phase 1 fills data/case/ to match this)

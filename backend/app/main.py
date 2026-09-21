@@ -1,4 +1,4 @@
-"""SpillTrace API.
+"""OASIS API.
 
 Oil-spill detection, drift hindcast/forecast and AIS-based vessel attribution
 for SIH26143 (NTRO).
@@ -28,7 +28,7 @@ from app.api import (
 from app.core import config
 
 app = FastAPI(
-    title="SpillTrace API",
+    title="OASIS API",
     version=config.MODEL_VERSION,
     description=__doc__,
 )

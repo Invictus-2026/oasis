@@ -1,5 +1,5 @@
 """
-SpillTrace API contract.
+OASIS API contract.
 
 These pydantic models ARE the contract between backend and frontend. They are
 frozen in Phase 0 so both halves of the team can work in parallel. Change them

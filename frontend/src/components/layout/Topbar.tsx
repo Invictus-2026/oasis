@@ -24,7 +24,7 @@ export default function Topbar() {
               />
             </svg>
           </span>
-          SpillTrace
+          OASIS
         </h1>
         <span className="text-xs text-ink-500 hidden sm:inline-block border-l border-ink-300 pl-4 ml-2">
           AI-Powered Maritime Intelligence

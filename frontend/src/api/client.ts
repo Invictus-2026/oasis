@@ -65,7 +65,7 @@ async function call<T>(path: string, body: unknown, fallback: unknown): Promise<
     setMode("live");
     return (await res.json()) as T;
   } catch (err) {
-    console.warn(`[SpillTrace] ${path} failed, using bundled fixture:`, err);
+    console.warn(`[OASIS] ${path} failed, using bundled fixture:`, err);
     setMode("mock");
     return fallback as T;
   } finally {

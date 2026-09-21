@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# SpillTrace health check.
+# OASIS health check.
 #
 #   ./scripts/check.sh              verify everything
 #   ./scripts/check.sh --serve      verify, then start both dev servers

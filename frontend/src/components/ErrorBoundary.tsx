@@ -12,7 +12,7 @@ export default class ErrorBoundary extends Component<
   }
 
   componentDidCatch(error: Error) {
-    console.error("[SpillTrace] panel crashed:", this.props.label, error);
+    console.error("[OASIS] panel crashed:", this.props.label, error);
   }
 
   render() {
