@@ -44,6 +44,7 @@ from app.core.schemas import (
     SlickGeometry,
     VesselCandidate,
 )
+from app.drift.coastline import water_only
 
 # Ground truth for the constructed scenario. Phase 1 writes the real values
 # into data/case/case.json; these mirror them so fixtures and reality agree.
@@ -80,15 +81,30 @@ def _ellipse_polygon(
     jitter: float = 0.0, rng: random.Random | None = None,
 ) -> list[list[float]]:
     """An oriented ellipse in lon/lat, optionally roughened so it reads as a
-    detected shape rather than a drawn one."""
+    detected shape rather than a drawn one.
+
+    Roughening is done with a few low-frequency sinusoidal harmonics
+    (random phase/amplitude per harmonic) rather than independent
+    per-vertex noise: independent noise can push adjacent vertices past
+    each other radially and produce a self-intersecting ring, which
+    downstream GEOS clipping (water_only) can fail on outright rather than
+    silently repair. A smooth radial perturbation stays simple by
+    construction.
+    """
     theta = math.radians(bearing_deg)
+    harmonics: list[tuple[int, float, float]] = []
+    if jitter and rng:
+        for k in (2, 3, 5):
+            harmonics.append((k, rng.uniform(0, jitter * 0.6), rng.uniform(0, 2 * math.pi)))
+
     ring: list[list[float]] = []
     for i in range(n):
         t = 2 * math.pi * i / n
         a, b = major_km / 2, minor_km / 2
-        if jitter and rng:
-            a *= 1 + rng.uniform(-jitter, jitter)
-            b *= 1 + rng.uniform(-jitter, jitter)
+        if harmonics:
+            wobble = sum(amp * math.sin(k * t + phase) for k, amp, phase in harmonics)
+            a *= 1 + wobble
+            b *= 1 + wobble
         x, y = a * math.cos(t), b * math.sin(t)
         # rotate so that bearing is measured clockwise from north
         dx = x * math.sin(theta) + y * math.cos(theta)
@@ -162,6 +178,15 @@ def case_meta() -> CaseMeta:
 # --------------------------------------------------------------------------
 
 
+def _water_polygon(ring: list[tuple[float, float]]) -> dict:
+    """water_only() for a fixture ring, asserting it never comes back empty —
+    a detection/drift fixture that lands entirely on land is a bug in the
+    fixture's numbers, not a legitimate result to silently drop."""
+    clipped = water_only({"type": "Polygon", "coordinates": [ring]})
+    assert clipped is not None, "fixture polygon fell entirely on land"
+    return clipped
+
+
 def detect_response(method: DetectionMethod = DetectionMethod.classical) -> DetectResponse:
     rng = random.Random(1)
     # Slick sits NE of the true origin, consistent with ~8 h of NE-ward drift.
@@ -170,7 +195,7 @@ def detect_response(method: DetectionMethod = DetectionMethod.classical) -> Dete
 
     slick = Slick(
         id=SLICK_ID,
-        polygon={"type": "Polygon", "coordinates": [ring]},
+        polygon=_water_polygon(ring),
         confidence=0.87 if method is DetectionMethod.unet else 0.79,
         method=method,
         geometry=SlickGeometry(
@@ -216,13 +241,10 @@ def detect_response(method: DetectionMethod = DetectionMethod.classical) -> Dete
     lookalikes = [
         RejectedLookalike(
             id="lookalike-001",
-            polygon={
-                "type": "Polygon",
-                "coordinates": [
-                    _ellipse_polygon(*_offset(slick_lon, slick_lat, -21.0, 12.0), 11.0, 9.0, 10.0,
-                                     jitter=0.18, rng=rng)
-                ],
-            },
+            polygon=_water_polygon(
+                _ellipse_polygon(*_offset(slick_lon, slick_lat, -21.0, 12.0), 11.0, 9.0, 10.0,
+                                  jitter=0.18, rng=rng)
+            ),
             reason="Low-wind zone: high compactness (0.81) and soft edge gradient; ERA5 wind 1.9 m/s, below the 3 m/s detectability floor.",
             confidence=0.74,
             geometry=SlickGeometry(
@@ -238,13 +260,10 @@ def detect_response(method: DetectionMethod = DetectionMethod.classical) -> Dete
         ),
         RejectedLookalike(
             id="lookalike-002",
-            polygon={
-                "type": "Polygon",
-                "coordinates": [
-                    _ellipse_polygon(*_offset(slick_lon, slick_lat, 14.0, -19.0), 7.5, 6.2, 120.0,
-                                     jitter=0.22, rng=rng)
-                ],
-            },
+            polygon=_water_polygon(
+                _ellipse_polygon(*_offset(slick_lon, slick_lat, 14.0, -19.0), 7.5, 6.2, 120.0,
+                                  jitter=0.22, rng=rng)
+            ),
             reason="Biogenic slick signature: weak backscatter damping (-3.1 dB vs -8.4 dB for the retained slick) and no coherent drift-consistent elongation.",
             confidence=0.66,
             geometry=SlickGeometry(
@@ -285,16 +304,33 @@ def detect_response(method: DetectionMethod = DetectionMethod.classical) -> Dete
 # --------------------------------------------------------------------------
 
 
-def _drift(direction: int, hours: float, n_particles: int, seed: int):
-    """Fake advection: a mean drift plus growing spread. Produces the same
-    shapes the real Lagrangian engine will in Phase 3."""
+def _drift(direction: int, hours: float, n_particles: int, seed: int, *, style: str = "hindcast"):
+    """Fake advection: a meandering mean drift plus growing, turbulent
+    spread. Produces the same broad shapes the real Lagrangian engine will
+    in Phase 3 — a curving track and an organically-widening, wind-rotated
+    cone, rather than a straight line of stamped identical ellipses.
+
+    `style` gives the hindcast and forecast visibly different silhouettes
+    instead of one being a mirrored copy of the other, matching how the two
+    read physically: the hindcast is a single ensemble converging back
+    toward one release point, so it stays a fairly coherent, elongated
+    along-track lobe. The forecast is the same slick spreading forward
+    under uncertain, evolving wind+current forcing, so it fans out
+    laterally and grows a ragged, branching edge instead of a clean lobe.
+    """
     rng = random.Random(seed)
     slick_lon, slick_lat = _offset(*GT_ORIGIN, 9.5, 7.0)
 
-    # Mean NE-ward set of ~1.5 km/h; backward runs it in reverse.
-    u_kmh, v_kmh = 1.20, 0.88
+    # Mean NE-ward set of ~1.5 km/h, but the heading meanders (a real
+    # current + wind field isn't steady) and each particle gets its own
+    # small random walk on top of the mean, so the cloud shears and curls
+    # instead of translating as a rigid blob.
+    speed_kmh = 1.48
+    bearing0_deg = 54.0
     step_h = 1.0
-    n_steps = int(hours / step_h)
+    n_steps = max(1, int(hours / step_h))
+
+    is_forecast = style == "forecast"
 
     frames: list[ParticleFrame] = []
     cone: list[ConePolygon] = []
@@ -303,35 +339,97 @@ def _drift(direction: int, hours: float, n_particles: int, seed: int):
     parts = []
     for _ in range(n_particles):
         parts.append(_offset(slick_lon, slick_lat, rng.gauss(0, 3.4), rng.gauss(0, 1.1)))
+    # Forecast: give each particle a persistent lateral "lane" offset from
+    # the mean track. Combined with a slow lane drift below, this is what
+    # produces branching fingers instead of a single growing blob — real
+    # wind-row/Langmuir-circulation slicks streak this way.
+    lanes = [rng.gauss(0, 2.2) for _ in parts] if is_forecast else None
 
+    bearing_deg = bearing0_deg
+    mean_lon, mean_lat = slick_lon, slick_lat
     for step in range(n_steps + 1):
         t = direction * step * step_h
         if step > 0:
-            spread = 0.22 * math.sqrt(step)
-            parts = [
-                _offset(lon, lat,
-                        direction * u_kmh * step_h + rng.gauss(0, spread),
-                        direction * v_kmh * step_h + rng.gauss(0, spread))
-                for lon, lat in parts
-            ]
+            # Slow meander in heading (~±10° per step, bounded random walk)
+            # plus a gentle sinusoidal component so repeated seeds still
+            # curve, not just jitter around a straight mean. The forecast
+            # meanders harder — forward uncertainty compounds — and fans
+            # laterally rather than thickening along-track.
+            meander_scale = 13.0 if is_forecast else 6.0
+            wave_amp = 10.0 if is_forecast else 4.0
+            bearing_deg += rng.gauss(0, meander_scale) + wave_amp * math.sin(step * (0.5 if is_forecast else 0.35))
+            theta = math.radians(bearing_deg)
+            u_kmh = speed_kmh * math.sin(theta)
+            v_kmh = speed_kmh * math.cos(theta)
+
+            # Spread grows with time and gets noisier per-particle (patchy,
+            # filamented edges instead of a uniform disc), and shear grows
+            # along-track vs across-track at different rates. Forecast
+            # widens across-track much faster than along-track (a fan),
+            # hindcast stays a tighter, more elongated lobe.
+            if is_forecast:
+                along = 0.09 * step
+                across = 0.95 * step ** 0.8
+            else:
+                along = 0.16 * step
+                across = 0.30 * math.sqrt(step)
+            mean_lon, mean_lat = _offset(mean_lon, mean_lat, direction * u_kmh * step_h, direction * v_kmh * step_h)
+            new_parts = []
+            for i, (lon, lat) in enumerate(parts):
+                # Per-particle bearing wobble so the cloud doesn't move as a
+                # rigid body — outer particles lag/lead the mean slightly.
+                jitter_bearing = math.radians(bearing_deg + rng.gauss(0, 14.0))
+                ju = speed_kmh * math.sin(jitter_bearing)
+                jv = speed_kmh * math.cos(jitter_bearing)
+                dx = direction * ju * step_h + rng.gauss(0, across)
+                dy = direction * jv * step_h + rng.gauss(0, along)
+                if lanes is not None:
+                    # Push each particle further out along its own lane as
+                    # time passes, perpendicular to the mean heading — this
+                    # is what turns the mass into diverging streaks rather
+                    # than a filled ellipse.
+                    perp = theta + math.pi / 2
+                    lane_push = lanes[i] * (1.1 + 0.75 * step)
+                    dx += lane_push * math.sin(perp)
+                    dy += lane_push * math.cos(perp)
+                new_parts.append(_offset(lon, lat, dx, dy))
+            parts = new_parts
         if step % 2 == 0 or step == n_steps:
             frames.append(ParticleFrame(t_offset_hours=t, points=[(round(a, 5), round(b, 5)) for a, b in parts]))
             clon = sum(p[0] for p in parts) / len(parts)
             clat = sum(p[1] for p in parts) / len(parts)
-            grow = 1.0 + 0.16 * step
+            # Cone orientation follows the current local heading (not a
+            # fixed 48°), and major/minor axes decorrelate slightly from
+            # pure "along/across track" so the shape isn't a clean capsule.
+            cone_bearing = bearing_deg + rng.gauss(0, 5.0)
             for pct, mult in ((50, 0.55), (90, 1.0)):
-                cone.append(
-                    ConePolygon(
-                        t_offset_hours=t,
-                        polygon={
-                            "type": "Polygon",
-                            "coordinates": [
-                                _ellipse_polygon(clon, clat, 15.0 * grow * mult, 7.0 * grow * mult, 48.0)
-                            ],
-                        },
-                        percentile=pct,
-                    )
-                )
+                if is_forecast:
+                    # Wide, fast-fanning fan shape: minor axis (across-track)
+                    # grows much faster than major (along-track), the
+                    # reverse of the hindcast lobe, so the silhouette reads
+                    # unmistakably as a spreading, ragged-edged fan rather
+                    # than an elongated capsule.
+                    major = (11.0 + 2.2 * step) * mult
+                    minor = (5.0 + 4.6 * step) * mult
+                    jitter = 0.42
+                else:
+                    major = (13.0 + 3.5 * step) * mult
+                    minor = (6.5 + 1.1 * step) * mult
+                    jitter = 0.22
+                # As the cone nears the coast, water_only() clips its land
+                # side off; if the whole cone has drifted onto land at this
+                # forecast hour there's no water region left to draw, and
+                # this frame is skipped rather than shown as a false area.
+                polygon = water_only({
+                    "type": "Polygon",
+                    "coordinates": [
+                        _ellipse_polygon(clon, clat, major, minor, cone_bearing,
+                                          jitter=jitter, rng=rng)
+                    ],
+                })
+                if polygon is None:
+                    continue
+                cone.append(ConePolygon(t_offset_hours=t, polygon=polygon, percentile=pct))
     return frames, cone, parts
 
 
@@ -367,7 +465,7 @@ def hindcast_response(hours: float = 24.0, n_particles: int = 500, seed: int = 4
 
 def forecast_response(hours: float = 12.0, n_particles: int = 500, seed: int = 42,
                       wind_factor: float = 0.03) -> ForecastResponse:
-    frames, cone, _ = _drift(+1, hours, n_particles, seed)
+    frames, cone, _ = _drift(+1, hours, n_particles, seed, style="forecast")
     path = []
     for f in frames:
         clon = sum(p[0] for p in f.points) / len(f.points)
