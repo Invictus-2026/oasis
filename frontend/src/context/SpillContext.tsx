@@ -133,7 +133,7 @@ export function SpillProvider({ children }: { children: ReactNode }) {
   const [viewMode, setViewMode] = useState < ViewMode > ("analyst");
 
   const [layers, setLayers] = useState < LayerVisibility > ({
-    sar: true, slick: true, lookalikes: true, cone: true, particles: true, forecast: true, tracks: true,
+    sar: false, slick: true, lookalikes: true, cone: true, particles: true, forecast: true, tracks: true,
   });
 
   const [activeReRouteOption, setActiveReRouteOption] = useState<ReRouteOption | null>(null);

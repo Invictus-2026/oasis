@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useSpillState } from "../context/SpillContext";
 import SpillSelector from "../components/SpillSelector";
-import { lonLat, bearingLabel } from "../lib/format";
+import { lonLat, bearingLabel, km2 } from "../lib/format";
 import {
   ShieldAlert, Anchor, Send, CheckCircle2, Loader2, Info,
   Radio, Ship, Megaphone,
@@ -71,7 +71,7 @@ export default function Alerts() {
   const defaultMessage =
     `MARITIME SAFETY ALERT\n\n` +
     `An oil slick has been detected at approximately ${lonLat(center)}.\n` +
-    `Estimated area: ${areaKm2.toFixed(1)} km²\n` +
+    `Estimated area: ${km2(areaKm2)}\n` +
     `Detection confidence: ${confidencePct}%\n` +
     `Prevailing wind: ${bearingLabel(mockWindDir)} (${mockWindDir}°)\n\n` +
     `Vessels transiting this area are advised to maintain a safe distance, avoid discharge or ballast operations nearby, and report any direct sightings to the nearest response agency.`;
@@ -141,7 +141,7 @@ export default function Alerts() {
           </div>
           <div>
             <div className="text-[10px] font-bold uppercase tracking-wider text-ink-400 mb-1">Area</div>
-            <div className="text-sm font-bold text-ink-900">{areaKm2.toFixed(1)} km²</div>
+            <div className="text-sm font-bold text-ink-900">{km2(areaKm2)}</div>
           </div>
           <div>
             <div className="text-[10px] font-bold uppercase tracking-wider text-ink-400 mb-1">Confidence</div>

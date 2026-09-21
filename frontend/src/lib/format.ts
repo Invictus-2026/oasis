@@ -1,7 +1,18 @@
 /** Formatting helpers. Kept in one place so readouts stay consistent. */
 
 export const km = (v: number, d = 1) => `${v.toFixed(d)} km`;
-export const km2 = (v: number, d = 1) => `${v.toFixed(d)} km²`;
+
+/** Below this, a km² reading at 1 decimal place rounds to "0.0" and reads as
+ *  missing data rather than a genuinely small area (e.g. a cropped/thumbnail
+ *  upload) — switch to m² so a real, tiny spill still shows a real number. */
+const KM2_TO_M2_THRESHOLD = 0.05;
+
+export const km2 = (v: number, d = 1) => {
+  if (v > 0 && v < KM2_TO_M2_THRESHOLD) {
+    return `${Math.round(v * 1e6).toLocaleString()} m²`;
+  }
+  return `${v.toFixed(d)} km²`;
+};
 export const pct = (v: number) => `${Math.round(v * 100)}%`;
 export const deg = (v: number) => `${v.toFixed(0)}°`;
 
