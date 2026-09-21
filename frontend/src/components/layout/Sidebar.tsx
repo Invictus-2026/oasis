@@ -10,6 +10,8 @@ import {
   FileText,
   Bell,
   Database,
+  ChevronLeft,
+  ChevronRight,
 } from "lucide-react";
 import UploadPanel from "./UploadPanel";
 
@@ -32,6 +34,8 @@ const MIN_WIDTH = 256;
 const MAX_WIDTH = 480;
 const DEFAULT_WIDTH = 288;
 const WIDTH_KEY = "oasis_sidebar_width";
+const COLLAPSED_WIDTH = 72;
+const COLLAPSED_KEY = "oasis_sidebar_collapsed";
 
 export default function Sidebar() {
   const [width, setWidth] = useState(() => {
@@ -40,6 +44,7 @@ export default function Sidebar() {
   });
   const [resizing, setResizing] = useState(false);
   const [compact, setCompact] = useState(() => window.matchMedia("(max-width: 1200px)").matches);
+  const [collapsed, setCollapsed] = useState(() => localStorage.getItem(COLLAPSED_KEY) === "1");
   const startX = useRef(0);
   const startWidth = useRef(width);
 
@@ -65,6 +70,12 @@ export default function Sidebar() {
     localStorage.setItem(WIDTH_KEY, String(width));
   }, [width]);
 
+  useEffect(() => {
+    localStorage.setItem(COLLAPSED_KEY, collapsed ? "1" : "0");
+  }, [collapsed]);
+
+  const toggleCollapsed = () => setCollapsed((c) => !c);
+
   const onMouseDown = (e: React.MouseEvent) => {
     e.preventDefault();
     startX.current = e.clientX;
@@ -76,10 +87,21 @@ export default function Sidebar() {
 
   return (
     <aside
-      style={compact ? undefined : { width }}
-      className={`app-sidebar relative bg-white border-r border-ink-200 flex flex-col h-full shrink-0 ${resizing ? "" : "transition-[width] duration-100"}`}
+      style={compact ? undefined : { width: collapsed ? COLLAPSED_WIDTH : width }}
+      className={`app-sidebar relative bg-white border-r border-ink-200 flex flex-col h-full shrink-0 ${resizing ? "" : "transition-[width] duration-150"}`}
     >
-      <div className="flex-1 overflow-y-auto py-4">
+      <div className="flex-1 overflow-y-auto overflow-x-hidden py-4">
+        <div className={`flex px-3 mb-2 ${collapsed ? "justify-center" : "justify-end"}`}>
+          <button
+            onClick={toggleCollapsed}
+            title={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+            aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+            className="p-1.5 rounded-md text-ink-400 hover:text-ink-900 hover:bg-ink-100 transition-colors shrink-0"
+          >
+            {collapsed ? <ChevronRight className="h-4 w-4" /> : <ChevronLeft className="h-4 w-4" />}
+          </button>
+        </div>
+
         <nav className="space-y-1 px-3">
           {navItems.map((item) => (
             <NavLink
@@ -88,6 +110,8 @@ export default function Sidebar() {
               title={item.name}
               className={({ isActive }) =>
                 `flex items-center gap-3 px-3 py-2.5 rounded-md text-sm font-medium transition-colors ${
+                  collapsed ? "justify-center" : ""
+                } ${
                   isActive
                     ? "bg-blue-50 text-blue-700"
                     : "text-ink-600 hover:bg-ink-50 hover:text-ink-900"
@@ -95,19 +119,19 @@ export default function Sidebar() {
               }
             >
               <item.icon className="h-5 w-5 shrink-0" />
-              <span>{item.name}</span>
+              {!collapsed && <span>{item.name}</span>}
             </NavLink>
           ))}
         </nav>
 
-        {!compact && (
+        {!compact && !collapsed && (
           <div className="mt-6 pt-5 mx-3 border-t border-ink-200">
             <UploadPanel />
           </div>
         )}
       </div>
 
-      {!compact && (
+      {!compact && !collapsed && (
         <div
           onMouseDown={onMouseDown}
           className={`absolute top-0 right-0 h-full w-1.5 cursor-col-resize group ${resizing ? "bg-blue-400/40" : ""}`}
