@@ -19,6 +19,8 @@ import cv2
 import numpy as np
 from scipy import ndimage
 
+from app.drift.coastline import water_only
+
 GRID = 160
 SMOOTH_PX = 3.5
 
@@ -79,6 +81,18 @@ def containment_polygon(points: np.ndarray, fraction: float) -> list[list[float]
     ]
     ring.append(ring[0])
     return ring
+
+
+def water_polygon(ring: list[list[float]]) -> dict | None:
+    """A containment ring as a GeoJSON polygon dict, clipped to water.
+
+    Cone/origin regions are drawn as the answer to "where might the oil
+    be" — they must never be drawn as covering land, however the density
+    contour above happened to come out. Returns None if the ring is
+    entirely on land (nothing left to draw); may return a MultiPolygon if
+    clipping splits the region into separate water pockets.
+    """
+    return water_only({"type": "Polygon", "coordinates": [ring]})
 
 
 def mode(points: np.ndarray) -> tuple[float, float]:
