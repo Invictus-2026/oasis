@@ -702,3 +702,52 @@ class RerouteResponse(BaseModel):
     exclusion_zone: GeoJSON | None = Field(None, description="The mathematical exclusion zone (buffered safe area) used by the engine")
     processing_time_ms: float
     error: str | None = Field(None, description="Error message if routing failed")
+
+
+# --------------------------------------------------------------------------
+# Grid A* spill-avoidance routing (app.routing) — a separate engine from the
+# visibility-graph RerouteRequest/Response above: this one rasterises the
+# operating area (masking land via bathymetry) and searches it with A*,
+# biased by current vectors, rather than routing around exact polygon
+# vertices. See app/routing/ and app/api/grid_reroute.py.
+# --------------------------------------------------------------------------
+
+class GridRouteWaypoint(BaseModel):
+    lon: float = Field(ge=-180.0, le=180.0)
+    lat: float = Field(ge=-90.0, le=90.0)
+
+
+class GridRoutePlanRequest(BaseModel):
+    start: LonLat = Field(description="[lon, lat] of the vessel's departure point")
+    end: LonLat = Field(description="[lon, lat] of the destination")
+    spill_polygons: list[GeoJSON] = Field(
+        default_factory=list,
+        description="GeoJSON Polygon/MultiPolygon geometries (or Features) for the spill extent, "
+                     "already including any desired buffer",
+    )
+    resolution_deg: float = Field(0.02, gt=0, le=1.0, description="Routing grid cell size, in degrees")
+    vessel_speed_knots: float = Field(15.0, gt=0, le=60, allow_inf_nan=False)
+    depth_threshold_m: float = Field(
+        0.0, ge=0, description="Minimum required depth in metres; shallower cells are masked as land"
+    )
+    current_penalty_weight: float = Field(
+        1.5, ge=0, le=10.0, description="0 disables current weighting (blocking-only behaviour)"
+    )
+
+
+class GridRouteReplanRequest(BaseModel):
+    session_id: str = Field(description="id returned by a prior /plan call, identifying the cached grid")
+    current_position: LonLat = Field(description="[lon, lat] of the vessel's live position")
+    end: LonLat | None = Field(None, description="Defaults to the destination used in the last plan/replan")
+    spill_polygons: list[GeoJSON] = Field(default_factory=list)
+
+
+class GridRouteResponse(BaseModel):
+    session_id: str = Field(description="pass this to /replan to reuse the same rasterised grid")
+    found: bool
+    reason: str
+    waypoints: list[GridRouteWaypoint]
+    distance_km: float
+    estimated_time_hours: float
+    estimated_fuel_units: float
+    processing_time_ms: float
