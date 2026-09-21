@@ -11,6 +11,7 @@ import type {
   ReRouteOption,
 } from "../api/types";
 import { C } from "../lib/theme";
+import { OceanLayer, OCEAN_PALETTES } from "../lib/oceanLayer";
 
 export interface LayerVisibility {
   sar: boolean;
@@ -133,12 +134,29 @@ function getLineEnd(geom: GeoJSON.Geometry, progress: number): [number, number] 
   return null;
 }
 
-/** A no-network raster style. Demo rule: nothing on screen may depend on the
- *  venue's wifi, so the basemap is a flat colour plus our own data. */
+/** Live raster style, fetched from Esri's World Imagery satellite tile
+ *  server at render time — no bundled/pre-fetched tiles. Real aerial
+ *  imagery reads better for a maritime/spill-tracking app than a drawn
+ *  street map. "bg" stays as a flat-colour fallback for any pixel the tile
+ *  server hasn't returned yet. */
 const STYLE: maplibregl.StyleSpecification = {
   version: 8,
-  sources: {},
-  layers: [{ id: "bg", type: "background", paint: { "background-color": "#e2e8f0" } }], // Light theme ocean color
+  sources: {
+    basemap: {
+      type: "raster",
+      // Esri's tile scheme is {z}/{y}/{x} — row before column, the
+      // opposite of the standard XYZ order used by OSM/CARTO/etc.
+      tiles: ["https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"],
+      tileSize: 256,
+      minzoom: 0,
+      maxzoom: 19,
+      attribution: "© Esri, Maxar, Earthstar Geographics",
+    },
+  },
+  layers: [
+    { id: "bg", type: "background", paint: { "background-color": "#e2e8f0" } }, // Light theme ocean color
+    { id: "basemap-raster", type: "raster", source: "basemap", paint: { "raster-fade-duration": 0 } },
+  ],
 };
 
 import { useTheme } from "../context/ThemeContext";
@@ -165,11 +183,13 @@ export default function MapView({
 
   useEffect(() => {
     if (!ready || !map.current) return;
-    // Rich oceanic colors for offline map
+    // "bg" is now only a fallback fill in case the custom ocean layer ever
+    // fails to render (WebGL context loss, unsupported browser) — the
+    // OceanLayer draws over it every frame in the normal case.
     const mapBgColor = theme === "dark" ? "#06132b" : "#e0f2fe";
     map.current.setPaintProperty("bg", "background-color", mapBgColor);
-    map.current.setPaintProperty("graticule-line", "line-color", theme === "dark" ? "#1e3a8a" : "#93c5fd");
-    map.current.setPaintProperty("graticule-line", "line-opacity", theme === "dark" ? 0.6 : 0.5);
+    oceanLayer.current?.setPalette(theme === "dark" ? OCEAN_PALETTES.dark : OCEAN_PALETTES.light);
+    map.current.triggerRepaint();
   }, [theme, ready]);
 
 
@@ -178,6 +198,9 @@ export default function MapView({
   
   const onMapClickRef = useRef(onMapClick);
   onMapClickRef.current = onMapClick;
+
+  const oceanLayer = useRef<OceanLayer | null>(null);
+  const oceanRaf = useRef<number | null>(null);
 
   const tracksAnim = useRef<{ key: string; start: number | null; raf: number | null }>({ key: "", start: null, raf: null });
   const originGrowAnim = useRef<{ key: string; start: number | null; raf: number | null }>({ key: "", start: null, raf: null });
@@ -191,7 +214,9 @@ export default function MapView({
       style: STYLE,
       center: [-90.0, 27.05],
       zoom: 8.2,
-      attributionControl: false,
+      // Compact rather than fully off: Esri's tile usage policy requires
+      // visible attribution for live tiles.
+      attributionControl: { compact: true },
     });
     m.addControl(new maplibregl.NavigationControl({ showCompass: true }), "bottom-right");
     m.addControl(new maplibregl.ScaleControl({ unit: "metric" }), "bottom-left");
@@ -203,7 +228,15 @@ export default function MapView({
     m.on("error", (e) => console.error("[OASIS] map error:", e?.error ?? e));
 
     m.on("load", () => {
-      for (const id of ["graticule", "frame", "cone90", "cone50", "originRegion90",
+      // Animated water backdrop, added first so every layer below still
+      // draws on top of it exactly as it drew on top of the old flat
+      // background-color fill.
+      const ocean = new OceanLayer();
+      ocean.setPalette(theme === "dark" ? OCEAN_PALETTES.dark : OCEAN_PALETTES.light);
+      m.addLayer(ocean, "bg");
+      oceanLayer.current = ocean;
+
+      for (const id of ["frame", "cone90", "cone50", "originRegion90",
         "originRegion50", "lookalikes", "slick",
         "particles", "forecastCone", "forecastPath", "tracks", "origin",
         "gap", "connector", "windField", "currentField",
@@ -234,12 +267,6 @@ export default function MapView({
         if (!m.hasImage("blue-pin-icon")) m.addImage("blue-pin-icon", imgPin);
       };
       imgPin.src = "data:image/svg+xml;charset=utf-8," + encodeURIComponent(pinSvg);
-
-      // Graticules
-      m.addLayer({
-        id: "graticule-line", source: "graticule", type: "line",
-        paint: { "line-color": "#93c5fd", "line-width": 1, "line-opacity": 0.5 }
-      });
 
       m.addLayer({
         id: "windField-line", source: "windField", type: "line",
@@ -479,10 +506,22 @@ export default function MapView({
 
       setReady(true);
       m.triggerRepaint();
+
+      // Custom layers only redraw when MapLibre repaints (camera move, data
+      // update, etc.) — this keeps the water animating continuously even
+      // while the map is otherwise idle.
+      const spinOcean = () => {
+        m.triggerRepaint();
+        oceanRaf.current = requestAnimationFrame(spinOcean);
+      };
+      oceanRaf.current = requestAnimationFrame(spinOcean);
     });
 
     map.current = m;
     return () => {
+      if (oceanRaf.current !== null) cancelAnimationFrame(oceanRaf.current);
+      oceanRaf.current = null;
+      oceanLayer.current = null;
       resizeObs.current?.disconnect();
       resizeObs.current = null;
       originMarkers.current.forEach((mk) => mk.remove());
@@ -557,7 +596,7 @@ export default function MapView({
         id: "sar-raster", source: "sar", type: "raster",
         paint: { "raster-opacity": 0.95, "raster-fade-duration": 300 }
       },
-      "graticule-line",
+      "windField-line",
     );
   }, [ready, caseMeta, theme]);
 
@@ -598,7 +637,7 @@ export default function MapView({
           coordinates: overlay.coordinates,
         });
 
-        const beforeLayer = m.getLayer("graticule-line") ? "graticule-line" : undefined;
+        const beforeLayer = m.getLayer("windField-line") ? "windField-line" : undefined;
         m.addLayer(
           {
             id: layerId,
@@ -1072,7 +1111,7 @@ export default function MapView({
     );
   }, [ready, focusRequest, detection]);
 
-  // ---- Dynamic endless graticule and wind field --------------------------
+  // ---- Dynamic endless wind and current field -----------------------------
   useEffect(() => {
     const m = map.current;
     if (!ready || !m || mockWindDir === undefined) return;
@@ -1088,23 +1127,7 @@ export default function MapView({
       const step = 0.25;
       const from = (v: number) => Math.floor(v / step) * step;
 
-      // 1. Graticule
-      const lines: GeoJSON.Feature[] = [];
-      for (let lon = from(west); lon < east; lon += step) {
-        lines.push({
-          type: "Feature", properties: {},
-          geometry: { type: "LineString", coordinates: [[lon, south], [lon, north]] }
-        });
-      }
-      for (let lat = from(south); lat < north; lat += step) {
-        lines.push({
-          type: "Feature", properties: {},
-          geometry: { type: "LineString", coordinates: [[west, lat], [east, lat]] }
-        });
-      }
-      setData("graticule", { type: "FeatureCollection", features: lines });
-
-      // 2. Wind Arrows
+      // Wind Arrows
       const arrows: GeoJSON.Feature[] = [];
       const rad = (90 - mockWindDir) * (Math.PI / 180);
       const arrowLen = 0.08;
