@@ -1,14 +1,15 @@
-# OASIS — 5-Minute Demo Video Script
+# OASIS — 7-Minute Demo Video Script
 
 **Problem statement:** SIH26143 (NTRO) — use Sentinel-1 SAR imagery to detect oil
 spills at sea and correlate with AIS data to identify the responsible vessel.
 
-**Goal of this video:** show a judge, in 5 minutes, that OASIS takes a raw SAR
+**Goal of this video:** show a judge, in 7 minutes, that OASIS takes a raw SAR
 scene all the way to a ranked, evidence-backed list of suspect vessels — the
-full **what → where/when → who** pipeline — with nothing hand-waved.
+full **what → where/when → who** pipeline — with nothing hand-waved, plus the
+operational and reporting layers built on top of it.
 
-Total runtime target: **5:00**. Timings below are per-section budgets, not
-strict cues — go a few seconds over/under a section but land the video at ~5:00.
+Total runtime target: **7:00**. Timings below are per-section budgets, not
+strict cues — go a few seconds over/under a section but lands the video at ~7:00.
 
 ---
 
@@ -32,6 +33,9 @@ strict cues — go a few seconds over/under a section but land the video at ~5:0
 5. Decide narration mode: voiceover recorded after screen capture (recommended
    — lets you re-take narration without re-doing clicks) or live narration
    while recording. Script below is written for either.
+6. Do one full rehearsal pass with a stopwatch. At 7 minutes the margin for
+   error is smaller than it feels — a 10-second overrun per section compounds
+   to nearly a minute by the end.
 
 ---
 
