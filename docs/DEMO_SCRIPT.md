@@ -39,23 +39,26 @@ strict cues — go a few seconds over/under a section but lands the video at ~7:
 
 ---
 
-## 0:00–0:25 — Cold open: the problem (no UI yet, or Overview hero only)
+## 0:00–0:30 — Cold open: the problem (no UI yet, or Overview hero only)
 
 **Say:**
 > "When an oil spill is detected at sea, investigators can see *that* it
 > happened — but proving *who* caused it, days later, from a moving vessel
-> and a drifting slick, is the hard part. OASIS is a system built for exactly
-> that: it takes a satellite radar image, detects the spill, hindcasts where
-> and when it started, and cross-references AIS ship-tracking data to produce
-> a ranked, confidence-scored list of suspect vessels — never a blind
-> accusation, always an explainable one."
+> and a drifting slick, is the hard part. The slick itself doesn't carry a
+> signature. By the time a response team is on scene, the vessel responsible
+> could be hundreds of kilometers away, transponder back on, looking exactly
+> like every other ship in the shipping lane. OASIS is a system built for
+> exactly that gap: it takes a satellite radar image, detects the spill,
+> hindcasts where and when it started, and cross-references AIS ship-tracking
+> data to produce a ranked, confidence-scored list of suspect vessels — never
+> a blind accusation, always an explainable one."
 
 **Do:** Sit on the Overview page hero (MarineTraffic live map band + vitals
 grid: Active Incident / Slick Area / etc.) while you say this.
 
 ---
 
-## 0:25–1:00 — Overview dashboard (orientation)
+## 0:30–1:15 — Overview dashboard (orientation)
 
 **Say:**
 > "This is the command dashboard. One active incident in the Gulf of Mexico —
@@ -63,36 +66,52 @@ grid: Active Incident / Slick Area / etc.) while you say this.
 > pipeline, not hardcoded. Down the left is the investigation flow: Maritime
 > Map, Satellite Intelligence, Drift Intelligence, Attribution, Reroute
 > Simulation, Reports, Alerts, and Data Sources — that's the order a real
-> analyst would work in, and it's the order I'll walk through."
+> analyst would work in, and it's the order I'll walk through. Each stage
+> hands validated output to the next: detection feeds drift, drift feeds
+> attribution, attribution feeds the report. Nothing here is a standalone
+> demo screen — it's one continuous pipeline."
 
 **Do:**
 - Let the vitals cards (Active Incident, Slick Area, etc.) be visible.
-- Point out the sidebar nav briefly (hover down it) without clicking yet.
+- Hover down the sidebar nav slowly enough that each label is readable,
+  without clicking yet.
+- Briefly hover over the live map band to show it's an interactive
+  MarineTraffic layer, not a static image.
 
 ---
 
-## 1:00–1:45 — Satellite Intelligence (Stage 1: detection — "what")
+## 1:15–2:15 — Satellite Intelligence (Stage 1: detection — "what")
 
 **Say:**
-> "This is where it starts: a Sentinel-1 SAR scene. Dark patches on radar can
-> mean an oil slick — or they can mean a look-alike: low wind, algae, a
-> current shear line. OASIS runs classical detection plus geometry and
-> texture analysis to tell the difference, then estimates the slick's age from
-> how it's spread and thinned."
+> "This is where it starts: a Sentinel-1 SAR scene. Radar imaging works day
+> or night, through cloud cover, which is exactly why it's the right sensor
+> for spill detection — optical satellites are useless over a cloudy ocean.
+> Dark patches on radar can mean an oil slick — or they can mean a
+> look-alike: low wind, algae, a current shear line. OASIS runs classical
+> detection plus geometry and texture analysis to tell the difference, then
+> estimates the slick's age from how it's spread and thinned."
 
 **Do:**
 - Navigate to **Satellite Intelligence**.
 - Show the SAR image with the detected slick overlay.
 - Expand one section card (e.g. detection evidence / backscatter stats) to
   show real numbers, not just a shape on a map.
-- If doing the live upload demo: use the upload panel to drop a sample scene
-  (`Sentinel-1 (500m)` or `ALOS PALSAR (250m)` from the built-in samples) and
-  let it run detection, then land on this page automatically. This is a
-  strong "it actually runs" beat — worth the ~15s if time allows.
+- Use the upload panel to drop a sample scene (`Sentinel-1 (500m)` or
+  `ALOS PALSAR (250m)` from the built-in samples) and let it run detection
+  live, then land on this page automatically. This is the strongest "it
+  actually runs" beat in the whole video — don't cut it if you have 7
+  minutes to work with.
 
-**Say (while overlay/evidence is on screen):**
+**Say (while upload/detection is running):**
+> "This isn't replaying a cached result — it's running the actual detection
+> model against a fresh scene right now."
+
+**Say (once overlay/evidence is on screen):**
 > "IoU against ground truth on our frozen case study is 0.878 — this isn't a
-> demo-only shape, it's a validated detector."
+> demo-only shape, it's a validated detector. And critically, the detector
+> also outputs a confidence and a look-alike likelihood, so downstream stages
+> know how much to trust this input rather than treating every detection as
+> certain."
 
 ---
 
