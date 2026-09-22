@@ -273,29 +273,34 @@ ranked list — whichever is more visually convincing as a closing frame.
 
 | Segment | Time | Cumulative |
 |---|---|---|
-| Cold open (problem) | 0:25 | 0:25 |
-| Overview dashboard | 0:35 | 1:00 |
-| Satellite Intelligence (detection) | 0:45 | 1:45 |
-| Drift Intelligence (hindcast/forecast) | 0:50 | 2:35 |
-| Attribution (AIS scoring) | 1:00 | 3:35 |
-| Reroute Simulation | 0:35 | 4:10 |
-| Reports & Alerts | 0:30 | 4:40 |
-| Close | 0:20 | 5:00 |
+| Cold open (problem) | 0:30 | 0:30 |
+| Overview dashboard | 0:45 | 1:15 |
+| Satellite Intelligence (detection) | 1:00 | 2:15 |
+| Drift Intelligence (hindcast/forecast) | 1:00 | 3:15 |
+| Attribution (AIS scoring, incl. second case) | 1:15 | 4:30 |
+| Reroute Simulation (incl. replan) | 0:45 | 5:15 |
+| Reports, Alerts & Data Sources | 0:50 | 6:05 |
+| Credibility beat (validated accuracy) | 0:35 | 6:40 |
+| Close | 0:20 | 7:00 |
 
-## Cut-first list (if you're running over 5:00)
+## Cut-first list (if you're running over 7:00)
 
-1. Reroute Simulation replan demo (keep only the initial route).
-2. Data Sources glance.
-3. Live upload demo on Satellite Intelligence — use a pre-loaded case instead.
-4. Alerts page — mention verbally over Reports instead of switching pages.
+1. Credibility beat (6:05–6:40) — fold the "frozen case study" line into the
+   close instead.
+2. Reroute Simulation replan demo — keep only the initial route.
+3. Second, lower-confidence Attribution case — mention it verbally instead of
+   expanding its score breakdown on screen.
+4. Data Sources glance — cut first among Reports/Alerts/Data Sources.
+5. Live upload demo on Satellite Intelligence — use a pre-loaded case instead
+   (last resort; it's the strongest "it actually runs" beat).
 
 ## Add-if-you-have-extra-time list
 
-1. A second, lower-confidence Attribution case to show the system isn't
-   overconfident.
-2. The `OFFLINE FIXTURES` badge callout, if backend is down, explaining the
-   frontend/backend split resilience.
-3. A quick sidebar-collapse toggle to show UI polish.
+1. A quick sidebar-collapse toggle to show UI polish.
+2. A second drift ensemble member callout — briefly mention how many members
+   are in the ensemble and why that improves on a single deterministic track.
+3. A close-up on the AIS-gap detection specifically — show the raw gap in a
+   vessel's track on the map before cutting to its score breakdown.
 
 ---
 
@@ -304,7 +309,9 @@ ranked list — whichever is more visually convincing as a closing frame.
 - [ ] Backend + frontend both running, or fixtures confirmed working
 - [ ] Browser full-screen, bookmarks/devtools hidden
 - [ ] Case study data loaded (frozen Gulf of Mexico case)
-- [ ] Script rehearsed once end-to-end for timing before final take
+- [ ] A second, lower-confidence Attribution candidate identified in advance
+      so you're not hunting for one on camera
+- [ ] Script rehearsed once end-to-end with a stopwatch before the final take
 - [ ] Screen resolution ≥ 1920×1080 for crisp text in map overlays
 - [ ] Audio recorded separately or with a decent mic — narration clarity
       matters as much as the visuals for judges skimming many submissions
