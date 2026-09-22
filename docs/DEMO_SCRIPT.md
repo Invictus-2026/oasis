@@ -186,47 +186,83 @@ grid: Active Incident / Slick Area / etc.) while you say this.
 
 ---
 
-## 3:35–4:10 — Reroute Simulation (operational value-add)
+## 4:30–5:15 — Reroute Simulation (operational value-add)
 
 **Say:**
 > "Beyond attribution, OASIS has operational use too: given the drift
 > forecast, we can plan spill-avoidance routes for other vessels in the area.
 > This uses a grid-based A* routing engine that treats the forecasted slick
-> as a no-go zone."
+> as a no-go zone, so response vessels, tankers, and fishing traffic in the
+> region can route around the hazard instead of through it."
 
 **Do:**
 - Navigate to **Reroute Simulation**.
 - Click a start point and an end point on the map.
 - Show the computed route bending around the slick/hazard zone.
-- (Optional, if time allows) trigger a re-plan to show the `/replan`
-  endpoint reacting to updated drift data.
+- Trigger a re-plan to show the `/replan` endpoint reacting to updated drift
+  data — pick a scenario where the forecast has shifted so the new route
+  visibly changes.
+
+**Say (during replan):**
+> "And because the drift forecast updates as new ocean data comes in, routes
+> aren't static either — replanning here shows the route adjusting to the
+> latest forecast, not a route frozen at the moment of detection."
 
 ---
 
-## 4:10–4:40 — Reports & Alerts (closing the loop)
+## 5:15–6:05 — Reports, Alerts & Data Sources (closing the loop)
 
 **Say:**
 > "Every incident rolls up into an evidence report — detection imagery, drift
 > path, and the scored vessel list, in one exportable package for
-> investigators or regulators. And the Alerts view keeps the whole team
-> aware of active and resolved incidents in real time."
+> investigators or regulators. This is the artifact that actually leaves the
+> system and goes into a case file, so it's built to stand on its own without
+> someone needing to open the dashboard to interpret it."
 
 **Do:**
 - Navigate to **Reports** — show the generated report content for the
-  current case.
+  current case, scroll through enough of it to show it's a complete
+  document, not a stub.
+
+**Say:**
+> "The Alerts view keeps the whole team aware of active and resolved
+> incidents in real time, and Data Sources shows exactly what feeds the
+> system — so nothing here is a black box."
+
+**Do:**
 - Quick cut to **Alerts** — show the incident list/badges.
-- (Optional) **Data Sources** — a 5-second glance to show what feeds the
-  system (Sentinel-1, AIS, wind/current models) if time allows; cut it first
-  if you're running long.
+- Cut to **Data Sources** — a glance to show what feeds the system
+  (Sentinel-1, AIS, wind/current models).
+- If the backend was ever offline during this recording, point out the
+  `OFFLINE FIXTURES` badge here and explain in one sentence that the
+  frontend/backend split means the UI stays demoable even if a data source
+  is down — this is a resilience point worth making if it's visible.
 
 ---
 
-## 4:40–5:00 — Close
+## 6:05–6:40 — Reinforcing validated accuracy (credibility beat)
+
+**Say:**
+> "Every number I've shown in this walkthrough — the 0.878 IoU on detection,
+> the 7.7 kilometer origin error on hindcast, the factor weights in
+> attribution — comes from a frozen, reproducible case study, not a
+> cherry-picked run. That matters for a system like this: an investigator or
+> a regulator has to be able to trust the numbers behind a suspect list, not
+> just the interface presenting them."
+
+**Do:** Cut back to the Overview dashboard or hold on the Attribution ranked
+list while this plays — whichever frame is already on screen from the
+previous section works, no new navigation needed here.
+
+---
+
+## 6:40–7:00 — Close
 
 **Say:**
 > "That's OASIS: one pipeline from a raw SAR scene to a ranked, explainable
 > list of suspect vessels — detection, drift, and attribution, backed by
-> validated accuracy at every stage, built for SIH26143."
+> validated accuracy at every stage, with reroute planning and reporting
+> built on top, for SIH26143."
 
 **Do:** End on the Overview dashboard or a wide shot of the Attribution
 ranked list — whichever is more visually convincing as a closing frame.
