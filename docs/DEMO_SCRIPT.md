@@ -115,32 +115,40 @@ grid: Active Incident / Slick Area / etc.) while you say this.
 
 ---
 
-## 1:45–2:35 — Drift Intelligence (Stage 2: hindcast/forecast — "where and when")
+## 2:15–3:15 — Drift Intelligence (Stage 2: hindcast/forecast — "where and when")
 
 **Say:**
 > "Detecting the slick only tells you where it is *now*. To find the
 > responsible vessel we need to know where it *started* — so OASIS runs a
 > bidirectional Lagrangian drift model: backward to estimate the origin point
 > and time, forward to forecast where the slick is heading next, using wind
-> and current data as an ensemble, not a single deterministic guess."
+> and current data as an ensemble, not a single deterministic guess. That
+> ensemble matters — ocean forecasts are uncertain, so instead of one drift
+> line we run many perturbed members and keep the spread, which is what
+> produces the cone you're about to see rather than a single confident-looking
+> but fragile line."
 
 **Do:**
 - Navigate to **Drift Intelligence**.
 - Trigger the hindcast (if not already run) — show the spinner/compute state
   briefly, this proves it's a real computation.
 - Show the drift cone on the map and the timeline scrubber; drag the
-  timeline once to show forward/backward animation.
+  timeline through both the backward hindcast and forward forecast to show
+  the animation in both directions.
 - Point at the origin estimate (lat/lon + time) and the forecast impact
-  flags.
+  flags (e.g. coastline or protected-area proximity warnings).
 
 **Say:**
 > "Origin error on our validated case study is 7.7 kilometers — accurate
 > enough to narrow the AIS search window to a specific place and time window,
-> which is exactly what Attribution needs next."
+> which is exactly what Attribution needs next. Without this stage, an
+> investigator would be searching AIS history across the entire spill's
+> footprint and an arbitrarily wide time range — this step is what makes the
+> attribution search tractable at all."
 
 ---
 
-## 2:35–3:35 — Attribution (Stage 3: AIS correlation — "who")
+## 3:15–4:30 — Attribution (Stage 3: AIS correlation — "who")
 
 **Say:**
 > "This is the core of the problem statement: given the estimated spill
@@ -148,18 +156,29 @@ grid: Active Incident / Slick Area / etc.) while you say this.
 > tracks, detects transponder gaps — a vessel going dark is itself a signal —
 > and scores every nearby vessel against multiple independent factors:
 > proximity to the origin, timing, course consistency, vessel type, and
-> AIS-gap behavior."
+> AIS-gap behavior. No single factor decides the ranking — it's a weighted
+> combination, so a vessel that merely passed nearby doesn't automatically
+> outrank one with a suspicious gap in its transponder history."
 
 **Do:**
 - Navigate to **Attribution**.
 - Show the ranked vessel list / score breakdown component.
 - Expand the score breakdown for the top-ranked vessel — show the individual
   factor scores (SCORE_FACTORS), not just a single number.
-- Explicitly show a lower-confidence or "insufficient evidence" case if the
-  fixture has one — this is what makes the system credible to judges: it
-  doesn't over-claim.
+- Explicitly show a lower-confidence or "insufficient evidence" case — pick a
+  second vessel further down the ranked list and expand its breakdown too.
+  This is what makes the system credible to judges: it doesn't over-claim,
+  and the contrast between a strong and a weak case shows the scoring is
+  actually discriminating, not just sorting arbitrarily.
 
-**Say:**
+**Say (on the second, weaker case):**
+> "Compare that to a lower-ranked vessel here — proximity alone isn't enough
+> to push it up the list; timing and course consistency pull it back down.
+> That contrast is deliberate: the system is telling the investigator exactly
+> how much weight to put on each candidate, not just handing over a single
+> name."
+
+**Say (closing this section):**
 > "Every score is explainable — you can see exactly which factors pushed a
 > vessel up or down the list. This is deliberately never a final
 > identification — it's a ranked, evidence-backed candidate list for
