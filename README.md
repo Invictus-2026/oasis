@@ -260,6 +260,26 @@ The FastAPI contract is defined in `backend/app/core/schemas.py` and exposed by 
 
 Interactive API documentation is available at `http://localhost:8000/docs` when the backend is running.
 
+### Minimal API smoke test
+
+```bash
+curl http://localhost:8000/health
+curl http://localhost:8000/api/case
+curl -X POST http://localhost:8000/api/drift/hindcast \
+  -H 'Content-Type: application/json' \
+  -d '{"slick_id":"slick-001","hours_back":12,"n_particles":500}'
+```
+
+### Troubleshooting map
+
+| Symptom | Fix |
+|---|---|
+| `uv` cannot install geospatial packages | Use Python 3.11 or 3.12; Python 3.13+ is outside the supported range |
+| Dashboard shows `OFFLINE FIXTURES` | Start the API on port 8000, or keep fixture mode enabled for a no-network demo |
+| Case bundle is missing | Run `backend/.venv/bin/python scripts/build_case.py` from the repository root |
+| U-Net method is unavailable | Add trained weights under `ml/weights/`; the classical detector remains the guaranteed path |
+| UI/API contract looks stale | Re-export mocks with `scripts/export_mocks.py`, then run frontend typecheck |
+
 ## Validation
 
 Measured on the frozen case against the official Zenodo mask:
