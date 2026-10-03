@@ -175,6 +175,25 @@ Every factor is returned in the response. An AIS gap is labelled as a fact and a
 
 `backend/app/routing/` provides grid/A* route planning and re-planning around spill cells. The report layer combines the detection, drift, attribution, source, processing-chain, and limitation sections into a report-ready response.
 
+### Stage hand-off contract
+
+```mermaid
+sequenceDiagram
+    participant Scene as SAR scene
+    participant Detect as Detection
+    participant Drift as Drift engine
+    participant AIS as AIS scorer
+    participant Ops as Operator UI
+    Scene->>Detect: pixels + acquisition metadata
+    Detect-->>Drift: slick polygon + age bracket
+    Drift-->>AIS: origin region + time window
+    AIS-->>Ops: ranked candidates + factor breakdown
+    Drift-->>Ops: forecast cone + impact flags
+    Ops->>Ops: report, alert, or re-route
+```
+
+Each hand-off is typed through Pydantic response models mirrored by `frontend/src/api/types.ts`. That keeps the dashboard, fixture mode, and live API on the same contract.
+
 ## Data and provenance
 
 The frozen case is `gom-2023-06-15`. Build or refresh it with:
