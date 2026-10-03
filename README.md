@@ -250,12 +250,12 @@ The FastAPI contract is defined in `backend/app/core/schemas.py` and exposed by 
 | Area | Endpoints |
 |---|---|
 | Meta / case | `GET /health`, `GET /api/case`, `GET /api/pipeline/run` |
-| Scenes / uploads | `GET /api/scene/sar.png`, `POST /api/upload`, `POST /api/detect/upload` |
+| Scenes / uploads | `GET /api/scene/sar.png`, `POST /api/detect/upload` |
 | Detection | `POST /api/detect`, `POST /api/classify-oil` |
 | Drift | `POST /api/drift/hindcast`, `POST /api/drift/forecast`, `POST /api/drift/origin-search` |
 | Environment | `GET /api/environment`, `GET /api/environment/providers` |
 | AIS / attribution | `GET /api/ais/tracks`, `POST /api/attribute` |
-| Operations | `POST /api/vessel/reroute`, `POST /api/plan`, `POST /api/replan` |
+| Operations | `POST /api/vessel/reroute`, `POST /api/routing/plan`, `POST /api/routing/replan` |
 | Reporting | `POST /api/report` |
 
 Interactive API documentation is available at `http://localhost:8000/docs` when the backend is running.
@@ -352,6 +352,19 @@ Near-term hardening includes real forcing/provider adapters, multi-incident cali
 - [Seven-minute demo script](docs/DEMO_SCRIPT.md)
 - [Build plan and acceptance criteria](plan.md)
 - [Domain and stakeholder research](research.md)
+
+## Demo-ready checklist
+
+```text
+□ Run ./scripts/check.sh and confirm the case bundle is available
+□ Start the API and dashboard, then verify the OFFLINE FIXTURES badge is absent
+□ Walk the six-screen story: overview → satellite → drift → attribution → reroute → report
+□ Point out the constructed-scenario banner and the 50% / 90% origin regions
+□ Explain that a candidate is an investigation lead, not a conclusion
+□ Keep docs/DEMO_SCRIPT.md open for the timed narration and fallback beats
+```
+
+The strongest demo is not a single score: it is the chain of evidence, the uncertainty shown between stages, and the fact that the same case can be replayed without a live network connection.
 
 ## License / project context
 
