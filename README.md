@@ -1,23 +1,88 @@
-# OASIS [Oil Analytics and Ship Intelligence System]
+# OASIS
 
-Oil-spill detection, drift hindcast/forecast and AIS-based vessel attribution.
+### Oil Analytics & Ship Intelligence System
 
-**Smart India Hackathon — PS SIH26143 (National Technical Research Organisation)**
-*Leveraging satellite imagery to determine oil spills at sea along with AIS data correlations to identify the vessel responsible.*
+> **From a dark patch in SAR imagery to an explainable investigation lead.**
 
-OASIS takes a Sentinel-1 SAR scene and answers three questions in sequence:
-**what** is the slick (detection and characterisation), **where and when** did it start
-(bidirectional Lagrangian drift), and **who** was plausibly there (AIS correlation and
-explainable scoring). Output is a ranked, confidence-scored candidate list with full
-processing provenance. It is deliberately never an identification.
+OASIS is an offline-first maritime intelligence workbench for the SIH26143 / NTRO challenge. It combines satellite oil-slick detection, ocean-drift reconstruction, AIS vessel correlation, route safety, and evidence reporting in one dashboard.
 
----
+<p align="center">
+  <img src="assets/oil_spil.png" alt="Oil spill analysis visual" width="720" />
+</p>
+
+<p align="center">
+  <a href="#quick-start">Quick start</a> ·
+  <a href="#system-at-a-glance">Architecture</a> ·
+  <a href="#dashboard">Dashboard</a> ·
+  <a href="#api-surface">API</a> ·
+  <a href="#validation">Validation</a>
+</p>
+
+## The problem in one picture
+
+```mermaid
+flowchart LR
+    A[Satellite SAR scene] --> B{Is the dark region oil?}
+    B -->|yes: geometry + age| C[Detected slick]
+    B -->|no: look-alike| X[Explain rejection]
+    C --> D[Backward drift ensemble]
+    C --> E[Forward drift forecast]
+    D --> F[Likely origin + time window]
+    F --> G[AIS tracks + gaps]
+    G --> H[Ranked investigation leads]
+    E --> I[Impact warnings + safe reroute]
+    H --> J[Evidence report]
+```
+
+The output is deliberately a ranked, confidence-scored candidate list—not a verdict. Physics and AIS gaps are evidence signals, never proof of wrongdoing.
+
+## Why OASIS
+
+| Challenge | OASIS response |
+|---|---|
+| SAR dark spots have look-alikes | Classical segmentation plus morphology, texture, contrast, and physical rejection reasons |
+| A slick moves after release | Bidirectional Lagrangian particle ensemble with 50% / 90% uncertainty cones |
+| AIS is incomplete | Spatial, temporal, trajectory, heading, behavior, and AIS-gap factors are scored separately |
+| Investigators need an audit trail | Provenance, parameters, evidence panels, and report content travel through the pipeline |
+| Demos cannot depend on conference Wi-Fi | Bundled fixtures and synthetic forcing keep the complete UI usable offline |
+
+## System at a glance
+
+```mermaid
+flowchart TB
+    subgraph UI[Frontend · React + TypeScript + Vite]
+      P[Overview / Map / Satellite / Drift / Attribution]
+      O[Reports / Alerts / Data Sources / Reroute]
+    end
+    subgraph API[Backend · FastAPI]
+      C[Case + scene + upload]
+      D[Detection + oil classification]
+      R[Drift + environment]
+      A[AIS + attribution]
+      N[Routing + report + pipeline]
+    end
+    subgraph CORE[Domain modules]
+      M1[OpenCV / NumPy / Shapely]
+      M2[Lagrangian transport + uncertainty]
+      M3[Track reconstruction + weighted scoring]
+      M4[A* grid routing + PDF-ready evidence]
+    end
+    subgraph DATA[Offline data boundary]
+      B[case.json + SAR + masks]
+      T[AIS tracks]
+      W[wind / current forcing]
+      F[fixtures + frontend mocks]
+    end
+    UI --> API --> CORE
+    CORE --> DATA
+    API --> F
+```
 
 ## Quick start
 
-Two terminals.
+### 1. Start the API
 
-**Backend** (Python 3.11 or 3.12 — not 3.13+, the geospatial stack lacks wheels):
+Python **3.11 or 3.12** is required by the geospatial stack.
 
 ```bash
 cd backend
@@ -26,155 +91,218 @@ uv pip install --python .venv/bin/python -r requirements.txt
 .venv/bin/uvicorn app.main:app --reload --port 8000
 ```
 
-**Frontend:**
+### 2. Start the dashboard
 
 ```bash
 cd frontend
 npm install
-npm run dev          # http://localhost:5173
+npm run dev                 # http://localhost:5173
 ```
 
-Vite proxies `/api` to the backend, so there is nothing to configure.
-
-**Working with the backend down:** the frontend falls back to bundled fixtures in
-`src/mock/` automatically and shows an `OFFLINE FIXTURES` badge in the header.
-Force it with `VITE_FORCE_MOCK=1 npm run dev`.
-
-**Check everything at once:**
+Vite proxies `/api` to `localhost:8000`. If the API is unavailable, the UI automatically uses `frontend/src/mock/` and shows an `OFFLINE FIXTURES` badge.
 
 ```bash
-./scripts/check.sh            # verify toolchain, bundle, tests, typecheck, API
-./scripts/check.sh --serve    # verify, then start both servers
+VITE_FORCE_MOCK=1 npm run dev
 ```
 
-It exits non-zero if anything required is broken. Logs land in `.run/`.
-Stop the servers with `pkill -f 'uvicorn app.main' ; pkill -f vite`.
-
-**Or individually:**
+### 3. Run the complete check
 
 ```bash
-cd backend && .venv/bin/python -m pytest -q
-cd frontend && npm run typecheck
+./scripts/check.sh
 ```
 
----
+This checks the toolchain, case bundle, backend tests, frontend typecheck, API health, proxy behavior, and—when servers are running—the rendered UI. Use `./scripts/check.sh --serve` to start both services after verification. Logs go to `.run/`.
 
-## Where things live
+## Dashboard
 
-```
-research.md          Domain research dossier — read this for context
-plan.md              The 9-phase build plan with per-phase acceptance criteria
-
-backend/app/
-  core/schemas.py    THE API CONTRACT. Frozen in Phase 0. Change deliberately.
-  core/config.py     Paths, the frozen case study, physics and scoring defaults
-  core/fixtures.py   Phase-0 fake data — deleted stage by stage as real code lands
-  api/               One router per pipeline stage
-  detection/         Stage 1 — classical + optional U-Net, geometry, age proxy
-  drift/             Stage 2 — Lagrangian ensemble, hindcast cone, forecast
-  attribution/       Stage 3 — AIS ingest, gap detection, explainable scoring
-  report/            Evidence PDF
-
-frontend/src/
-  api/types.ts       Mirror of schemas.py — keep the two in sync
-  api/client.ts      Fetch with automatic fixture fallback
-  components/        MapView + one panel per stage
-  mock/              Generated by scripts/export_mocks.py
-
-data/case/           The frozen case-study bundle (Phase 1, gitignored)
-scripts/             build_case.py, export_mocks.py
-ml/                  U-Net training notebook and weights
-```
-
-## Build status
-
-| Phase | What | Status |
-|---|---|---|
-| 0 | Scaffold, frozen API contract, fixtures, dashboard shell | **Done** |
-| 1 | Freeze the case study bundle | **Done** |
-| 2 | Detection, geometry, look-alike rejection, age proxy | **Done** — IoU 0.878 |
-| 3 | Drift engine, hindcast cone, forecast | **Done** — origin error 7.7 km |
-| 4 | AIS ingest, gap detection, explainable scoring | Not started |
-| 5 | Dashboard against real data | Shell done, fixture-backed |
-| 6 | Evidence PDF | Content endpoint done, PDF pending |
-| 7 | U-Net upgrade (optional) | Not started |
-| 8 | Demo hardening and deck | Not started |
-
-Every endpoint is fixture-backed today. Phases 2-4 swap in real implementations one
-router at a time; `backend/tests/test_contract.py` must keep passing unchanged
-throughout, which is the point of freezing the contract early.
-
----
-
-## Measured results
-
-Against the frozen `gom-2023-06-15` case, scored on the official Zenodo mask:
-
-| Metric | Value |
+| Route | What it shows |
 |---|---|
-| Detection IoU | **0.878** |
-| Recall / precision | 0.931 / 0.939 |
-| Area | 15.9 km² (truth 16.0) |
-| Orientation | 65° (truth 65°) |
-| Look-alikes rejected | 2 of 2, each with a stated physical reason |
-| Age bracket | 4.5–19.1 h (truth 8.0 h) |
-| Hindcast origin error | **7.7 km** (mode vs true origin) |
-| 90% origin region | contains the true origin |
-| Drift runtime | 38 ms |
+| `/` | Case overview, pipeline status, and live map summary |
+| `/map` | Maritime map with slicks, tracks, cones, and layer toggles |
+| `/satellite` | SAR scene upload, segmentation, geometry, look-alike reasoning, age proxy |
+| `/drift` | Hindcast origin, forecast path, timeline, uncertainty, impact flags |
+| `/vessel` | AIS track reconstruction and vessel intelligence |
+| `/attribution` | Candidate shortlist, factors, flags, and explainable score breakdown |
+| `/reroute` | Route planning and spill-aware re-planning |
+| `/reports` | Evidence-style report view with provenance and limitations |
+| `/alerts` | Maritime safety alerts and alert log |
+| `/data` | Data-source and synthetic/real provenance view |
 
-The detector has no learned weights and is fully deterministic. Re-measure with
-`cd backend && .venv/bin/python -m pytest tests/test_detection.py -q`.
+The intended operator journey is:
 
-## Design rules
+```text
+Overview → Satellite Intelligence → Drift Intelligence → Attribution
+       → Reroute Simulation → Reports
+```
 
-These are load-bearing. Breaking one breaks the pitch, not just the code.
+## Pipeline stages
 
-1. **The demo runs offline.** No live API calls, no CDN, no network basemap. Conference
-   wifi has killed more demos than bad code.
-2. **Rank, never accuse.** Every output is a confidence-scored candidate list with a
-   per-factor breakdown. The physics does not support certainty and a system that
-   pretends otherwise is useless downstream.
-3. **Fallback before headline.** Every ML or physics component ships a simple
-   deterministic version first. The classical detector is the guaranteed path; the
-   U-Net is a cuttable upgrade.
-4. **Caveats go on screen, not in a footnote.** The age estimate carries its method
-   note, the AIS gap carries its base-rate warning, and the constructed-scenario
-   disclaimer is a permanent, non-dismissible banner.
-5. **Uncertainty is a cone, not a pin.** The hindcast returns 50% and 90% containment
-   polygons. The origin marker is only the mode of the ensemble.
+### 1 · Detect and characterise
 
-## Data
+`backend/app/detection/` turns a SAR-like raster into oil and look-alike regions. The deterministic classical path includes local filtering, adaptive thresholding, connected components, morphology, geometry, contrast, edge evidence, and a low-confidence weathering/age proxy. U-Net support is optional and only enabled when weights are present.
 
-Build the frozen case bundle with:
+**Typical outputs:** GeoJSON regions, area, perimeter, orientation, length/width, estimated age bracket, confidence, and physical rejection reasons.
+
+### 2 · Reconstruct and forecast drift
+
+`backend/app/drift/` advects particles with current, windage, and scale-dependent diffusion. The same model runs backward to estimate origin and forward to project impact. The UI renders the particle timeline, mode, 50% region, 90% region, and forecast warnings.
+
+### 3 · Correlate AIS and rank leads
+
+`backend/app/attribution/` parses tracks, detects reporting gaps, filters vessels by origin proximity and time window, then scores each candidate using independent factors such as:
+
+```text
+candidate score
+  = proximity + time overlap + trajectory fit
+  + heading alignment + behavior + AIS-gap signal
+  + counterfactual drift similarity
+```
+
+Every factor is returned in the response. An AIS gap is labelled as a fact and an investigation signal—not an accusation.
+
+### 4 · Protect operations and package evidence
+
+`backend/app/routing/` provides grid/A* route planning and re-planning around spill cells. The report layer combines the detection, drift, attribution, source, processing-chain, and limitation sections into a report-ready response.
+
+## Data and provenance
+
+The frozen case is `gom-2023-06-15`. Build or refresh it with:
 
 ```bash
 backend/.venv/bin/python scripts/build_case.py
 ```
 
-It prints `[REAL]` or `[SYNTH]` per input and records the same in `case.json`,
-which the UI surfaces. Current state of the `gom-2023-06-15` case:
-
-| Input | Status | Detail |
+| Input | Prototype status | Role |
 |---|---|---|
-| Zenodo oil mask `00250.tif` | **Real** | Official dataset. Real slick morphology, scaled to a 34 km trail. |
-| NOAA AccessAIS 2023-06-15 | **Real** | 201 vessels, 24,328 positions clipped to the bbox. 31 within 25 km of the origin. |
-| SAR backscatter | Synthesised | Gamma multi-look speckle, Bragg damping, wind streaks. 6.7 dB oil/sea contrast. |
-| Look-alike patches | Synthesised | The official look-alike masks are empty by construction (they mark oil; look-alike scenes have none). |
-| Wind + current field | Synthesised | ERA5/CMEMS need free accounts. Mean flow plus a 22 km eddy so the ensemble has real shear. |
-| Ground-truth polluter | Synthesised | One vessel, AIS-dark 94 min across the release window. The known answer Stage 3 must recover. |
+| Zenodo oil mask `00250.tif` | Real | Slick morphology and evaluation mask |
+| NOAA AccessAIS extract | Real | Vessel traffic and track reconstruction |
+| SAR backscatter scene | Synthesised | Speckle, wind streaks, and oil/sea contrast |
+| Look-alike patches | Synthesised | Negative examples for physical rejection |
+| Wind/current field | Synthesised | Reproducible drift forcing and shear |
+| Ground-truth polluter | Synthesised | Controlled AIS-dark validation target |
 
-**To upgrade the synthesised inputs**, drop the real files into `data/raw/` and
-re-run the builder — it picks them up automatically and reclassifies them as real:
+This is a **constructed validation scenario**: real SAR and AIS inputs are co-located for reproducible testing, and one polluter is injected. They do not describe one real-world incident. The dashboard is designed to keep that limitation visible.
 
-- `sar_scene.tif` — the official Part II test imagery (9.9 GB) is downloading in
-  the background via `data/raw/fetch_zenodo_test.sh`; the script is resumable.
-- `era5_wind.nc` — register at <https://cds.climate.copernicus.eu/> and use `cdsapi`.
-- `cmems_currents.nc` — register at <https://marine.copernicus.eu/> and use `copernicusmarine`.
+Production data-source substitutions are straightforward: ISRO SAR for Sentinel-1, India's NAIS feed for AccessAIS, and INCOIS forcing for CMEMS/ERA5.
 
-The prototype runs a **constructed validation scenario**: real SAR imagery and real AIS
-traffic co-located onto a common region and time, plus one injected synthetic polluter,
-so attribution can be validated against a known ground truth. The imagery and the vessel
-traffic are not from the same real-world incident, and the UI says so permanently.
+## Repository map
 
-Production path is a data-source substitution, not a redesign: ISRO SAR for Sentinel-1,
-India's NAIS feed for AccessAIS, INCOIS forcing for CMEMS/ERA5.
+```text
+.
+├── backend/
+│   ├── app/api/              REST routers for every pipeline stage
+│   ├── app/core/             Pydantic contract, config, fixtures, case store
+│   ├── app/detection/        Segmentation, geometry, volume, age, U-Net seam
+│   ├── app/drift/            Fields, Lagrangian engine, cones, origin search
+│   ├── app/attribution/      AIS ingest, gaps, filters, scoring
+│   ├── app/environment/      Forcing providers and case-bundle resolver
+│   ├── app/routing/          Grid routing and A* re-planning
+│   └── tests/                Contract, physics, geometry, API, and scoring tests
+├── frontend/
+│   ├── src/pages/            Operator-facing dashboard routes
+│   ├── src/components/       Map, panels, tables, timeline, layout
+│   ├── src/api/              Typed client and response contracts
+│   └── src/mock/             Offline fixture responses
+├── ml/                       U-Net notebook and oil-type classification tools
+├── scripts/                  Case builder, mock exporter, checks, render helper
+├── data/case/                 Generated frozen bundle and manifest
+├── data/raw/                  Optional source downloads
+├── docs/                     Pipeline notes and demo script
+├── PIPELINE_ML.md             Detailed implementation and model notes
+├── plan.md                   Build plan and acceptance criteria
+└── research.md               Domain, stakeholder, legal, and competitor research
+```
+
+## API surface
+
+The FastAPI contract is defined in `backend/app/core/schemas.py` and exposed by `backend/app/main.py`.
+
+| Area | Endpoints |
+|---|---|
+| Meta / case | `GET /health`, `GET /api/case`, `GET /api/pipeline/run` |
+| Scenes / uploads | `GET /api/scene/sar.png`, `POST /api/upload`, `POST /api/detect/upload` |
+| Detection | `POST /api/detect`, `POST /api/classify-oil` |
+| Drift | `POST /api/drift/hindcast`, `POST /api/drift/forecast`, `POST /api/drift/origin-search` |
+| Environment | `GET /api/environment`, `GET /api/environment/providers` |
+| AIS / attribution | `GET /api/ais/tracks`, `POST /api/attribute` |
+| Operations | `POST /api/vessel/reroute`, `POST /api/plan`, `POST /api/replan` |
+| Reporting | `POST /api/report` |
+
+Interactive API documentation is available at `http://localhost:8000/docs` when the backend is running.
+
+## Validation
+
+Measured on the frozen case against the official Zenodo mask:
+
+| Signal | Result |
+|---|---:|
+| Detection IoU | **0.878** |
+| Recall / precision | **0.931 / 0.939** |
+| Slick area | **15.9 km²** vs 16.0 km² truth |
+| Look-alikes rejected | **2 / 2** |
+| Age bracket | **4.5–19.1 h**; low confidence by design |
+| Hindcast origin error | **7.7 km** |
+| 90% origin region | Contains the true origin |
+| Drift runtime | **38 ms** in the reference test |
+
+Run the focused checks:
+
+```bash
+cd backend
+.venv/bin/python -m pytest -q
+.venv/bin/python -m pytest tests/test_detection.py -q
+```
+
+Frontend type safety:
+
+```bash
+cd frontend
+npm run typecheck
+npm run build
+```
+
+## Engineering principles
+
+<table>
+<tr><td>🛰️ <b>Offline-first</b></td><td>The demo keeps working with local bundles and fixtures.</td></tr>
+<tr><td>🧭 <b>Uncertainty is a cone</b></td><td>Origins are regions and time windows, not false-precision pins.</td></tr>
+<tr><td>⚖️ <b>Rank, never accuse</b></td><td>Candidate scores explain evidence; they do not establish guilt.</td></tr>
+<tr><td>🧪 <b>Fallback before headline</b></td><td>Deterministic paths remain available when ML weights or live forcing are absent.</td></tr>
+<tr><td>🔎 <b>Show the caveat</b></td><td>Constructed data, low-confidence age, and AIS gaps stay visible in the product.</td></tr>
+</table>
+
+## Current scope and next steps
+
+```mermaid
+quadrantChart
+    title OASIS delivery map
+    x-axis Prototype --> Production
+    y-axis Supporting --> Core
+    quadrant-1 Scale and harden
+    quadrant-2 Demo-ready core
+    quadrant-3 Research backlog
+    quadrant-4 Operationalize
+    Classical detection: [0.62, 0.88]
+    Drift ensemble: [0.58, 0.82]
+    AIS scoring: [0.52, 0.86]
+    Offline dashboard: [0.68, 0.74]
+    Case provenance: [0.55, 0.66]
+    U-Net upgrade: [0.25, 0.50]
+    Live Indian feeds: [0.12, 0.44]
+    PDF export: [0.38, 0.48]
+    Multi-incident backtest: [0.18, 0.31]
+```
+
+Near-term hardening includes real forcing/provider adapters, multi-incident calibration, higher-fidelity weathering and transport physics, production SAR/AIS connectors, and a finished PDF download path. The current implementation is a best-effort triage and evidence-support tool, not continuous surveillance or a legal decision-maker.
+
+## Further reading
+
+- [Pipeline implementation notes](PIPELINE_ML.md)
+- [Detailed pipeline design](docs/PIPELINE.md)
+- [Seven-minute demo script](docs/DEMO_SCRIPT.md)
+- [Build plan and acceptance criteria](plan.md)
+- [Domain and stakeholder research](research.md)
+
+## License / project context
+
+Built for **Smart India Hackathon — SIH26143**, the NTRO problem statement on satellite oil-spill detection and AIS-based vessel correlation. Add project-specific licensing and team attribution here before public release.
