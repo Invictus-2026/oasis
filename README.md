@@ -113,6 +113,17 @@ VITE_FORCE_MOCK=1 npm run dev
 
 This checks the toolchain, case bundle, backend tests, frontend typecheck, API health, proxy behavior, and—when servers are running—the rendered UI. Use `./scripts/check.sh --serve` to start both services after verification. Logs go to `.run/`.
 
+### Stack card
+
+| Layer | Choices |
+|---|---|
+| UI | React 19, TypeScript, Vite, React Router, Tailwind CSS, MapLibre GL |
+| API | FastAPI, Uvicorn, Pydantic v2 |
+| Science | NumPy, SciPy, OpenCV, Rasterio, Shapely, Xarray, NetCDF4, Pandas |
+| Intelligence | Classical SAR detector, optional U-Net seam, Lagrangian drift, weighted AIS scoring |
+| Operations | A* grid routing, GeoJSON, ReportLab-ready report content |
+| Data boundary | JSON/GeoJSON/Parquet/NPZ case bundle with deterministic fixture fallback |
+
 ## Dashboard
 
 | Route | What it shows |
